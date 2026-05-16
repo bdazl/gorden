@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+# Common binary asset formats
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.tga binary
+*.exr binary
+*.hdr binary
+*.dds binary
+*.ktx binary
+*.fbx binary
+*.gltf binary
+*.glb binary
+*.bin binary
+*.wav binary
+*.ogg binary
+*.flac binary
+*.mp3 binary

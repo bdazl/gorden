@@ -1,69 +1,25 @@
-# Prerequisites
-*.d
+# All build artefacts live out-of-source under build/<preset>/, so almost
+# everything we want to ignore is rooted there.
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+/build/
 
-# Precompiled Headers
-*.gch
-*.pch
+# clangd compile-commands symlink at repo root
+/compile_commands.json
 
-# Linker files
-*.ilk
+# editor / IDE
+/.vscode/
+/.idea/
+/.cursor/
+/.cache/
 
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build directories
-build/
-Build/
-build-*/
-
-# CMake generated files
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-install_manifest.txt
-compile_commands.json
-
-# Temporary files
-*.tmp
-*.log
-*.bak
+# vim / emacs swap files
 *.swp
+*.swo
+*~
 
-# vcpkg
-vcpkg_installed/
+# OS junk
+.DS_Store
+Thumbs.db
 
-# debug information files
-*.dwo
-
-# test output & cache
-Testing/
-.cache/
+# local Conan cache, if someone happens to run it in-tree
+/.conan2/
