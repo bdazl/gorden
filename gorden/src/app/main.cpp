@@ -5,6 +5,7 @@ import roboslop.platform.window;
 import roboslop.render.asset_cache;
 import roboslop.render.context;
 import roboslop.render.mesh;
+import roboslop.scene.transform;
 
 #include <array>
 #include <cstdint>
@@ -52,6 +53,7 @@ auto main() -> int {
 
                 const auto e = world.create();
                 world.emplace<roboslop::Mesh>(e, mesh);
+                world.emplace<roboslop::Transform>(e);
                 return {};
             },
             .onFixedUpdate = {},

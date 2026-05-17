@@ -2,6 +2,15 @@ module;
 
 #include <bgfx/bgfx.h>
 
+// entt's sparse-set iterator's operator!= is a non-member that range-for
+// can't see through the module boundary for single-component views. The
+// include keeps the range-for in submitMeshes valid (see
+// docs/decisions.md, 2026-05-17 ECS-facade entry).
+#include <entt/entt.hpp>
+
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/mat4x4.hpp>
+
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -9,6 +18,7 @@ module;
 export module roboslop.render.mesh;
 
 import roboslop.ecs;
+import roboslop.scene.transform;
 
 namespace roboslop {
 
@@ -60,16 +70,26 @@ export [[nodiscard]] auto makeStaticMesh(
 // called from inside App's render slot, between beginFrame and endFrame.
 // Reaches into World::registry() because raw view iteration sidesteps
 // World::forEach's callback indirection.
+//
+// When the entity carries a Transform, the resulting model matrix is fed
+// to bgfx::setTransform per draw. Without a Transform bgfx uses identity,
+// which keeps debug/triangle entities working without ceremony.
 export auto submitMeshes(const World& world) -> void {
-    world.registry().view<const Mesh>().each([](const Mesh& m) {
+    const auto& reg = world.registry();
+    for (const auto e : reg.view<const Mesh>()) {
+        const auto& m = reg.get<const Mesh>(e);
         if (!bgfx::isValid(m.vb) || !bgfx::isValid(m.ib) || !bgfx::isValid(m.program)) {
-            return;
+            continue;
+        }
+        if (const auto* t = reg.try_get<const Transform>(e)) {
+            const glm::mat4 model = toMatrix(*t);
+            bgfx::setTransform(glm::value_ptr(model));
         }
         bgfx::setVertexBuffer(0, m.vb);
         bgfx::setIndexBuffer(m.ib);
         bgfx::setState(m.state);
         bgfx::submit(m.viewId, m.program);
-    });
+    }
 }
 
 } // namespace roboslop
