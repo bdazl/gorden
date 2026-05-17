@@ -39,6 +39,14 @@ FetchContent_MakeAvailable(bgfx_cmake)
 # wrap it from anywhere in the tree.
 include(${bgfx_cmake_SOURCE_DIR}/cmake/bgfxToolUtils.cmake)
 
+# bgfxToolUtils' bgfx_compile_shaders() reads BGFX_SHADER_INCLUDE_PATH for
+# shader -i resolution. The Conan-flavoured install path sets it, but a
+# FetchContent build does not -- point it at the fetched bgfx source so
+# `#include <bgfx_shader.sh>` resolves out of the box.
+set(BGFX_SHADER_INCLUDE_PATH "${bgfx_cmake_SOURCE_DIR}/bgfx/src"
+    CACHE PATH "bgfx shader include path" FORCE
+)
+
 # --- miniaudio ------------------------------------------------------------
 # Single-header audio library. Exposed as an INTERFACE target; the audio
 # subsystem must #define MINIAUDIO_IMPLEMENTATION in exactly one TU.
