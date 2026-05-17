@@ -14,9 +14,9 @@ This repository is a monorepo:
 ## Status
 
 Hello-world runs. The build system, source skeleton, and tooling are in
-place; engine subsystems land in follow-up passes. Open questions and
-deferred decisions are tracked in
-[`docs/todo/open-questions.md`](docs/todo/open-questions.md).
+place; engine subsystems land in follow-up passes. The running log of
+design and tooling choices lives in
+[`docs/decisions.md`](docs/decisions.md).
 
 ## Prerequisites
 
@@ -52,11 +52,11 @@ and bifurcates the Conan cache.
 ## Documentation
 
 - [Architecture overview](docs/architecture.md)
+- [Build system](docs/build-system.md)
 - [Decisions log](docs/decisions.md)
 - [Commit conventions](docs/conventions/commits.md)
 - [Code-style conventions](docs/conventions/code-style.md)
 - [Original brief](docs/prompts/initial-repo-skeleton.md)
-- [Open questions for the build-system pass (resolved)](docs/todo/open-questions.md)
 
 ## Licence
 

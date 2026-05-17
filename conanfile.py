@@ -2,7 +2,7 @@
 
 Pulls Conan-Center dependencies only. bgfx (+ bx, bimg, shaderc), miniaudio,
 and imgui_impl_bgfx are vendored under third_party/ — see
-docs/todo/open-questions.md item 5.
+docs/build-system.md for the dependency-strategy decision tree.
 
 Build flow:
     conan install . --output-folder=build/<preset> --profile=conan/profiles/<x>
@@ -40,7 +40,7 @@ class Gorden(ConanFile):
         self.requires("stb/cci.20230920")
         self.requires("joltphysics/5.2.0")
 
-        # Dev UI. Docking branch — see docs/todo/open-questions.md item 8.
+        # Dev UI. Docking branch for multi-viewport / dockable panels.
         self.requires("imgui/1.90.8-docking")
 
     def generate(self):

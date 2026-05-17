@@ -2,7 +2,8 @@
 #
 # CMake's FILE_SET cxx_modules requires Ninja and per-target dyndep scanning.
 # import std; intentionally remains off until libc++/libstdc++ ship a usable
-# std module (see docs/todo/open-questions.md item 1 and item 9).
+# std module -- see docs/conventions/code-style.md (Module layout) and
+# docs/build-system.md (C++23 module notes).
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 

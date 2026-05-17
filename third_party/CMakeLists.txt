@@ -4,7 +4,7 @@
 # under build/<preset>/_deps/ which is gitignored. Commits pin upstream by
 # SHA or tag so every clean configure produces the same dependency state.
 #
-# See docs/todo/open-questions.md item 5.
+# See docs/build-system.md ("Adding a dependency") for the decision tree.
 
 include(FetchContent)
 
