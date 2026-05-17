@@ -12,6 +12,7 @@ export module roboslop.app;
 import roboslop.core.error;
 import roboslop.ecs;
 import roboslop.platform.window;
+import roboslop.render.asset_cache;
 import roboslop.render.context;
 import roboslop.time.clock;
 
@@ -21,8 +22,10 @@ namespace roboslop {
 // well-defined moments; the engine owns the loop ordering.
 //
 //   onSetup       — called once after window + bgfx init, before the loop.
-//                   Returns Result<void> so asset-load failures abort
-//                   start-up cleanly.
+//                   Receives the World and the App-owned AssetCache so
+//                   game code can request programs without managing
+//                   handle lifetimes. Returns Result<void> so asset-load
+//                   failures abort start-up cleanly.
 //   onFixedUpdate — called N times per frame, once per fixed sub-step at
 //                   the configured rate (default 60 Hz).
 //   onRender      — called once per frame, between bgfx beginFrame /
@@ -32,7 +35,7 @@ export struct AppConfig {
     double tickRateHz = 60.0;
     std::filesystem::path assetRoot = ".";
 
-    std::function<Result<void>(World&)> onSetup;
+    std::function<Result<void>(World&, AssetCache&)> onSetup;
     std::function<void(World&, double)> onFixedUpdate;
     std::function<void(World&, RenderContext&, double)> onRender;
 };
@@ -52,7 +55,8 @@ export class App {
         if (!render) {
             return std::unexpected(render.error());
         }
-        return App{std::move(*window), std::move(*render), std::move(cfg)};
+        AssetCache assets{cfg.assetRoot};
+        return App{std::move(*window), std::move(*render), std::move(assets), std::move(cfg)};
     }
 
     App(const App&) = delete;
@@ -65,6 +69,10 @@ export class App {
         return world_;
     }
 
+    [[nodiscard]] auto assets() noexcept -> AssetCache& {
+        return assets_;
+    }
+
     [[nodiscard]] auto config() const noexcept -> const AppConfig& {
         return cfg_;
     }
@@ -73,7 +81,7 @@ export class App {
         window_.setResizeCallback([this](int w, int h) { render_.resize(w, h); });
 
         if (cfg_.onSetup) {
-            auto setupResult = cfg_.onSetup(world_);
+            auto setupResult = cfg_.onSetup(world_, assets_);
             if (!setupResult) {
                 return std::unexpected(setupResult.error());
             }
@@ -110,12 +118,17 @@ export class App {
     }
 
   private:
-    App(Window window, RenderContext render, AppConfig cfg) noexcept
-        : window_(std::move(window)), render_(std::move(render)), ticker_(cfg.tickRateHz),
-          cfg_(std::move(cfg)) {}
+    App(Window window, RenderContext render, AssetCache assets, AppConfig cfg) noexcept
+        : window_(std::move(window)), render_(std::move(render)), assets_(std::move(assets)),
+          ticker_(cfg.tickRateHz), cfg_(std::move(cfg)) {}
 
+    // Member order is destruction-critical: assets_ must outlive any
+    // entity that stores its handles (world_) and must die before bgfx
+    // shuts down (render_). Declared order = construction order = reverse
+    // destruction order.
     Window window_;
     RenderContext render_;
+    AssetCache assets_;
     World world_;
     Clock clock_;
     FixedTimestep ticker_;

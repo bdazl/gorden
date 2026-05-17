@@ -2,17 +2,15 @@ import roboslop.app;
 import roboslop.core.error;
 import roboslop.ecs;
 import roboslop.platform.window;
+import roboslop.render.asset_cache;
 import roboslop.render.context;
 import roboslop.render.mesh;
-import roboslop.render.shader;
 
 #include <array>
 #include <cstdint>
 #include <expected>
-#include <filesystem>
 #include <print>
 #include <span>
-#include <utility>
 
 namespace {
 
@@ -34,29 +32,23 @@ constexpr std::array<std::uint16_t, 3> kTriangleIndices = {0, 1, 2};
 } // namespace
 
 auto main() -> int {
-    // Program outlives App's run loop — captured by reference in onSetup
-    // so the bgfx program handle survives until App's destructor runs
-    // bgfx::shutdown().
-    roboslop::Program program;
-    const std::filesystem::path assetRoot = "assets";
-
     auto app = roboslop::App::make(
         roboslop::AppConfig{
             .window = roboslop::WindowConfig{.title = "gorden", .width = 1280, .height = 720},
             .tickRateHz = 60.0,
-            .assetRoot = assetRoot,
-            .onSetup = [&program, assetRoot](roboslop::World& world) -> roboslop::Result<void> {
-                auto loaded = roboslop::loadProgram(assetRoot, "vs_basic", "fs_basic");
-                if (!loaded) {
-                    return std::unexpected(loaded.error());
+            .assetRoot = "assets",
+            .onSetup = [](roboslop::World& world, roboslop::AssetCache& assets)
+                -> roboslop::Result<void> {
+                auto prog = assets.program("vs_basic", "fs_basic");
+                if (!prog) {
+                    return std::unexpected(prog.error());
                 }
-                program = std::move(*loaded);
 
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto mesh = roboslop::makeStaticMesh(
                     std::as_bytes(std::span{kTriangleVertices}), std::span{kTriangleIndices}, layout
                 );
-                mesh.program = program.handle();
+                mesh.program = prog->value;
 
                 const auto e = world.create();
                 world.emplace<roboslop::Mesh>(e, mesh);
