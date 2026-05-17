@@ -1,0 +1,68 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 30, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/debug",
+            "toolchainFile": "${sourceDir}/build/debug/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release",
+            "inherits": "debug",
+            "binaryDir": "${sourceDir}/build/release",
+            "toolchainFile": "${sourceDir}/build/release/conan_toolchain.cmake",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "relwithdebinfo",
+            "displayName": "RelWithDebInfo",
+            "inherits": "debug",
+            "binaryDir": "${sourceDir}/build/relwithdebinfo",
+            "toolchainFile": "${sourceDir}/build/relwithdebinfo/conan_toolchain.cmake",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+        },
+        {
+            "name": "asan-ubsan",
+            "displayName": "Debug + ASan + UBSan",
+            "inherits": "debug",
+            "binaryDir": "${sourceDir}/build/asan-ubsan",
+            "toolchainFile": "${sourceDir}/build/asan-ubsan/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ROBOSLOP_SANITIZERS": "asan;ubsan"
+            }
+        },
+        {
+            "name": "tsan",
+            "displayName": "Debug + TSan",
+            "inherits": "debug",
+            "binaryDir": "${sourceDir}/build/tsan",
+            "toolchainFile": "${sourceDir}/build/tsan/conan_toolchain.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ROBOSLOP_SANITIZERS": "tsan"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "debug",          "configurePreset": "debug" },
+        { "name": "release",        "configurePreset": "release" },
+        { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo" },
+        { "name": "asan-ubsan",     "configurePreset": "asan-ubsan" },
+        { "name": "tsan",           "configurePreset": "tsan" }
+    ],
+    "testPresets": [
+        { "name": "debug",          "configurePreset": "debug",          "output": { "outputOnFailure": true } },
+        { "name": "release",        "configurePreset": "release",        "output": { "outputOnFailure": true } },
+        { "name": "relwithdebinfo", "configurePreset": "relwithdebinfo", "output": { "outputOnFailure": true } },
+        { "name": "asan-ubsan",     "configurePreset": "asan-ubsan",     "output": { "outputOnFailure": true } },
+        { "name": "tsan",           "configurePreset": "tsan",           "output": { "outputOnFailure": true } }
+    ]
+}
