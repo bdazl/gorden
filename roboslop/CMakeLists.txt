@@ -10,10 +10,14 @@ roboslop_add_module_library(roboslop
         src/core/error.cppm
         src/time/clock.cppm
         src/platform/window.cppm
+        src/render/context.cppm
 )
 
 target_link_libraries(roboslop PUBLIC
     glfw
+    bgfx
+    bx
+    bimg
 )
 
 if(ROBOSLOP_BUILD_TESTS)
