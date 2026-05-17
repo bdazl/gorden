@@ -189,9 +189,12 @@ export [[nodiscard]] auto loadProgram(
         return std::unexpected(toError(ShaderError::UnsupportedRenderer));
     }
 
+    // bgfxToolUtils keeps the .sc input extension on its output:
+    // vs_basic.sc → vs_basic.sc.bin. The vs/fs name passed in is the
+    // basename of the .sc source.
     const auto shaderDir = assetRoot / "shaders" / std::string{backend};
-    const auto vsPath = shaderDir / (std::string{vsName} + ".bin");
-    const auto fsPath = shaderDir / (std::string{fsName} + ".bin");
+    const auto vsPath = shaderDir / (std::string{vsName} + ".sc.bin");
+    const auto fsPath = shaderDir / (std::string{fsName} + ".sc.bin");
 
     auto vsh = loadShader(vsPath);
     if (!vsh) {
