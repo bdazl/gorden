@@ -28,6 +28,7 @@ bootstrap:
 
 configure:
 	@cmake --preset $(PRESET)
+	@./scripts/compdb.sh $(PRESET)
 
 build:
 	@cmake --build --preset $(PRESET) -j$(JOBS)

@@ -1,0 +1,21 @@
+# clangd project configuration.
+#
+# Strips compile flags that belong to the build but produce noise in the
+# editor (Werror promotes advisory diagnostics to red; -fmodule-file=
+# entries are part of the modmap and not meaningful to clangd directly),
+# and mirrors a few clang-tidy checks that clangd sometimes still applies
+# to .cppm files regardless of .clang-tidy's project-wide disables.
+
+CompileFlags:
+  Remove:
+    - -Werror
+    - -Werror=*
+    - -W*-error
+    - -fmodule-file=*
+
+Diagnostics:
+  ClangTidy:
+    Remove:
+      - misc-include-cleaner
+      - misc-use-internal-linkage
+      - cppcoreguidelines-avoid-non-const-global-variables
