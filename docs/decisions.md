@@ -7,6 +7,26 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-17 — `roboslop::App` + semi-fixed timestep from day 1
+
+**Decision.** The engine ships an `App` class (module `roboslop.app`) as
+the only entry point a game uses; `App::make()` returns `Result<App>` and
+`App::run()` drives the loop. The loop is **semi-fixed** (Gaffer-style
+accumulator) with a default 60 Hz fixed update and a variable render
+slot. `FixedTimestep` clamps frames longer than 0.25 s.
+
+**Why.** Physics (Jolt) requires a stable fixed step; switching the tick
+model after subsystems already plug into it forces an API change across
+every consumer. Introducing it now — while the fixed-update body is still
+empty — is essentially free. `App` similarly anchors lifecycle so games
+don't drive `init/tick/shutdown` themselves.
+
+**Where.** [`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm),
+[`roboslop/src/time/clock.cppm`](../roboslop/src/time/clock.cppm). Frame
+loop overview in [`docs/architecture.md`](architecture.md).
+
+---
+
 ## 2026-05-17 — Push policy: agents never push
 
 **Decision.** No automation pushes to the remote. The user pushes manually

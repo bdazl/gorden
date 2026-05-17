@@ -3,6 +3,7 @@
 # are published.
 
 find_package(glfw3 CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -11,6 +12,7 @@ roboslop_add_module_library(roboslop
         src/time/clock.cppm
         src/platform/window.cppm
         src/render/context.cppm
+        src/app/app.cppm
 )
 
 target_link_libraries(roboslop PUBLIC
@@ -18,6 +20,7 @@ target_link_libraries(roboslop PUBLIC
     bgfx
     bx
     bimg
+    spdlog::spdlog
 )
 
 if(ROBOSLOP_BUILD_TESTS)

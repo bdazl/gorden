@@ -11,6 +11,29 @@ the project grows; the goal here is orientation, not detail.
 - Anything game-specific (player loadouts, robot personalities, level layout,
   story content) lives in `gorden/`.
 
+## Engine entry point
+
+`roboslop::App` (module `roboslop.app`) is the bridge between a game and the
+engine. A game constructs `App::make(AppConfig{...})`, then calls `run()`;
+`App` owns the window, render context, and clock, and drives the frame loop
+until the window closes. Subsystems that need to tick will hook into `App`
+as they land — there are no per-subsystem `tick(dt)` calls outside it.
+
+## Frame loop
+
+The engine drives a **semi-fixed timestep** (Glenn Fiedler, "Fix Your
+Timestep!"): wall-clock dt is accumulated by `roboslop::FixedTimestep`,
+which emits N fixed sub-steps per frame at a configurable rate (default
+60 Hz). Frames longer than 0.25 s are clamped so a debugger pause does
+not trigger a "spiral of death". Render runs once per frame; the leftover
+accumulator fraction is exposed as `alpha() ∈ [0, 1)` for interpolation
+between fixed states when subsystems begin to use it.
+
+Today `App::run()` polls `Window` events, dispatches resize to the render
+context, advances the timestep (the fixed-update slot is currently empty),
+and submits one bgfx view that clears the backbuffer. Subsystems plug into
+either the fixed-update or render slot as they arrive.
+
 ## Roboslop subsystem map
 
 | Subsystem | Library |
