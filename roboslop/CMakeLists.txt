@@ -6,6 +6,7 @@ roboslop_add_module_library(roboslop
     MODULES
         src/core/version.cppm
         src/core/error.cppm
+        src/time/clock.cppm
 )
 
 if(ROBOSLOP_BUILD_TESTS)
