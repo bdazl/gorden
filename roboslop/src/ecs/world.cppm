@@ -40,8 +40,10 @@ export class World {
         return reg_.valid(e);
     }
 
+    // decltype(auto) so the return matches entt: T& for value components,
+    // void for empty tag components (entt sparse-set-only storage).
     template <typename T, typename... Args>
-    auto emplace(Entity e, Args&&... args) -> T& {
+    auto emplace(Entity e, Args&&... args) -> decltype(auto) {
         return reg_.emplace<T>(e, std::forward<Args>(args)...);
     }
 
