@@ -7,6 +7,63 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-17 — Camera is an ECS component picked by `ActiveCamera` tag
+
+**Decision.** `roboslop::Camera` (module `roboslop.render.camera`) is an
+ECS component whose `projection` field is a `std::variant<Perspective,
+Orthographic>`. A separate empty-struct `ActiveCamera` tag marks which
+camera-entity the renderer reads each frame. `findActiveCamera(world)` is
+the public selection helper; `applyActiveCamera(world, viewId, w, h)`
+reads the active camera, computes view+proj via glm
+(`perspectiveRH_{ZO,NO}` / `orthoRH_{ZO,NO}` chosen by
+`bgfx::getCaps()->homogeneousDepth`), and pushes them to bgfx with
+`setViewTransform`. Per-draw model matrices come from `Transform` via
+`bgfx::setTransform`, and the shader reads bgfx's built-in
+`u_modelViewProj` — no custom MVP uniform.
+
+**Why.** A camera-as-component plays naturally with future requirements:
+robot-POV rendering for LLM-vision snapshots, split-screen, debug
+free-cameras. The tag-based active selection avoids App-side state.
+Using bgfx's idiomatic per-view + per-draw transform machinery (rather
+than a hand-rolled `u_mvp` uniform) makes multiple views and instancing
+cheaper later. Right-handed +Y-up -Z-forward matches glm's defaults so we
+never reach for `bx::mtx*`.
+
+**Where.** [`roboslop/src/render/camera.cppm`](../roboslop/src/render/camera.cppm),
+[`roboslop/src/scene/transform.cppm`](../roboslop/src/scene/transform.cppm),
+[`roboslop/src/render/mesh.cppm`](../roboslop/src/render/mesh.cppm)
+(per-draw `setTransform`),
+[`gorden/assets/shaders/src/vs_basic.sc`](../gorden/assets/shaders/src/vs_basic.sc)
+(uses `u_modelViewProj`).
+
+---
+
+## 2026-05-17 — `AssetCache` owns `Program`s; `onSetup` receives a ref
+
+**Decision.** `App` owns a `roboslop::AssetCache` (module
+`roboslop.render.asset_cache`) that caches `Program`s keyed by
+`(vsName, fsName)`. The cache hands out non-owning `ProgramHandle`s
+storable on components. `AppConfig::onSetup`'s signature changes to
+`Result<void>(World&, AssetCache&)` so game code requests programs
+without holding handles itself. v1 is render-thread-only and has no
+invalidation; both are documented in the module header.
+
+**Why.** The first iteration of the game forced `main.cpp` to hold a
+`Program` outside `App` so the bgfx handle survived until
+`bgfx::shutdown()`. That wart blocks any second mesh entity (it would
+need its own outside-`App` lifetime) and pushes lifecycle concerns into
+game code where the engine should own them. Threading the cache into
+`onSetup` is the minimal API extension — `onFixedUpdate` and `onRender`
+don't need the cache (handles live in components by then), so their
+signatures stay untouched.
+
+**Where.** [`roboslop/src/render/asset_cache.cppm`](../roboslop/src/render/asset_cache.cppm),
+[`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm).
+Supersedes the `onSetup` row of the 2026-05-17 callback-config entry
+below.
+
+---
+
 ## 2026-05-17 — App drives game code via callbacks on `AppConfig`
 
 **Decision.** `AppConfig` carries three `std::function` hooks — `onSetup`,

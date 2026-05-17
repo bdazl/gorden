@@ -15,10 +15,10 @@ the project grows; the goal here is orientation, not detail.
 
 `roboslop::App` (module `roboslop.app`) is the bridge between a game and the
 engine. A game constructs `App::make(AppConfig{...})`, then calls `run()`;
-`App` owns the window, render context, world, and clock, and drives the
-frame loop until the window closes. Subsystems that need to tick will hook
-into `App` as they land — there are no per-subsystem `tick(dt)` calls
-outside it.
+`App` owns the window, render context, asset cache, world, and clock, and
+drives the frame loop until the window closes. Subsystems that need to
+tick will hook into `App` as they land — there are no per-subsystem
+`tick(dt)` calls outside it.
 
 ### App hooks
 
@@ -26,19 +26,26 @@ Game code participates through callbacks on `AppConfig`:
 
 | Hook | When | Signature |
 |---|---|---|
-| `onSetup` | Once, after init, before the loop | `Result<void>(World&)` |
+| `onSetup` | Once, after init, before the loop | `Result<void>(World&, AssetCache&)` |
 | `onFixedUpdate` | N times per frame at the fixed rate | `void(World&, double dt)` |
 | `onRender` | Once per frame, between bgfx begin/endFrame | `void(World&, RenderContext&, double alpha)` |
 
 The engine owns the loop and the ordering; the game owns the content of
 each slot. `onRender` is where game code submits draw calls — engine
-helpers like `submitMeshes(world)` are free functions the game opts into
-by calling them from its render callback. The engine never auto-runs a
-render system, so the game stays in control of what hits the GPU.
+helpers like `applyActiveCamera(world, viewId, w, h)` and
+`submitMeshes(world)` are free functions the game opts into by calling
+them from its render callback. The engine never auto-runs a render
+system, so the game stays in control of what hits the GPU.
+
+`onSetup` receives a reference to the App-owned `AssetCache`. Game code
+requests programs via `assets.program(vsName, fsName)` and stores the
+returned `ProgramHandle` on components; the cache keeps the underlying
+`Program` alive until App destruction (which happens before bgfx
+shutdown).
 
 `AppConfig::assetRoot` points the engine at the game's runtime asset
-directory; shader loaders (`roboslop::loadProgram`) resolve paths relative
-to it.
+directory; shader loaders (`roboslop::loadProgram`) and the `AssetCache`
+resolve paths relative to it.
 
 ## Frame loop
 
