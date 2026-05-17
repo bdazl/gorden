@@ -1,0 +1,25 @@
+# ThreadSanitizer profile. Adds -fsanitize=thread globally so dependencies
+# (bgfx, Jolt, ...) are rebuilt with TSan instrumentation. First bootstrap
+# under this profile rebuilds the full graph; expect 10-20 minutes.
+#
+# libstdc++ has known false positives in std::condition_variable and the
+# default allocator. Suppressions live in tools/tsan.supp (lands when the
+# first real concurrency code does).
+
+[settings]
+os=Linux
+arch=x86_64
+compiler=clang
+compiler.version=22
+compiler.cppstd=23
+compiler.libcxx=libstdc++11
+build_type=Debug
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+tools.build:compiler_executables={"c": "clang", "cpp": "clang++"}
+tools.system.package_manager:mode=report
+tools.build:cflags+=["-fsanitize=thread", "-fno-omit-frame-pointer"]
+tools.build:cxxflags+=["-fsanitize=thread", "-fno-omit-frame-pointer"]
+tools.build:sharedlinkflags+=["-fsanitize=thread"]
+tools.build:exelinkflags+=["-fsanitize=thread"]
