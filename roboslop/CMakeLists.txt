@@ -3,6 +3,7 @@
 # are published.
 
 find_package(glfw3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 
@@ -21,6 +22,7 @@ roboslop_add_module_library(roboslop
 
 target_link_libraries(roboslop PUBLIC
     glfw
+    glm::glm
     bgfx
     bx
     bimg
