@@ -5,6 +5,7 @@ module;
 #include <atomic>
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <string>
 #include <utility>
 
@@ -120,12 +121,18 @@ export class Window {
     Window(const Window&) = delete;
     auto operator=(const Window&) -> Window& = delete;
 
-    Window(Window&& other) noexcept : handle_(std::exchange(other.handle_, nullptr)) {}
+    Window(Window&& other) noexcept
+        : handle_(std::exchange(other.handle_, nullptr)),
+          resizeCallback_(std::move(other.resizeCallback_)) {
+        rebindUserPointer();
+    }
 
     auto operator=(Window&& other) noexcept -> Window& {
         if (this != &other) {
             shutdown();
             handle_ = std::exchange(other.handle_, nullptr);
+            resizeCallback_ = std::move(other.resizeCallback_);
+            rebindUserPointer();
         }
         return *this;
     }
@@ -153,6 +160,19 @@ export class Window {
         return glfwGetKey(handle_, GLFW_KEY_ESCAPE) == GLFW_PRESS;
     }
 
+    // Registers a callback fired when GLFW reports a new framebuffer size.
+    // Installs the trampoline on first call; subsequent calls just replace
+    // the stored target. A null callback uninstalls.
+    auto setResizeCallback(std::function<void(int, int)> cb) -> void {
+        resizeCallback_ = std::move(cb);
+        rebindUserPointer();
+        if (resizeCallback_) {
+            glfwSetFramebufferSizeCallback(handle_, &Window::framebufferSizeTrampoline);
+        } else {
+            glfwSetFramebufferSizeCallback(handle_, nullptr);
+        }
+    }
+
     [[nodiscard]] auto nativeHandles() const -> NativeHandles {
         NativeHandles out;
 #if defined(__linux__)
@@ -169,13 +189,32 @@ export class Window {
 
     auto shutdown() noexcept -> void {
         if (handle_ != nullptr) {
+            glfwSetFramebufferSizeCallback(handle_, nullptr);
+            glfwSetWindowUserPointer(handle_, nullptr);
             glfwDestroyWindow(handle_);
             handle_ = nullptr;
             releaseGlfw();
         }
     }
 
+    // Re-publish the current `this` pointer through GLFW's user-pointer slot
+    // after construction or move; the trampoline below resolves callbacks
+    // through that slot rather than capturing `this` directly.
+    auto rebindUserPointer() noexcept -> void {
+        if (handle_ != nullptr) {
+            glfwSetWindowUserPointer(handle_, this);
+        }
+    }
+
+    static auto framebufferSizeTrampoline(GLFWwindow* w, int width, int height) -> void {
+        auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
+        if (self != nullptr && self->resizeCallback_) {
+            self->resizeCallback_(width, height);
+        }
+    }
+
     GLFWwindow* handle_ = nullptr;
+    std::function<void(int, int)> resizeCallback_;
 };
 
 // Drives the process-wide GLFW event queue. Single-window engines call this
