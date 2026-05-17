@@ -7,6 +7,28 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-17 — ECS facade: `World` exposes `forEach`, not entt views
+
+**Decision.** `roboslop::World` (module `roboslop.ecs`) wraps
+`entt::registry` and exposes `create`, `destroy`, `valid`, `emplace`,
+`get`, `tryGet`, `has`, `remove`, and a templated `forEach<Components...>`
+that takes a callback. It does **not** export `entt::basic_view`. Engine
+subsystems that need iterator-level access (snapshot serialisation,
+custom traversals) reach the underlying registry through `World::registry()`.
+
+**Why.** Re-exporting `entt::basic_view` through a C++23 module loses the
+non-member `operator==/!=` of entt's sparse-set iterator on the consumer
+side — range-`for` does not compile in importing TUs without also
+including entt headers, which defeats the purpose of the wrapper. A
+custom view wrapper would lose entt's iteration ergonomics and
+performance. `forEach` keeps the API self-contained without paying that
+cost, since entt's `view::each` accepts callbacks and dispatches on
+their signature.
+
+**Where.** [`roboslop/src/ecs/world.cppm`](../roboslop/src/ecs/world.cppm).
+
+---
+
 ## 2026-05-17 — `roboslop::App` + semi-fixed timestep from day 1
 
 **Decision.** The engine ships an `App` class (module `roboslop.app`) as

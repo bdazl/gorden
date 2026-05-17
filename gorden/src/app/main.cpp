@@ -4,14 +4,17 @@ import roboslop.platform.window;
 #include <print>
 
 auto main() -> int {
-    auto app = roboslop::App::make(roboslop::AppConfig{
-        .window = roboslop::WindowConfig{
-            .title = "gorden",
-            .width = 1280,
-            .height = 720,
-        },
-        .tickRateHz = 60.0,
-    });
+    auto app = roboslop::App::make(
+        roboslop::AppConfig{
+            .window =
+                roboslop::WindowConfig{
+                    .title = "gorden",
+                    .width = 1280,
+                    .height = 720,
+                },
+            .tickRateHz = 60.0,
+        }
+    );
     if (!app) {
         std::println(stderr, "app init failed: {}", app.error().message);
         return 1;

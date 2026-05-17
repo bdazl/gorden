@@ -4,6 +4,7 @@
 
 find_package(glfw3 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(EnTT CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -12,6 +13,7 @@ roboslop_add_module_library(roboslop
         src/time/clock.cppm
         src/platform/window.cppm
         src/render/context.cppm
+        src/ecs/world.cppm
         src/app/app.cppm
 )
 
@@ -21,6 +23,7 @@ target_link_libraries(roboslop PUBLIC
     bx
     bimg
     spdlog::spdlog
+    EnTT::EnTT
 )
 
 if(ROBOSLOP_BUILD_TESTS)

@@ -3,6 +3,7 @@ find_package(Catch2 3 CONFIG REQUIRED)
 add_executable(roboslop_tests
     version_test.cpp
     time_clock_test.cpp
+    ecs_world_test.cpp
 )
 
 # Tests must use the same -fno-exceptions code-gen as the engine so the
