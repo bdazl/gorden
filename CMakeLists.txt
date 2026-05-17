@@ -38,6 +38,4 @@ add_subdirectory(third_party)
 set(CMAKE_CXX_STANDARD 23)
 
 add_subdirectory(roboslop)
-
-# Game subdirectory lands in the next commit:
-#   add_subdirectory(gorden)
+add_subdirectory(gorden)
