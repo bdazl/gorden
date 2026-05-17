@@ -7,7 +7,6 @@ module;
 // include keeps the range-for in submitMeshes valid (see
 // docs/decisions.md, 2026-05-17 ECS-facade entry).
 #include <entt/entt.hpp>
-
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/mat4x4.hpp>
 

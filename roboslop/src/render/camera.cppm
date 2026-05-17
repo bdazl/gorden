@@ -1,8 +1,6 @@
 module;
 
 #include <bgfx/bgfx.h>
-#include <spdlog/spdlog.h>
-
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -10,6 +8,7 @@ module;
 #include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec3.hpp>
+#include <spdlog/spdlog.h>
 
 #include <cstdint>
 #include <optional>
@@ -55,21 +54,26 @@ projectionMatrix(const Camera& cam, float aspect, bool homogeneousNdc) noexcept 
         [&](auto&& proj) -> glm::mat4 {
             using P = std::decay_t<decltype(proj)>;
             if constexpr (std::is_same_v<P, Perspective>) {
-                return homogeneousNdc ? glm::perspectiveRH_NO(
-                                            proj.fovYRadians, aspect, proj.nearZ, proj.farZ
-                                        )
-                                      : glm::perspectiveRH_ZO(
-                                            proj.fovYRadians, aspect, proj.nearZ, proj.farZ
-                                        );
+                return homogeneousNdc
+                           ? glm::perspectiveRH_NO(proj.fovYRadians, aspect, proj.nearZ, proj.farZ)
+                           : glm::perspectiveRH_ZO(proj.fovYRadians, aspect, proj.nearZ, proj.farZ);
             } else {
                 const float halfW = proj.halfHeight * aspect;
                 return homogeneousNdc ? glm::orthoRH_NO(
-                                            -halfW, halfW, -proj.halfHeight, proj.halfHeight,
-                                            proj.nearZ, proj.farZ
+                                            -halfW,
+                                            halfW,
+                                            -proj.halfHeight,
+                                            proj.halfHeight,
+                                            proj.nearZ,
+                                            proj.farZ
                                         )
                                       : glm::orthoRH_ZO(
-                                            -halfW, halfW, -proj.halfHeight, proj.halfHeight,
-                                            proj.nearZ, proj.farZ
+                                            -halfW,
+                                            halfW,
+                                            -proj.halfHeight,
+                                            proj.halfHeight,
+                                            proj.nearZ,
+                                            proj.farZ
                                         );
             }
         },
@@ -97,7 +101,9 @@ export [[nodiscard]] auto findActiveCamera(const World& world) -> std::optional<
         ++count;
     }
     if (count > 1) {
-        spdlog::warn("roboslop.render.camera: {} entities tagged ActiveCamera; picking first", count);
+        spdlog::warn(
+            "roboslop.render.camera: {} entities tagged ActiveCamera; picking first", count
+        );
     }
     return first;
 }

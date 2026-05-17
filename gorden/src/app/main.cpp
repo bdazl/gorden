@@ -39,8 +39,8 @@ auto main() -> int {
             .window = roboslop::WindowConfig{.title = "gorden", .width = 1280, .height = 720},
             .tickRateHz = 60.0,
             .assetRoot = "assets",
-            .onSetup = [](roboslop::World& world, roboslop::AssetCache& assets)
-                -> roboslop::Result<void> {
+            .onSetup = [](roboslop::World& world,
+                          roboslop::AssetCache& assets) -> roboslop::Result<void> {
                 auto prog = assets.program("vs_basic", "fs_basic");
                 if (!prog) {
                     return std::unexpected(prog.error());
@@ -69,9 +69,7 @@ auto main() -> int {
             .onFixedUpdate = {},
             .onRender =
                 [](roboslop::World& world, roboslop::RenderContext& ctx, double /*alpha*/) {
-                    roboslop::applyActiveCamera(
-                        world, /*viewId=*/0, ctx.width(), ctx.height()
-                    );
+                    roboslop::applyActiveCamera(world, /*viewId=*/0, ctx.width(), ctx.height());
                     roboslop::submitMeshes(world);
                 },
         }
