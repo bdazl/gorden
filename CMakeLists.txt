@@ -29,15 +29,14 @@ include(Modules)
 
 enable_testing()
 
-# Smoke target: forces a real find_package() call against a Conan-supplied
-# dependency so that `make bootstrap configure build` exercises the full
-# bootstrap-toolchain-resolver chain even before any source code exists.
-# Removed in the same commit that introduces the first real targets.
-find_package(fmt CONFIG REQUIRED)
-add_library(roboslop_smoke INTERFACE)
-target_link_libraries(roboslop_smoke INTERFACE fmt::fmt)
+add_subdirectory(third_party)
 
-# Subdirectories land in later build-pass commits:
-#   add_subdirectory(third_party)
+# bgfx.cmake forces CMAKE_CXX_STANDARD to 20 globally. Our targets opt back
+# into C++23 via target_compile_features(... cxx_std_23) in Modules.cmake,
+# but restore the project-wide default so any later add_subdirectory()
+# (engine, game) starts from the C++23 baseline.
+set(CMAKE_CXX_STANDARD 23)
+
+# Engine and game subdirectories land in later build-pass commits:
 #   add_subdirectory(roboslop)
 #   add_subdirectory(gorden)
