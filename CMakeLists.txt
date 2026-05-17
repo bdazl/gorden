@@ -29,6 +29,14 @@ include(Modules)
 
 enable_testing()
 
+# Smoke target: forces a real find_package() call against a Conan-supplied
+# dependency so that `make bootstrap configure build` exercises the full
+# bootstrap-toolchain-resolver chain even before any source code exists.
+# Removed in the same commit that introduces the first real targets.
+find_package(fmt CONFIG REQUIRED)
+add_library(roboslop_smoke INTERFACE)
+target_link_libraries(roboslop_smoke INTERFACE fmt::fmt)
+
 # Subdirectories land in later build-pass commits:
 #   add_subdirectory(third_party)
 #   add_subdirectory(roboslop)
