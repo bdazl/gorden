@@ -29,3 +29,7 @@ file minimal — new rules go in `docs/`.
 - Run the formatter and the linter before committing.
 - Do **not** add `Co-Authored-By`, `Signed-off-by`, or any other trailers to
   commit messages.
+- **Keep `docs/` in sync with the code.** When a change touches anything the
+  docs describe (conventions, architecture, build system, decisions), update
+  the relevant doc in the same commit — stale docs are worse than missing
+  ones.
