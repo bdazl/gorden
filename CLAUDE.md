@@ -23,6 +23,9 @@ file minimal — new rules go in `docs/`.
   decision, surface it instead of guessing.
 - Work in **logically atomic commits**. Build and tests must pass at every
   commit on `main`.
+- **Commit messages default to subject-only.** Write a body only when a
+  change has a non-obvious rationale, a subtle invariant, or a trade-off
+  worth recording — never to re-narrate the diff.
 - Run the formatter and the linter before committing.
 - Do **not** add `Co-Authored-By`, `Signed-off-by`, or any other trailers to
   commit messages.
