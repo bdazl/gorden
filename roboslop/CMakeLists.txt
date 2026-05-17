@@ -16,6 +16,7 @@ roboslop_add_module_library(roboslop
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm
+        src/scene/transform.cppm
         src/ecs/world.cppm
         src/app/app.cppm
 )
