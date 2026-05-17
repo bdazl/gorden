@@ -13,7 +13,12 @@ roboslop_apply_sanitizers(gorden)
 include(ShaderCompile)
 
 set(shader_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/src)
-set(shader_out_dir ${CMAKE_CURRENT_BINARY_DIR}/assets/shaders)
+
+# Outputs land at <build-root>/assets/shaders/<backend>/ so the runtime
+# asset path is stable across subprojects — gorden's main passes
+# assetRoot = "assets" and the engine resolves shaders relative to that.
+# `make run` cds into build/<preset>/ so the relative path works.
+set(shader_out_dir ${CMAKE_BINARY_DIR}/assets/shaders)
 
 roboslop_compile_shader(
     TYPE        VERTEX

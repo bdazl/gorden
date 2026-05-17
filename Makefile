@@ -37,7 +37,7 @@ test:
 	@ctest --preset $(PRESET)
 
 run:
-	@./build/$(PRESET)/gorden/gorden $(ARGS)
+	@cd build/$(PRESET) && exec gorden/gorden $(ARGS)
 
 shaders:
 	@cmake --build --preset $(PRESET) --target shaders -j$(JOBS)
