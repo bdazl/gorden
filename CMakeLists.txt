@@ -37,6 +37,7 @@ add_subdirectory(third_party)
 # (engine, game) starts from the C++23 baseline.
 set(CMAKE_CXX_STANDARD 23)
 
-# Engine and game subdirectories land in later build-pass commits:
-#   add_subdirectory(roboslop)
+add_subdirectory(roboslop)
+
+# Game subdirectory lands in the next commit:
 #   add_subdirectory(gorden)

@@ -20,6 +20,10 @@ function(roboslop_set_warnings target)
             -Wdouble-promotion
             -Wformat=2
             -Wimplicit-fallthrough
+            # Clang 22+ warns on __COUNTER__ as a future-C2y feature even
+            # though it has been a de-facto extension for decades; third-
+            # party headers (Catch2, others) rely on it.
+            -Wno-c2y-extensions
             -Werror
         )
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
