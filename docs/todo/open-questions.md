@@ -2,14 +2,13 @@
 
 These are the decisions deferred from the first repo-skeleton pass. Each entry
 has a short statement of what is open, my proposed answer (so we have an anchor
-to react to rather than starting from a blank page), and a `Decision (TBD)`
-line for the user to fill in. When a decision lands, replace the TBD with the
-chosen answer and link it from the relevant doc.
+to react to rather than starting from a blank page), and a `Decision` line.
 
-Until these are resolved, the following files are intentionally **not** in the
-repo: `CMakeLists.txt`, `CMakePresets.json`, `conanfile.py`, `cmake/`,
-`conan/`, `Makefile`, `scripts/`, `roboslop/`, `gorden/` (source trees),
-`third_party/`, `.clang-format`, `.clang-tidy`.
+> **Status — resolved 2026-05-17.** All fifteen items have been settled and
+> the build-system pass has landed. This document is preserved as the
+> deliberation trail. The canonical, short-form record of the resulting
+> decisions lives in [`docs/decisions.md`](../decisions.md); use that for
+> day-to-day reference and append new entries there.
 
 ---
 
@@ -43,7 +42,8 @@ gorden/src/world/world.cppm              → module gorden.world;
 
 CMake side: `target_sources(<tgt> PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES ...)`.
 
-**Decision (TBD).**
+**Decision.** Accepted as proposed. Implemented via
+`roboslop_add_module_library()` in [`cmake/Modules.cmake`](../../cmake/Modules.cmake).
 
 ---
 
@@ -93,7 +93,8 @@ SpaceAfterTemplateKeyword: true
 Open sub-questions: 4-space vs 2-space indent? `Attach` vs `Allman` braces?
 Any missing include group?
 
-**Decision (TBD).**
+**Decision.** 4-space indent, Attach braces, rest as proposed. Lives in
+[`.clang-format`](../../.clang-format).
 
 ---
 
@@ -134,7 +135,10 @@ functions/methods → `camelBack`, variables/parameters/members → `camelBack`,
 constexpr/global-constant → PascalCase, namespaces → `lower_case`, macros →
 `UPPER_CASE`, template parameters → PascalCase.
 
-**Decision (TBD).**
+**Decision.** Exclusion list accepted as proposed. Lives in
+[`.clang-tidy`](../../.clang-tidy). One addition during implementation:
+`-Wno-c2y-extensions` on the compiler-warnings bundle because Clang 22
+flags `__COUNTER__` as a future-C2y feature.
 
 ---
 
@@ -166,7 +170,10 @@ profile-per-preset vs profile-per-(OS,compiler)).
 Open sub-question: profile-per-(OS,compiler) with overrides (proposal), or
 strict profile-per-preset 1:1 (more files, more explicit)?
 
-**Decision (TBD).**
+**Decision.** Profile-per-(OS, compiler) with overrides as proposed. TSan
+gets its own profile because the dependency graph must be rebuilt with
+`-fsanitize=thread`. Profiles live under [`conan/profiles/`](../../conan/profiles/);
+`scripts/bootstrap.sh` does the preset → profile mapping.
 
 ---
 
@@ -192,7 +199,12 @@ Open sub-questions: (a) Confirm strategy. (b) Specific bgfx commit/tag to pin?
 Or pick latest stable at implementation time? (c) Specific
 `imgui_impl_bgfx` fork/commit?
 
-**Decision (TBD).**
+**Decision.** Pivoted from "custom Conan recipe" + "vendor sources" to **CMake
+FetchContent** for bgfx and miniaudio (pinned SHAs/tags; sources land under
+the gitignored `build/<preset>/_deps/`). `imgui_impl_bgfx` is deferred until
+the dev-UI subsystem needs it — no actively-maintained single-source fork
+was verified at vendoring time. See
+[`docs/decisions.md`](../decisions.md#2026-05-17--bgfx-miniaudio-via-cmake-fetchcontent).
 
 ---
 
@@ -225,7 +237,9 @@ Open sub-questions: anything missing? Argument-passing for `run`
 (`make run ARGS="..."`)? Should `build` auto-`bootstrap` if the toolchain
 file is missing, or should it fail with a "run `make bootstrap` first" hint?
 
-**Decision (TBD).**
+**Decision.** Target list as proposed. `make run ARGS="..."` forwards
+arguments. `build` does **not** auto-bootstrap — fails with cmake's preset
+error pointing at `make bootstrap`. Lives in [`Makefile`](../../Makefile).
 
 ---
 
@@ -268,7 +282,10 @@ Open sub-question: accept the wrapper, or start with
 `std::expected<T, std::string>` for prototyping and refactor at first real
 need?
 
-**Decision (TBD).**
+**Decision.** Per-subsystem enums + `roboslop::Error` wrapper, accepted as
+proposed. The skeleton type lives in
+[`roboslop/src/core/error.cppm`](../../roboslop/src/core/error.cppm);
+subsystem-specific enums and `toError()` mappings land with each subsystem.
 
 ---
 
@@ -293,12 +310,17 @@ need?
 | `imgui` | `1.90.8-docking` | docking branch — confirm before pinning |
 | **bgfx** (custom recipe) | latest stable tag at implementation time | |
 | **miniaudio** (vendored) | `0.11.21` | |
-| **imgui_impl_bgfx** (vendored) | specific commit SHA | TBD — pick a fork |
+| **imgui_impl_bgfx** (vendored) | specific commit SHA | Deferred — see item 5 resolution |
 
 Open sub-questions: bump anything to a newer release first? imgui docking vs
 master?
 
-**Decision (TBD).**
+**Decision.** Versions re-checked against Conan Center at implementation
+time. Two deltas from the proposal: `stb` pinned to `cci.20230920` (matches
+assimp/5.4.2's transitive bound), and `joltphysics/5.2.0` (5.1.0 is not on
+Conan Center). ImGui docking branch as proposed. bgfx + miniaudio now ship
+via FetchContent (item 5). Versions live in [`conanfile.py`](../../conanfile.py)
+and `third_party/CMakeLists.txt`.
 
 ---
 
@@ -310,7 +332,9 @@ master?
 reasonable C++23 module support through CMake `FILE_SET cxx_modules`. MSVC
 noted as "tracking", not validated, until someone actually runs it.
 
-**Decision (TBD).**
+**Decision.** Bumped to **Clang 19+ / GCC 15+** (proposal floor was too
+conservative for stable module-scanner behaviour). MSVC stays "tracking".
+Documented in [`README.md`](../../README.md).
 
 ---
 
@@ -324,7 +348,8 @@ full prereqs + quickstart.
 quickstart (`make bootstrap configure build test`), and links into `docs/`.
 No screenshots or marketing copy.
 
-**Decision (TBD).**
+**Decision.** Accepted. Linux system-deps note added too. Lives in
+[`README.md`](../../README.md).
 
 ---
 
@@ -343,7 +368,8 @@ skeleton or a minimal "hello world" that actually exercises the toolchain.
 The alternative (empty skeleton) means we don't find out until later that the
 module build, Conan integration, or Catch2 wiring is broken.
 
-**Decision (TBD).**
+**Decision.** Hello-world as proposed. `make run` prints
+`gorden, on roboslop 0.0.1` plus a spdlog line.
 
 ---
 
@@ -357,7 +383,9 @@ no-op until real shaders arrive.
 `varying.def.sc` under `gorden/assets/shaders/src/` so the pipeline compiles
 something end-to-end.
 
-**Decision (TBD).**
+**Decision.** Accepted. Sample shaders compile to spirv + glsl + essl
+backends via `bgfx::shaderc`. Lives under
+[`gorden/assets/shaders/src/`](../../gorden/assets/shaders/src/).
 
 ---
 
@@ -386,7 +414,9 @@ exists; once one is added, confirm whether to push automatically.
 
 **Proposal.** Local-only for now. Ask before adding a remote or pushing.
 
-**Decision (TBD).**
+**Decision.** A remote (`origin → git@github.com:bdazl/gorden.git`) already
+exists. The user pushes manually; agents never push. See
+[`docs/decisions.md`](../decisions.md#2026-05-17--push-policy-agents-never-push).
 
 ---
 
@@ -415,4 +445,10 @@ at every commit on `main`.
 Open sub-question: would you like a pause after step 6 to actually run
 `make bootstrap configure build` before continuing?
 
-**Decision (TBD).**
+**Decision.** Reordered to **11 commits** during planning so the toolchain
+file always exists before `CMakePresets.json` references it and so
+`conanfile.py` only pins packages whose recipes resolve at that commit. A
+smoke `find_package(fmt)` was added to make the pause point materially
+exercise the bootstrap→configure→build chain (it would otherwise be
+ceremonial against an empty source tree). Verified end-to-end on
+2026-05-17.

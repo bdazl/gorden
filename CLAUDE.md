@@ -12,6 +12,8 @@ file minimal — new rules go in `docs/`.
   language rules, formatter and linter expectations.
 - [`docs/architecture.md`](docs/architecture.md) — engine / game separation and
   subsystem map.
+- [`docs/decisions.md`](docs/decisions.md) — running log of design and tooling
+  choices, newest first. Append new entries here; don't edit in place.
 
 ## Reminders
 

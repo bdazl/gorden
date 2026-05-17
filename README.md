@@ -52,10 +52,11 @@ and bifurcates the Conan cache.
 ## Documentation
 
 - [Architecture overview](docs/architecture.md)
+- [Decisions log](docs/decisions.md)
 - [Commit conventions](docs/conventions/commits.md)
 - [Code-style conventions](docs/conventions/code-style.md)
 - [Original brief](docs/prompts/initial-repo-skeleton.md)
-- [Open questions for the build-system pass](docs/todo/open-questions.md)
+- [Open questions for the build-system pass (resolved)](docs/todo/open-questions.md)
 
 ## Licence
 
