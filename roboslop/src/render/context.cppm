@@ -103,6 +103,14 @@ export class RenderContext {
         bgfx::frame();
     }
 
+    [[nodiscard]] auto width() const noexcept -> int {
+        return width_;
+    }
+
+    [[nodiscard]] auto height() const noexcept -> int {
+        return height_;
+    }
+
     auto resize(int width, int height) noexcept -> void {
         if (width == width_ && height == height_) {
             return;
