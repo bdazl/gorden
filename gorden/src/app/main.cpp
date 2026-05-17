@@ -3,6 +3,7 @@ import roboslop.core.error;
 import roboslop.ecs;
 import roboslop.platform.window;
 import roboslop.render.asset_cache;
+import roboslop.render.camera;
 import roboslop.render.context;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
@@ -45,6 +46,15 @@ auto main() -> int {
                     return std::unexpected(prog.error());
                 }
 
+                const auto cameraEntity = world.create();
+                world.emplace<roboslop::Transform>(
+                    cameraEntity, roboslop::Transform{.position = {0.0F, 0.0F, 3.0F}}
+                );
+                world.emplace<roboslop::Camera>(
+                    cameraEntity, roboslop::Camera{.projection = roboslop::Perspective{}}
+                );
+                world.emplace<roboslop::ActiveCamera>(cameraEntity);
+
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto mesh = roboslop::makeStaticMesh(
                     std::as_bytes(std::span{kTriangleVertices}), std::span{kTriangleIndices}, layout
@@ -57,9 +67,13 @@ auto main() -> int {
                 return {};
             },
             .onFixedUpdate = {},
-            .onRender = [](roboslop::World& world,
-                           roboslop::RenderContext& /*ctx*/,
-                           double /*alpha*/) { roboslop::submitMeshes(world); },
+            .onRender =
+                [](roboslop::World& world, roboslop::RenderContext& ctx, double /*alpha*/) {
+                    roboslop::applyActiveCamera(
+                        world, /*viewId=*/0, ctx.width(), ctx.height()
+                    );
+                    roboslop::submitMeshes(world);
+                },
         }
     );
 
