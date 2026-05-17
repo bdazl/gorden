@@ -6,13 +6,12 @@ import roboslop.platform.window;
 auto main() -> int {
     auto app = roboslop::App::make(
         roboslop::AppConfig{
-            .window =
-                roboslop::WindowConfig{
-                    .title = "gorden",
-                    .width = 1280,
-                    .height = 720,
-                },
+            .window = roboslop::WindowConfig{.title = "gorden", .width = 1280, .height = 720},
             .tickRateHz = 60.0,
+            .assetRoot = ".",
+            .onSetup = {},
+            .onFixedUpdate = {},
+            .onRender = {},
         }
     );
     if (!app) {

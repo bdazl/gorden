@@ -7,6 +7,26 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-17 — App drives game code via callbacks on `AppConfig`
+
+**Decision.** `AppConfig` carries three `std::function` hooks — `onSetup`,
+`onFixedUpdate`, `onRender` — plus an `assetRoot` path. `App` owns the
+loop, the `Window`, the `RenderContext`, and a `World`; the game's hooks
+participate at well-defined moments. No virtual `GameApp` interface, no
+engine-driven default render pipeline.
+
+**Why.** A callback config is the lowest-ceremony API that still lets the
+engine fix loop ordering and lifecycle. Virtual interfaces force a class
+hierarchy the game doesn't need at this stage. Engine-driven default
+pipelines hide control flow — keeping `onRender` empty by default and
+letting the game opt into `submitMeshes(world)` keeps draw-call ordering
+explicit and debuggable.
+
+**Where.** [`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm),
+hook documentation in [`docs/architecture.md`](architecture.md).
+
+---
+
 ## 2026-05-17 — ECS facade: `World` exposes `forEach`, not entt views
 
 **Decision.** `roboslop::World` (module `roboslop.ecs`) wraps
