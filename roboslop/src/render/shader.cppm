@@ -1,0 +1,215 @@
+module;
+
+#include <bgfx/bgfx.h>
+
+#include <cstdint>
+#include <expected>
+#include <filesystem>
+#include <fstream>
+#include <ios>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+export module roboslop.render.shader;
+
+import roboslop.core.error;
+
+namespace roboslop {
+
+export enum class ShaderError : int {
+    UnsupportedRenderer = 1,
+    FileMissing = 2,
+    FileReadFailed = 3,
+    ShaderCreateFailed = 4,
+    ProgramCreateFailed = 5,
+};
+
+export [[nodiscard]] auto toError(ShaderError e, std::string ctx = {}) -> Error {
+    switch (e) {
+    case ShaderError::UnsupportedRenderer:
+        return {
+            .category = "roboslop.render.shader",
+            .code = static_cast<int>(e),
+            .message = "no shader directory for active bgfx renderer",
+            .context = std::move(ctx)
+        };
+    case ShaderError::FileMissing:
+        return {
+            .category = "roboslop.render.shader",
+            .code = static_cast<int>(e),
+            .message = "shader file not found",
+            .context = std::move(ctx)
+        };
+    case ShaderError::FileReadFailed:
+        return {
+            .category = "roboslop.render.shader",
+            .code = static_cast<int>(e),
+            .message = "failed to read shader file",
+            .context = std::move(ctx)
+        };
+    case ShaderError::ShaderCreateFailed:
+        return {
+            .category = "roboslop.render.shader",
+            .code = static_cast<int>(e),
+            .message = "bgfx::createShader returned invalid handle",
+            .context = std::move(ctx)
+        };
+    case ShaderError::ProgramCreateFailed:
+        return {
+            .category = "roboslop.render.shader",
+            .code = static_cast<int>(e),
+            .message = "bgfx::createProgram returned invalid handle",
+            .context = std::move(ctx)
+        };
+    }
+    return {
+        .category = "roboslop.render.shader",
+        .code = 0,
+        .message = "unknown ShaderError",
+        .context = std::move(ctx)
+    };
+}
+
+namespace {
+
+[[nodiscard]] auto backendDir(bgfx::RendererType::Enum type) noexcept -> std::string_view {
+    switch (type) {
+    case bgfx::RendererType::Vulkan:
+        return "spirv";
+    case bgfx::RendererType::OpenGL:
+        return "glsl";
+    case bgfx::RendererType::OpenGLES:
+        return "essl";
+    case bgfx::RendererType::Direct3D11:
+    case bgfx::RendererType::Direct3D12:
+        return "dx11";
+    case bgfx::RendererType::Metal:
+        return "metal";
+    default:
+        return {};
+    }
+}
+
+[[nodiscard]] auto readBinaryFile(const std::filesystem::path& path) -> Result<std::vector<char>> {
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        return std::unexpected(toError(ShaderError::FileMissing, path.string()));
+    }
+    std::ifstream in(path, std::ios::binary | std::ios::ate);
+    if (!in) {
+        return std::unexpected(toError(ShaderError::FileMissing, path.string()));
+    }
+    const auto size = static_cast<std::size_t>(in.tellg());
+    in.seekg(0, std::ios::beg);
+    std::vector<char> buf(size);
+    if (size > 0 && !in.read(buf.data(), static_cast<std::streamsize>(size))) {
+        return std::unexpected(toError(ShaderError::FileReadFailed, path.string()));
+    }
+    return buf;
+}
+
+} // namespace
+
+// RAII handle to a bgfx::ProgramHandle. createProgram destroys its shader
+// inputs internally (we pass destroyShaders=true), so Program only manages
+// the program handle. Moving transfers ownership; destructor destroys.
+export class Program {
+  public:
+    Program() = default;
+
+    Program(const Program&) = delete;
+    auto operator=(const Program&) -> Program& = delete;
+
+    Program(Program&& other) noexcept : handle_(std::exchange(other.handle_, kInvalid)) {}
+
+    auto operator=(Program&& other) noexcept -> Program& {
+        if (this != &other) {
+            destroy();
+            handle_ = std::exchange(other.handle_, kInvalid);
+        }
+        return *this;
+    }
+
+    ~Program() {
+        destroy();
+    }
+
+    [[nodiscard]] auto handle() const noexcept -> bgfx::ProgramHandle {
+        return handle_;
+    }
+
+    [[nodiscard]] auto valid() const noexcept -> bool {
+        return bgfx::isValid(handle_);
+    }
+
+  private:
+    friend auto loadProgram(const std::filesystem::path&, std::string_view, std::string_view)
+        -> Result<Program>;
+
+    explicit Program(bgfx::ProgramHandle h) noexcept : handle_(h) {}
+
+    auto destroy() noexcept -> void {
+        if (bgfx::isValid(handle_)) {
+            bgfx::destroy(handle_);
+            handle_ = kInvalid;
+        }
+    }
+
+    static constexpr bgfx::ProgramHandle kInvalid{bgfx::kInvalidHandle};
+    bgfx::ProgramHandle handle_{bgfx::kInvalidHandle};
+};
+
+// Load a compiled bgfx shader (.bin) and create the bgfx shader object.
+// Caller owns the returned handle until passed into createProgram.
+export [[nodiscard]] auto loadShader(const std::filesystem::path& path)
+    -> Result<bgfx::ShaderHandle> {
+    auto bytes = readBinaryFile(path);
+    if (!bytes) {
+        return std::unexpected(bytes.error());
+    }
+
+    const bgfx::Memory* mem = bgfx::copy(bytes->data(), static_cast<std::uint32_t>(bytes->size()));
+    const auto handle = bgfx::createShader(mem);
+    if (!bgfx::isValid(handle)) {
+        return std::unexpected(toError(ShaderError::ShaderCreateFailed, path.string()));
+    }
+    return handle;
+}
+
+// Load a vertex+fragment shader pair from assetRoot/shaders/<backend>/<name>.bin
+// and link them into a Program. Shader files are produced by
+// gorden/CMakeLists.txt via roboslop_compile_shader.
+export [[nodiscard]] auto loadProgram(
+    const std::filesystem::path& assetRoot, std::string_view vsName, std::string_view fsName
+) -> Result<Program> {
+    const auto backend = backendDir(bgfx::getRendererType());
+    if (backend.empty()) {
+        return std::unexpected(toError(ShaderError::UnsupportedRenderer));
+    }
+
+    const auto shaderDir = assetRoot / "shaders" / std::string{backend};
+    const auto vsPath = shaderDir / (std::string{vsName} + ".bin");
+    const auto fsPath = shaderDir / (std::string{fsName} + ".bin");
+
+    auto vsh = loadShader(vsPath);
+    if (!vsh) {
+        return std::unexpected(vsh.error());
+    }
+    auto fsh = loadShader(fsPath);
+    if (!fsh) {
+        bgfx::destroy(*vsh);
+        return std::unexpected(fsh.error());
+    }
+
+    const auto program = bgfx::createProgram(*vsh, *fsh, /*destroyShaders=*/true);
+    if (!bgfx::isValid(program)) {
+        return std::unexpected(
+            toError(ShaderError::ProgramCreateFailed, vsPath.string() + " + " + fsPath.string())
+        );
+    }
+    return Program{program};
+}
+
+} // namespace roboslop

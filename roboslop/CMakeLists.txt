@@ -13,6 +13,7 @@ roboslop_add_module_library(roboslop
         src/time/clock.cppm
         src/platform/window.cppm
         src/render/context.cppm
+        src/render/shader.cppm
         src/ecs/world.cppm
         src/app/app.cppm
 )
