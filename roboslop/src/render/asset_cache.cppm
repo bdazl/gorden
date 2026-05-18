@@ -13,6 +13,7 @@ module;
 
 export module roboslop.render.asset_cache;
 
+import roboslop.assets.texture;
 import roboslop.core.error;
 import roboslop.render.shader;
 
@@ -40,9 +41,25 @@ export class AssetCache {
 
     AssetCache(const AssetCache&) = delete;
     auto operator=(const AssetCache&) -> AssetCache& = delete;
-    AssetCache(AssetCache&&) noexcept = default;
-    auto operator=(AssetCache&&) noexcept -> AssetCache& = default;
-    ~AssetCache() = default;
+
+    AssetCache(AssetCache&& other) noexcept
+        : assetRoot(std::move(other.assetRoot)), programs(std::move(other.programs)),
+          textures(std::move(other.textures)), samplers(std::move(other.samplers)) {}
+
+    auto operator=(AssetCache&& other) noexcept -> AssetCache& {
+        if (this != &other) {
+            destroySamplers();
+            assetRoot = std::move(other.assetRoot);
+            programs = std::move(other.programs);
+            textures = std::move(other.textures);
+            samplers = std::move(other.samplers);
+        }
+        return *this;
+    }
+
+    ~AssetCache() {
+        destroySamplers();
+    }
 
     [[nodiscard]] auto program(std::string_view vsName, std::string_view fsName)
         -> Result<ProgramHandle> {
@@ -57,6 +74,37 @@ export class AssetCache {
         const auto handle = loaded->bgfxHandle();
         programs.emplace(std::move(key), std::move(*loaded));
         return ProgramHandle{handle};
+    }
+
+    // Cached texture load. The path is interpreted relative to
+    // assetRoot. Caller receives a non-owning bgfx handle; the cache
+    // destroys the underlying Texture before bgfx::shutdown.
+    [[nodiscard]] auto texture(std::string_view path) -> Result<bgfx::TextureHandle> {
+        std::string key{path};
+        if (auto it = textures.find(key); it != textures.end()) {
+            return it->second.bgfxHandle();
+        }
+        auto loaded = loadTexture2D(assetRoot / std::filesystem::path{path});
+        if (!loaded) {
+            return std::unexpected(loaded.error());
+        }
+        const auto handle = loaded->bgfxHandle();
+        textures.emplace(std::move(key), std::move(*loaded));
+        return handle;
+    }
+
+    // Cached sampler uniform (e.g. s_albedo, s_normal). bgfx requires
+    // sampler uniforms to outlive every draw that binds them; routing
+    // their lifetime through the AssetCache means they die before
+    // bgfx::shutdown via App's destruction order.
+    [[nodiscard]] auto sampler(std::string_view name) -> bgfx::UniformHandle {
+        std::string key{name};
+        if (auto it = samplers.find(key); it != samplers.end()) {
+            return it->second;
+        }
+        const auto h = bgfx::createUniform(key.c_str(), bgfx::UniformType::Sampler);
+        samplers.emplace(std::move(key), h);
+        return h;
     }
 
   private:
@@ -75,8 +123,20 @@ export class AssetCache {
         }
     };
 
+    auto destroySamplers() noexcept -> void {
+        for (auto& [_, handle] : samplers) {
+            if (bgfx::isValid(handle)) {
+                bgfx::destroy(handle);
+                handle = bgfx::UniformHandle{bgfx::kInvalidHandle};
+            }
+        }
+        samplers.clear();
+    }
+
     std::filesystem::path assetRoot;
     std::unordered_map<Key, Program, KeyHash> programs;
+    std::unordered_map<std::string, Texture> textures;
+    std::unordered_map<std::string, bgfx::UniformHandle> samplers;
 };
 
 } // namespace roboslop

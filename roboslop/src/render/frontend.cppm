@@ -16,6 +16,7 @@ module;
 export module roboslop.render.frontend;
 
 import roboslop.ecs;
+import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
 
@@ -97,6 +98,7 @@ export struct DrawItem {
     std::uint64_t state = BGFX_STATE_DEFAULT;
     glm::mat4 model{1.0F};
     bgfx::TextureHandle albedo{bgfx::kInvalidHandle};
+    bgfx::UniformHandle albedoSampler{bgfx::kInvalidHandle};
     const glm::mat4* bones = nullptr;
     std::uint8_t boneCount = 0;
     std::uint16_t viewId = 0;
@@ -153,7 +155,20 @@ collectMeshDraws(const World& world, FrameArena& arena, std::uint16_t viewId)
         d.state = m.state;
         d.model = toMatrix(t);
         d.viewId = viewId;
-        d.sortKey = makeSortKey(viewId, static_cast<std::uint32_t>(m.program.idx));
+
+        // When the entity carries a Material, override the program
+        // and bind its albedo texture for submitDraws. Material wins
+        // over Mesh.program — Mesh.program is the fallback for
+        // vertex-coloured debug geometry.
+        if (const auto* mat = reg.try_get<const Material>(e); mat != nullptr) {
+            if (mat->program.valid()) {
+                d.program = mat->program.value;
+            }
+            d.albedo = mat->albedo;
+            d.albedoSampler = mat->sAlbedo;
+        }
+
+        d.sortKey = makeSortKey(viewId, static_cast<std::uint32_t>(d.program.idx));
     }
     return draws;
 }
@@ -177,6 +192,9 @@ export auto submitDraws(std::span<const DrawItem> items) -> void {
         bgfx::setTransform(glm::value_ptr(d.model));
         bgfx::setVertexBuffer(0, d.vb);
         bgfx::setIndexBuffer(d.ib);
+        if (bgfx::isValid(d.albedo) && bgfx::isValid(d.albedoSampler)) {
+            bgfx::setTexture(0, d.albedoSampler, d.albedo);
+        }
         bgfx::setState(d.state);
         bgfx::submit(d.viewId, d.program);
     }

@@ -8,6 +8,8 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(Taskflow CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
+find_package(assimp CONFIG REQUIRED)
+find_package(stb REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -19,6 +21,7 @@ roboslop_add_module_library(roboslop
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm
+        src/render/material.cppm
         src/render/camera.cppm
         src/render/free_fly_camera.cppm
         src/render/asset_cache.cppm
@@ -26,10 +29,14 @@ roboslop_add_module_library(roboslop
         src/render/graph.cppm
         src/physics/components.cppm
         src/physics/jolt_world.cppm
+        src/assets/mesh_loader.cppm
+        src/assets/texture_loader.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
         src/app/app.cppm
+    SOURCES
+        src/assets/stb_image_impl.cpp
 )
 
 target_link_libraries(roboslop PUBLIC
@@ -42,6 +49,8 @@ target_link_libraries(roboslop PUBLIC
     EnTT::EnTT
     Taskflow::Taskflow
     Jolt::Jolt
+    assimp::assimp
+    stb::stb
 )
 
 if(ROBOSLOP_BUILD_TESTS)

@@ -7,6 +7,77 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Asset pipeline: Assimp meshes, stb_image textures, Material component
+
+**Decision.** Three new asset/render modules plus an `AssetCache`
+extension:
+
+- `roboslop.assets.mesh` exposes `MeshVertex` (pos+normal+uv POD),
+  `MeshAsset`, and `loadMeshFile(path)` via Assimp.
+- `roboslop.assets.texture` exposes an RAII `Texture` wrapper and
+  `loadTexture2D(path)` via stb_image. The single
+  `STB_IMAGE_IMPLEMENTATION` TU is `roboslop/src/assets/stb_image_impl.cpp`.
+- `roboslop.render.material` exposes the POD `Material` component
+  (program + albedo + sampler-uniform handles).
+
+`AssetCache` grows two caches: `texture(path) -> bgfx::TextureHandle`
+and `sampler(name) -> bgfx::UniformHandle`. Both ride App's
+destruction order (cache dies before bgfx::shutdown). The cache's
+move-ops moved from defaulted to hand-written because samplers need
+explicit `bgfx::destroy` calls, and we want the moved-from cache to
+be empty (not still owning handles).
+
+The render frontend's `collectMeshDraws` now checks for a `Material`
+component via `try_get`: when present, it overrides `Mesh.program`
+with `Material.program` and propagates the albedo+sampler handles
+into the `DrawItem`. `submitDraws` issues `bgfx::setTexture(0,
+sampler, albedo)` only when both handles are valid, so vertex-coloured
+draws (no Material) keep working unchanged.
+
+New vertex layout `vertexLayoutPosNormalUv()` matches `MeshVertex`,
+and the new shader pair `vs_textured.sc` / `fs_textured.sc` reads
+albedo from `s_albedo`. `varying.def.sc` was extended with `v_normal`,
+`v_texcoord0`, `a_normal`, `a_texcoord0`.
+
+`submitMeshes(World&)` (the M0-era direct-submission helper) is
+removed; the frontend/backend path now owns every draw.
+
+**Why.** The plan called for "thin slice per milestone". The MVP
+exercises the *engine* path end-to-end — Texture/Mesh loaders compile
+and link against Assimp / stb_image — without committing checked-in
+binary assets to the repo. The gorden demo builds a procedural
+4×4 checkerboard texture and a 24-vertex pos+normal+uv cube inline,
+running them through the same Material → DrawItem → submitDraws
+pipeline that an Assimp `.obj` + PNG load will use unchanged. Real
+file-loading is exercised the moment we commit a mesh; nothing in
+the engine needs to change.
+
+Routing sampler uniforms through `AssetCache::sampler(name)` (rather
+than letting game code call `bgfx::createUniform` directly) keeps
+their lifetime co-located with the textures they bind; otherwise
+bgfx complains at shutdown about a leaked uniform. Keeping the
+non-textured pos+color path alive means the M1 vertex-coloured
+physics demo still works while the M2 textured cube falls alongside.
+
+**Where.** [`roboslop/src/assets/mesh_loader.cppm`](../roboslop/src/assets/mesh_loader.cppm),
+[`roboslop/src/assets/texture_loader.cppm`](../roboslop/src/assets/texture_loader.cppm),
+[`roboslop/src/assets/stb_image_impl.cpp`](../roboslop/src/assets/stb_image_impl.cpp),
+[`roboslop/src/render/material.cppm`](../roboslop/src/render/material.cppm),
+[`roboslop/src/render/asset_cache.cppm`](../roboslop/src/render/asset_cache.cppm)
+(texture + sampler caches),
+[`roboslop/src/render/frontend.cppm`](../roboslop/src/render/frontend.cppm)
+(Material-aware draw collection),
+[`roboslop/src/render/mesh.cppm`](../roboslop/src/render/mesh.cppm)
+(adds `vertexLayoutPosNormalUv()`; drops `submitMeshes`).
+Shaders: [`gorden/assets/shaders/src/vs_textured.sc`](../gorden/assets/shaders/src/vs_textured.sc),
+[`fs_textured.sc`](../gorden/assets/shaders/src/fs_textured.sc),
+extended [`varying.def.sc`](../gorden/assets/shaders/src/varying.def.sc).
+Build: [`conanfile.py`](../conanfile.py) already required `assimp/5.4.2`
+and `stb/cci.20230920`; [`roboslop/CMakeLists.txt`](../roboslop/CMakeLists.txt)
+links `assimp::assimp` + `stb::stb`.
+
+---
+
 ## 2026-05-18 — Jolt physics integrated as a fixed-update subsystem
 
 **Decision.** `roboslop.physics` exposes `JoltWorld` (move-only value

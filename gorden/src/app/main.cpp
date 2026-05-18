@@ -11,10 +11,12 @@ import roboslop.render.context;
 import roboslop.render.free_fly_camera;
 import roboslop.render.frontend;
 import roboslop.render.graph;
+import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
 import roboslop.sched;
 
+#include <bgfx/bgfx.h>
 #include <glm/vec3.hpp>
 
 #include <array>
@@ -55,6 +57,75 @@ constexpr std::array<std::uint16_t, 36> kCubeIndices = {
     3, 2, 6, 3, 6, 7, // +Y
     0, 4, 5, 0, 5, 1, // -Y
 };
+
+// Textured cube — 24 unique vertices (one per face corner) so the UVs
+// and face-aligned normals don't share verts across faces. Each face
+// is a unit-square 0..1 UV mapping.
+struct TexCubeVertex {
+    float position[3];
+    float normal[3];
+    float uv[2];
+};
+
+constexpr std::array<TexCubeVertex, 24> kTexCubeVertices = {
+    // -Z face (normal 0,0,-1)
+    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {0, 0, -1}, {0, 0}},
+    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {0, 0, -1}, {1, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {0, 0, -1}, {1, 1}},
+    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {0, 0, -1}, {0, 1}},
+    // +Z
+    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {0, 0, +1}, {0, 0}},
+    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {0, 0, +1}, {1, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {0, 0, +1}, {1, 1}},
+    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {0, 0, +1}, {0, 1}},
+    // -X
+    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {-1, 0, 0}, {0, 0}},
+    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {-1, 0, 0}, {1, 0}},
+    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {-1, 0, 0}, {1, 1}},
+    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {-1, 0, 0}, {0, 1}},
+    // +X
+    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {+1, 0, 0}, {0, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {+1, 0, 0}, {1, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {+1, 0, 0}, {1, 1}},
+    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {+1, 0, 0}, {0, 1}},
+    // -Y
+    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {0, -1, 0}, {0, 0}},
+    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {0, -1, 0}, {1, 0}},
+    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {0, -1, 0}, {1, 1}},
+    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {0, -1, 0}, {0, 1}},
+    // +Y
+    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {0, +1, 0}, {0, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {0, +1, 0}, {1, 0}},
+    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {0, +1, 0}, {1, 1}},
+    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {0, +1, 0}, {0, 1}},
+};
+
+constexpr std::array<std::uint16_t, 36> kTexCubeIndices = {
+    0,  1,  2,  0,  2,  3,  // -Z
+    4,  6,  5,  4,  7,  6,  // +Z
+    8,  9,  10, 8,  10, 11, // -X
+    12, 14, 13, 12, 15, 14, // +X
+    16, 18, 17, 16, 19, 18, // -Y
+    20, 21, 22, 20, 22, 23, // +Y
+};
+
+// 4×4 RGBA checkerboard so the cube's UV mapping is obvious at a
+// glance. Stored row-major top-to-bottom (stbi's convention, mirrored
+// by aiProcess_FlipUVs for Assimp loads).
+constexpr std::array<std::uint8_t, 4 * 4 * 4> kCheckerPixels = [] {
+    std::array<std::uint8_t, 64> p{};
+    for (std::size_t y = 0; y < 4; ++y) {
+        for (std::size_t x = 0; x < 4; ++x) {
+            const bool dark = ((x + y) & 1U) != 0U;
+            const std::size_t i = (y * 4U + x) * 4U;
+            p[i + 0] = dark ? std::uint8_t{32} : std::uint8_t{220};
+            p[i + 1] = dark ? std::uint8_t{32} : std::uint8_t{220};
+            p[i + 2] = dark ? std::uint8_t{96} : std::uint8_t{80};
+            p[i + 3] = std::uint8_t{255};
+        }
+    }
+    return p;
+}();
 
 auto spawnDynamicCube(roboslop::World& world, const roboslop::Mesh& mesh, glm::vec3 pos) -> void {
     const auto e = world.create();
@@ -144,6 +215,58 @@ auto main() -> int {
                 spawnDynamicCube(world, cube, glm::vec3{0.0F, 7.0F, -1.0F});
                 spawnDynamicSphere(world, cube, glm::vec3{0.5F, 9.0F, 0.5F});
                 spawnDynamicSphere(world, cube, glm::vec3{-0.5F, 11.0F, 0.5F});
+
+                // Textured cube — wires the M2 asset path end-to-end:
+                // pos+normal+uv vertex layout, a procedurally built
+                // RGBA8 albedo, the textured shader pair, and a
+                // Material component the frontend reads at draw time.
+                auto texProg = assets.program("vs_textured", "fs_textured");
+                if (!texProg) {
+                    return std::unexpected(texProg.error());
+                }
+                const auto texLayout = roboslop::vertexLayoutPosNormalUv();
+                auto texMesh = roboslop::makeStaticMesh(
+                    std::as_bytes(std::span{kTexCubeVertices}),
+                    std::span{kTexCubeIndices},
+                    texLayout
+                );
+                texMesh.program = texProg->value;
+
+                const bgfx::Memory* texelMem = bgfx::copy(
+                    kCheckerPixels.data(), static_cast<std::uint32_t>(kCheckerPixels.size())
+                );
+                const bgfx::TextureHandle albedo = bgfx::createTexture2D(
+                    /*width=*/4,
+                    /*height=*/4,
+                    /*hasMips=*/false,
+                    /*numLayers=*/1,
+                    bgfx::TextureFormat::RGBA8,
+                    BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT,
+                    texelMem
+                );
+                const bgfx::UniformHandle sAlbedo = assets.sampler("s_albedo");
+                const roboslop::Material material{
+                    .program = *texProg,
+                    .albedo = albedo,
+                    .sAlbedo = sAlbedo,
+                };
+
+                const auto te = world.create();
+                world.emplace<roboslop::Transform>(
+                    te, roboslop::Transform{.position = {3.0F, 5.0F, 0.0F}}
+                );
+                world.emplace<roboslop::Mesh>(te, texMesh);
+                world.emplace<roboslop::Material>(te, material);
+                world.emplace<roboslop::BodyDesc>(
+                    te,
+                    roboslop::BodyDesc{
+                        .shape = roboslop::BoxShape{.halfExtents = {0.5F, 0.5F, 0.5F}},
+                        .motion = roboslop::BodyMotion::Dynamic,
+                        .mass = 1.0F,
+                        .friction = 0.5F,
+                        .restitution = 0.2F,
+                    }
+                );
                 return {};
             },
             .onBuildGraphs =

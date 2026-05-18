@@ -78,6 +78,39 @@ bgfx. No heap allocation runs in the render loop. The sort key bakes
 view-class, view-ID, program, and depth into a single `uint64` so a
 single `std::sort` does all draw-call ordering.
 
+## Assets
+
+Two loader modules under `roboslop.assets.*`, each backed by a single
+external library:
+
+- `roboslop.assets.mesh` wraps Assimp. `loadMeshFile(path)` returns a
+  `MeshAsset` with interleaved `MeshVertex { position, normal, uv }`
+  vertices and uint16 indices. The default postprocess flags are
+  `Triangulate | GenSmoothNormals | FlipUVs | CalcTangentSpace |
+  JoinIdenticalVertices`. MVP loads only the first mesh in a scene.
+- `roboslop.assets.texture` wraps stb_image. `loadTexture2D(path)`
+  decodes any stb-supported format into a bgfx RGBA8 2D texture and
+  returns an RAII `Texture` handle. The implementation TU
+  (`stb_image_impl.cpp`) is the single place that `#define`s
+  `STB_IMAGE_IMPLEMENTATION`.
+
+`AssetCache` (in `roboslop.render.asset_cache`) caches both: a
+`texture(path)` accessor returns a non-owning `bgfx::TextureHandle`;
+the cache destroys the underlying `Texture` before `bgfx::shutdown`.
+A `sampler(name)` accessor caches sampler uniforms (`s_albedo`,
+`s_normal`, ...) on the same schedule.
+
+`roboslop.render.material` defines the POD `Material { ProgramHandle
+program, bgfx::TextureHandle albedo, bgfx::UniformHandle sAlbedo }`.
+The frontend reads it via `try_get<Material>` per entity at draw
+collection time: when present, it overrides `Mesh.program` and
+populates the `DrawItem`'s texture+sampler so `submitDraws` can call
+`bgfx::setTexture` before submission.
+
+The pos+color triangle path stays alongside the textured path —
+`vertexLayoutPosColor()` for vertex-coloured debug geometry,
+`vertexLayoutPosNormalUv()` for textured meshes loaded via Assimp.
+
 ## Physics
 
 `roboslop.physics` exposes a `JoltWorld` value type owned by `App`.

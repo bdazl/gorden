@@ -33,3 +33,17 @@ roboslop_compile_shader(
     VARYING     ${shader_src_dir}/varying.def.sc
     OUTPUT_DIR  ${shader_out_dir}
 )
+
+roboslop_compile_shader(
+    TYPE        VERTEX
+    SHADERS     ${shader_src_dir}/vs_textured.sc
+    VARYING     ${shader_src_dir}/varying.def.sc
+    OUTPUT_DIR  ${shader_out_dir}
+)
+
+roboslop_compile_shader(
+    TYPE        FRAGMENT
+    SHADERS     ${shader_src_dir}/fs_textured.sc
+    VARYING     ${shader_src_dir}/varying.def.sc
+    OUTPUT_DIR  ${shader_out_dir}
+)

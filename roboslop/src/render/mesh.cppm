@@ -2,22 +2,11 @@ module;
 
 #include <bgfx/bgfx.h>
 
-// entt's sparse-set iterator's operator!= is a non-member that range-for
-// can't see through the module boundary for single-component views. The
-// include keeps the range-for in submitMeshes valid (see
-// docs/decisions.md, 2026-05-17 ECS-facade entry).
-#include <entt/entt.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/mat4x4.hpp>
-
 #include <cstddef>
 #include <cstdint>
 #include <span>
 
 export module roboslop.render.mesh;
-
-import roboslop.ecs;
-import roboslop.scene.transform;
 
 namespace roboslop {
 
@@ -44,6 +33,19 @@ export [[nodiscard]] auto vertexLayoutPosColor() -> bgfx::VertexLayout {
     return layout;
 }
 
+// Position (vec3 float) + Normal (vec3 float) + TexCoord0 (vec2 float).
+// Matches MeshVertex in roboslop.assets.mesh and the textured shader
+// pair vs_textured.sc / fs_textured.sc.
+export [[nodiscard]] auto vertexLayoutPosNormalUv() -> bgfx::VertexLayout {
+    bgfx::VertexLayout layout;
+    layout.begin()
+        .add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::Normal, 3, bgfx::AttribType::Float)
+        .add(bgfx::Attrib::TexCoord0, 2, bgfx::AttribType::Float)
+        .end();
+    return layout;
+}
+
 // Copies vertex / index data into bgfx static buffers and returns a Mesh
 // component pointing at them. Caller fills in the program handle (e.g.
 // from roboslop::loadProgram) and any non-default state/viewId before
@@ -63,32 +65,6 @@ export [[nodiscard]] auto makeStaticMesh(
         )
     );
     return m;
-}
-
-// Render system: submit every Mesh entity to its configured view. Must be
-// called from inside App's render slot, between beginFrame and endFrame.
-// Reaches into World::registry() because raw view iteration sidesteps
-// World::forEach's callback indirection.
-//
-// When the entity carries a Transform, the resulting model matrix is fed
-// to bgfx::setTransform per draw. Without a Transform bgfx uses identity,
-// which keeps debug/triangle entities working without ceremony.
-export auto submitMeshes(const World& world) -> void {
-    const auto& reg = world.registry();
-    for (const auto e : reg.view<const Mesh>()) {
-        const auto& m = reg.get<const Mesh>(e);
-        if (!bgfx::isValid(m.vb) || !bgfx::isValid(m.ib) || !bgfx::isValid(m.program)) {
-            continue;
-        }
-        if (const auto* t = reg.try_get<const Transform>(e)) {
-            const glm::mat4 model = toMatrix(*t);
-            bgfx::setTransform(glm::value_ptr(model));
-        }
-        bgfx::setVertexBuffer(0, m.vb);
-        bgfx::setIndexBuffer(m.ib);
-        bgfx::setState(m.state);
-        bgfx::submit(m.viewId, m.program);
-    }
 }
 
 } // namespace roboslop
