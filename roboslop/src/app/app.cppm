@@ -11,6 +11,7 @@ export module roboslop.app;
 
 import roboslop.core.error;
 import roboslop.ecs;
+import roboslop.platform.input;
 import roboslop.platform.window;
 import roboslop.render.asset_cache;
 import roboslop.render.context;
@@ -27,7 +28,9 @@ namespace roboslop {
 //                   handle lifetimes. Returns Result<void> so asset-load
 //                   failures abort start-up cleanly.
 //   onFixedUpdate — called N times per frame, once per fixed sub-step at
-//                   the configured rate (default 60 Hz).
+//                   the configured rate (default 60 Hz). Receives a
+//                   mutable Input reference; the same per-frame snapshot
+//                   is reused across all sub-steps in one render frame.
 //   onRender      — called once per frame, between bgfx beginFrame /
 //                   endFrame. Receives the interpolation alpha in [0, 1).
 export struct AppConfig {
@@ -36,7 +39,7 @@ export struct AppConfig {
     std::filesystem::path assetRoot = ".";
 
     std::function<Result<void>(World&, AssetCache&)> onSetup;
-    std::function<void(World&, double)> onFixedUpdate;
+    std::function<void(World&, Input&, double)> onFixedUpdate;
     std::function<void(World&, RenderContext&, double)> onRender;
 };
 
@@ -57,6 +60,10 @@ export class App {
         }
         AssetCache assets{cfg.assetRoot};
         return App{std::move(*window), std::move(*render), std::move(assets), std::move(cfg)};
+    }
+
+    [[nodiscard]] auto input() noexcept -> Input& {
+        return input_;
     }
 
     App(const App&) = delete;
@@ -92,8 +99,9 @@ export class App {
 
         while (!window_.shouldClose()) {
             pollWindowEvents();
+            input_.beginFrame();
 
-            if (window_.escapePressed()) {
+            if (input_.keyPressed(Key::Escape)) {
                 window_.requestClose();
             }
 
@@ -102,7 +110,7 @@ export class App {
             for (int i = 0; i < steps; ++i) {
                 (void)i;
                 if (cfg_.onFixedUpdate) {
-                    cfg_.onFixedUpdate(world_, ticker_.fixedDelta());
+                    cfg_.onFixedUpdate(world_, input_, ticker_.fixedDelta());
                 }
             }
 
@@ -119,15 +127,18 @@ export class App {
 
   private:
     App(Window window, RenderContext render, AssetCache assets, AppConfig cfg) noexcept
-        : window_(std::move(window)), render_(std::move(render)), assets_(std::move(assets)),
-          ticker_(cfg.tickRateHz), cfg_(std::move(cfg)) {}
+        : window_(std::move(window)), render_(std::move(render)), input_(window_),
+          assets_(std::move(assets)), ticker_(cfg.tickRateHz), cfg_(std::move(cfg)) {}
 
     // Member order is destruction-critical: assets_ must outlive any
     // entity that stores its handles (world_) and must die before bgfx
     // shuts down (render_). Declared order = construction order = reverse
-    // destruction order.
+    // destruction order. input_ stores only the raw GLFWwindow handle,
+    // which is stable across Window moves, so it carries no destruction
+    // dependency of its own.
     Window window_;
     RenderContext render_;
+    Input input_;
     AssetCache assets_;
     World world_;
     Clock clock_;

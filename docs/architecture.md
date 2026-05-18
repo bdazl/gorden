@@ -27,7 +27,7 @@ Game code participates through callbacks on `AppConfig`:
 | Hook | When | Signature |
 |---|---|---|
 | `onSetup` | Once, after init, before the loop | `Result<void>(World&, AssetCache&)` |
-| `onFixedUpdate` | N times per frame at the fixed rate | `void(World&, double dt)` |
+| `onFixedUpdate` | N times per frame at the fixed rate | `void(World&, Input&, double dt)` |
 | `onRender` | Once per frame, between bgfx begin/endFrame | `void(World&, RenderContext&, double alpha)` |
 
 The engine owns the loop and the ordering; the game owns the content of

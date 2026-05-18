@@ -1,10 +1,12 @@
 import roboslop.app;
 import roboslop.core.error;
 import roboslop.ecs;
+import roboslop.platform.input;
 import roboslop.platform.window;
 import roboslop.render.asset_cache;
 import roboslop.render.camera;
 import roboslop.render.context;
+import roboslop.render.free_fly_camera;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
 
@@ -54,6 +56,7 @@ auto main() -> int {
                     cameraEntity, roboslop::Camera{.projection = roboslop::Perspective{}}
                 );
                 world.emplace<roboslop::ActiveCamera>(cameraEntity);
+                world.emplace<roboslop::FreeFlyCamera>(cameraEntity);
 
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto mesh = roboslop::makeStaticMesh(
@@ -66,7 +69,9 @@ auto main() -> int {
                 world.emplace<roboslop::Transform>(e);
                 return {};
             },
-            .onFixedUpdate = {},
+            .onFixedUpdate = [](roboslop::World& world,
+                                roboslop::Input& input,
+                                double dt) { roboslop::updateFreeFlyCameras(world, input, dt); },
             .onRender =
                 [](roboslop::World& world, roboslop::RenderContext& ctx, double /*alpha*/) {
                     roboslop::applyActiveCamera(world, /*viewId=*/0, ctx.width(), ctx.height());

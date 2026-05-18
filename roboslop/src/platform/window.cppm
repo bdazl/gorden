@@ -168,10 +168,6 @@ export class Window {
         return {w, h};
     }
 
-    [[nodiscard]] auto escapePressed() const -> bool {
-        return glfwGetKey(handle_, GLFW_KEY_ESCAPE) == GLFW_PRESS;
-    }
-
     // Raw GLFW handle. Stable for the lifetime of the Window (and across
     // moves — only the wrapper's pointer is exchanged, not the underlying
     // GLFW object). Used by input.cppm to poll keys/mouse without holding
