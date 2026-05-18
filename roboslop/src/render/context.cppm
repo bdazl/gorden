@@ -75,16 +75,16 @@ export class RenderContext {
     auto operator=(const RenderContext&) -> RenderContext& = delete;
 
     RenderContext(RenderContext&& other) noexcept
-        : alive_(std::exchange(other.alive_, false)), width_(other.width_), height_(other.height_),
-          cfg_(other.cfg_) {}
+        : alive(std::exchange(other.alive, false)), width(other.width), height(other.height),
+          cfg(other.cfg) {}
 
     auto operator=(RenderContext&& other) noexcept -> RenderContext& {
         if (this != &other) {
             shutdown();
-            alive_ = std::exchange(other.alive_, false);
-            width_ = other.width_;
-            height_ = other.height_;
-            cfg_ = other.cfg_;
+            alive = std::exchange(other.alive, false);
+            width = other.width;
+            height = other.height;
+            cfg = other.cfg;
         }
         return *this;
     }
@@ -103,43 +103,45 @@ export class RenderContext {
         bgfx::frame();
     }
 
-    [[nodiscard]] auto width() const noexcept -> int {
-        return width_;
+    [[nodiscard]] auto framebufferWidth() const noexcept -> int {
+        return width;
     }
 
-    [[nodiscard]] auto height() const noexcept -> int {
-        return height_;
+    [[nodiscard]] auto framebufferHeight() const noexcept -> int {
+        return height;
     }
 
-    auto resize(int width, int height) noexcept -> void {
-        if (width == width_ && height == height_) {
+    auto resize(int newWidth, int newHeight) noexcept -> void {
+        if (newWidth == width && newHeight == height) {
             return;
         }
-        width_ = width;
-        height_ = height;
+        width = newWidth;
+        height = newHeight;
         bgfx::reset(
-            static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), cfg_.resetFlags
+            static_cast<std::uint32_t>(newWidth),
+            static_cast<std::uint32_t>(newHeight),
+            cfg.resetFlags
         );
         bgfx::setViewRect(
-            0, 0, 0, static_cast<std::uint16_t>(width), static_cast<std::uint16_t>(height)
+            0, 0, 0, static_cast<std::uint16_t>(newWidth), static_cast<std::uint16_t>(newHeight)
         );
     }
 
   private:
     RenderContext(int w, int h, RenderConfig cfg) noexcept
-        : alive_(true), width_(w), height_(h), cfg_(cfg) {}
+        : alive(true), width(w), height(h), cfg(cfg) {}
 
     auto shutdown() noexcept -> void {
-        if (alive_) {
+        if (alive) {
             bgfx::shutdown();
-            alive_ = false;
+            alive = false;
         }
     }
 
-    bool alive_ = false;
-    int width_ = 0;
-    int height_ = 0;
-    RenderConfig cfg_{};
+    bool alive = false;
+    int width = 0;
+    int height = 0;
+    RenderConfig cfg{};
 };
 
 } // namespace roboslop

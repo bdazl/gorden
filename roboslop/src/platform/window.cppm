@@ -133,17 +133,17 @@ export class Window {
     auto operator=(const Window&) -> Window& = delete;
 
     Window(Window&& other) noexcept
-        : handle_(std::exchange(other.handle_, nullptr)),
-          resizeCallback_(std::move(other.resizeCallback_)), cursorMode_(other.cursorMode_) {
+        : handle(std::exchange(other.handle, nullptr)),
+          resizeCallback(std::move(other.resizeCallback)), cursorMode(other.cursorMode) {
         rebindUserPointer();
     }
 
     auto operator=(Window&& other) noexcept -> Window& {
         if (this != &other) {
             shutdown();
-            handle_ = std::exchange(other.handle_, nullptr);
-            resizeCallback_ = std::move(other.resizeCallback_);
-            cursorMode_ = other.cursorMode_;
+            handle = std::exchange(other.handle, nullptr);
+            resizeCallback = std::move(other.resizeCallback);
+            cursorMode = other.cursorMode;
             rebindUserPointer();
         }
         return *this;
@@ -154,17 +154,17 @@ export class Window {
     }
 
     [[nodiscard]] auto shouldClose() const -> bool {
-        return glfwWindowShouldClose(handle_) == GLFW_TRUE;
+        return glfwWindowShouldClose(handle) == GLFW_TRUE;
     }
 
     auto requestClose() const -> void {
-        glfwSetWindowShouldClose(handle_, GLFW_TRUE);
+        glfwSetWindowShouldClose(handle, GLFW_TRUE);
     }
 
     [[nodiscard]] auto framebufferSize() const -> std::pair<int, int> {
         int w = 0;
         int h = 0;
-        glfwGetFramebufferSize(handle_, &w, &h);
+        glfwGetFramebufferSize(handle, &w, &h);
         return {w, h};
     }
 
@@ -172,16 +172,12 @@ export class Window {
     // moves — only the wrapper's pointer is exchanged, not the underlying
     // GLFW object). Used by input.cppm to poll keys/mouse without holding
     // a reference to the Window itself.
-    [[nodiscard]] auto handle() const noexcept -> GLFWwindow* {
-        return handle_;
-    }
-
-    [[nodiscard]] auto cursorMode() const noexcept -> CursorMode {
-        return cursorMode_;
+    [[nodiscard]] auto glfwHandle() const noexcept -> GLFWwindow* {
+        return handle;
     }
 
     auto setCursorMode(CursorMode mode) -> void {
-        cursorMode_ = mode;
+        cursorMode = mode;
         int glfwMode = GLFW_CURSOR_NORMAL;
         switch (mode) {
         case CursorMode::Normal:
@@ -194,12 +190,10 @@ export class Window {
             glfwMode = GLFW_CURSOR_DISABLED;
             break;
         }
-        glfwSetInputMode(handle_, GLFW_CURSOR, glfwMode);
+        glfwSetInputMode(handle, GLFW_CURSOR, glfwMode);
         if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
             glfwSetInputMode(
-                handle_,
-                GLFW_RAW_MOUSE_MOTION,
-                mode == CursorMode::Captured ? GLFW_TRUE : GLFW_FALSE
+                handle, GLFW_RAW_MOUSE_MOTION, mode == CursorMode::Captured ? GLFW_TRUE : GLFW_FALSE
             );
         }
     }
@@ -208,12 +202,12 @@ export class Window {
     // Installs the trampoline on first call; subsequent calls just replace
     // the stored target. A null callback uninstalls.
     auto setResizeCallback(std::function<void(int, int)> cb) -> void {
-        resizeCallback_ = std::move(cb);
+        resizeCallback = std::move(cb);
         rebindUserPointer();
-        if (resizeCallback_) {
-            glfwSetFramebufferSizeCallback(handle_, &Window::framebufferSizeTrampoline);
+        if (resizeCallback) {
+            glfwSetFramebufferSizeCallback(handle, &Window::framebufferSizeTrampoline);
         } else {
-            glfwSetFramebufferSizeCallback(handle_, nullptr);
+            glfwSetFramebufferSizeCallback(handle, nullptr);
         }
     }
 
@@ -222,21 +216,20 @@ export class Window {
 #if defined(__linux__)
         out.platform = NativePlatform::X11;
         out.display = glfwGetX11Display();
-        out.window =
-            reinterpret_cast<void*>(static_cast<std::uintptr_t>(glfwGetX11Window(handle_)));
+        out.window = reinterpret_cast<void*>(static_cast<std::uintptr_t>(glfwGetX11Window(handle)));
 #endif
         return out;
     }
 
   private:
-    explicit Window(GLFWwindow* handle) noexcept : handle_(handle) {}
+    explicit Window(GLFWwindow* handle) noexcept : handle(handle) {}
 
     auto shutdown() noexcept -> void {
-        if (handle_ != nullptr) {
-            glfwSetFramebufferSizeCallback(handle_, nullptr);
-            glfwSetWindowUserPointer(handle_, nullptr);
-            glfwDestroyWindow(handle_);
-            handle_ = nullptr;
+        if (handle != nullptr) {
+            glfwSetFramebufferSizeCallback(handle, nullptr);
+            glfwSetWindowUserPointer(handle, nullptr);
+            glfwDestroyWindow(handle);
+            handle = nullptr;
             releaseGlfw();
         }
     }
@@ -245,21 +238,21 @@ export class Window {
     // after construction or move; the trampoline below resolves callbacks
     // through that slot rather than capturing `this` directly.
     auto rebindUserPointer() noexcept -> void {
-        if (handle_ != nullptr) {
-            glfwSetWindowUserPointer(handle_, this);
+        if (handle != nullptr) {
+            glfwSetWindowUserPointer(handle, this);
         }
     }
 
     static auto framebufferSizeTrampoline(GLFWwindow* w, int width, int height) -> void {
         auto* self = static_cast<Window*>(glfwGetWindowUserPointer(w));
-        if (self != nullptr && self->resizeCallback_) {
-            self->resizeCallback_(width, height);
+        if (self != nullptr && self->resizeCallback) {
+            self->resizeCallback(width, height);
         }
     }
 
-    GLFWwindow* handle_ = nullptr;
-    std::function<void(int, int)> resizeCallback_;
-    CursorMode cursorMode_ = CursorMode::Normal;
+    GLFWwindow* handle = nullptr;
+    std::function<void(int, int)> resizeCallback;
+    CursorMode cursorMode = CursorMode::Normal;
 };
 
 // Drives the process-wide GLFW event queue. Single-window engines call this

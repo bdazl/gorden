@@ -74,7 +74,9 @@ auto main() -> int {
                                 double dt) { roboslop::updateFreeFlyCameras(world, input, dt); },
             .onRender =
                 [](roboslop::World& world, roboslop::RenderContext& ctx, double /*alpha*/) {
-                    roboslop::applyActiveCamera(world, /*viewId=*/0, ctx.width(), ctx.height());
+                    roboslop::applyActiveCamera(
+                        world, /*viewId=*/0, ctx.framebufferWidth(), ctx.framebufferHeight()
+                    );
                     roboslop::submitMeshes(world);
                 },
         }

@@ -122,12 +122,12 @@ export class Program {
     Program(const Program&) = delete;
     auto operator=(const Program&) -> Program& = delete;
 
-    Program(Program&& other) noexcept : handle_(std::exchange(other.handle_, kInvalid)) {}
+    Program(Program&& other) noexcept : handle(std::exchange(other.handle, kInvalid)) {}
 
     auto operator=(Program&& other) noexcept -> Program& {
         if (this != &other) {
             destroy();
-            handle_ = std::exchange(other.handle_, kInvalid);
+            handle = std::exchange(other.handle, kInvalid);
         }
         return *this;
     }
@@ -136,29 +136,29 @@ export class Program {
         destroy();
     }
 
-    [[nodiscard]] auto handle() const noexcept -> bgfx::ProgramHandle {
-        return handle_;
+    [[nodiscard]] auto bgfxHandle() const noexcept -> bgfx::ProgramHandle {
+        return handle;
     }
 
     [[nodiscard]] auto valid() const noexcept -> bool {
-        return bgfx::isValid(handle_);
+        return bgfx::isValid(handle);
     }
 
   private:
     friend auto loadProgram(const std::filesystem::path&, std::string_view, std::string_view)
         -> Result<Program>;
 
-    explicit Program(bgfx::ProgramHandle h) noexcept : handle_(h) {}
+    explicit Program(bgfx::ProgramHandle h) noexcept : handle(h) {}
 
     auto destroy() noexcept -> void {
-        if (bgfx::isValid(handle_)) {
-            bgfx::destroy(handle_);
-            handle_ = kInvalid;
+        if (bgfx::isValid(handle)) {
+            bgfx::destroy(handle);
+            handle = kInvalid;
         }
     }
 
     static constexpr bgfx::ProgramHandle kInvalid{bgfx::kInvalidHandle};
-    bgfx::ProgramHandle handle_{bgfx::kInvalidHandle};
+    bgfx::ProgramHandle handle{bgfx::kInvalidHandle};
 };
 
 // Load a compiled bgfx shader (.bin) and create the bgfx shader object.

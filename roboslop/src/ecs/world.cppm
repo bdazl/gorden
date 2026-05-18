@@ -29,47 +29,47 @@ export class World {
     ~World() = default;
 
     [[nodiscard]] auto create() -> Entity {
-        return reg_.create();
+        return reg.create();
     }
 
     auto destroy(Entity e) -> void {
-        reg_.destroy(e);
+        reg.destroy(e);
     }
 
     [[nodiscard]] auto valid(Entity e) const noexcept -> bool {
-        return reg_.valid(e);
+        return reg.valid(e);
     }
 
     // decltype(auto) so the return matches entt: T& for value components,
     // void for empty tag components (entt sparse-set-only storage).
     template <typename T, typename... Args>
     auto emplace(Entity e, Args&&... args) -> decltype(auto) {
-        return reg_.emplace<T>(e, std::forward<Args>(args)...);
+        return reg.emplace<T>(e, std::forward<Args>(args)...);
     }
 
     template <typename T>
     auto remove(Entity e) -> std::size_t {
-        return reg_.remove<T>(e);
+        return reg.remove<T>(e);
     }
 
     template <typename T>
     [[nodiscard]] auto get(Entity e) -> T& {
-        return reg_.get<T>(e);
+        return reg.get<T>(e);
     }
 
     template <typename T>
     [[nodiscard]] auto get(Entity e) const -> const T& {
-        return reg_.get<T>(e);
+        return reg.get<T>(e);
     }
 
     template <typename T>
     [[nodiscard]] auto tryGet(Entity e) -> T* {
-        return reg_.try_get<T>(e);
+        return reg.try_get<T>(e);
     }
 
     template <typename T>
     [[nodiscard]] auto has(Entity e) const -> bool {
-        return reg_.any_of<T>(e);
+        return reg.any_of<T>(e);
     }
 
     // Visit every entity that has all of Components in turn. Fn is called
@@ -77,27 +77,27 @@ export class World {
     // or just (Components&...). entt::view::each dispatches at compile time.
     template <typename... Components, typename Fn>
     auto forEach(Fn&& fn) -> void {
-        reg_.view<Components...>().each(std::forward<Fn>(fn));
+        reg.view<Components...>().each(std::forward<Fn>(fn));
     }
 
     template <typename... Components, typename Fn>
     auto forEach(Fn&& fn) const -> void {
-        reg_.view<const Components...>().each(std::forward<Fn>(fn));
+        reg.view<const Components...>().each(std::forward<Fn>(fn));
     }
 
     // Escape hatch for engine-internal subsystems that need raw registry
     // access (e.g. snapshot serialisation, custom iterators). Game code
     // should not call this.
     [[nodiscard]] auto registry() noexcept -> entt::registry& {
-        return reg_;
+        return reg;
     }
 
     [[nodiscard]] auto registry() const noexcept -> const entt::registry& {
-        return reg_;
+        return reg;
     }
 
   private:
-    entt::registry reg_;
+    entt::registry reg;
 };
 
 } // namespace roboslop

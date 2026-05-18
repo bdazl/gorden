@@ -36,7 +36,7 @@ export struct ProgramHandle {
 export class AssetCache {
   public:
     explicit AssetCache(std::filesystem::path assetRoot) noexcept
-        : assetRoot_(std::move(assetRoot)) {}
+        : assetRoot(std::move(assetRoot)) {}
 
     AssetCache(const AssetCache&) = delete;
     auto operator=(const AssetCache&) -> AssetCache& = delete;
@@ -47,15 +47,15 @@ export class AssetCache {
     [[nodiscard]] auto program(std::string_view vsName, std::string_view fsName)
         -> Result<ProgramHandle> {
         Key key{std::string{vsName}, std::string{fsName}};
-        if (auto it = programs_.find(key); it != programs_.end()) {
-            return ProgramHandle{it->second.handle()};
+        if (auto it = programs.find(key); it != programs.end()) {
+            return ProgramHandle{it->second.bgfxHandle()};
         }
-        auto loaded = loadProgram(assetRoot_, vsName, fsName);
+        auto loaded = loadProgram(assetRoot, vsName, fsName);
         if (!loaded) {
             return std::unexpected(loaded.error());
         }
-        const auto handle = loaded->handle();
-        programs_.emplace(std::move(key), std::move(*loaded));
+        const auto handle = loaded->bgfxHandle();
+        programs.emplace(std::move(key), std::move(*loaded));
         return ProgramHandle{handle};
     }
 
@@ -75,8 +75,8 @@ export class AssetCache {
         }
     };
 
-    std::filesystem::path assetRoot_;
-    std::unordered_map<Key, Program, KeyHash> programs_;
+    std::filesystem::path assetRoot;
+    std::unordered_map<Key, Program, KeyHash> programs;
 };
 
 } // namespace roboslop

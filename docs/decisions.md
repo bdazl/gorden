@@ -7,6 +7,38 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Private members drop the trailing-underscore suffix
+
+**Decision.** Private members follow the same `camelCase` rule as every
+other field — no `_` suffix, no `m_` prefix. Where an accessor method
+would share its name with the renamed member, the accessor is renamed
+to a descriptive form: `Window::handle() → glfwHandle()`,
+`Program::handle() → bgfxHandle()`,
+`RenderContext::width()/height() → framebufferWidth()/framebufferHeight()`.
+Accessors with no callers (`Window::cursorMode()`, `App::input()`,
+`App::world()`, `App::assets()`, `App::config()`) were deleted outright
+rather than renamed.
+
+**Why.** The trailing underscore was an unwritten C++ habit, never
+documented in the convention table or enforced by tidy. It contradicted
+the Go-inspired naming row that says "Variables, parameters, fields |
+`camelCase`". Renaming brings members into line, and renaming/removing
+the colliding accessors keeps the public API expressive (`glfwHandle`
+says more than `handle`) instead of leaning on a suffix as a tiebreaker.
+The ctor-parameter shadowing case in `App::App(Window window, ...)`
+where `input(window)` would read the moved-from parameter is resolved by
+writing `input(this->window)` — members are initialised in declaration
+order, so `this->window` is the just-constructed member at that point.
+
+**Where.** Convention: [`docs/conventions/code-style.md`](conventions/code-style.md).
+Enforcement: [`.clang-tidy`](../.clang-tidy) gains
+`PrivateMemberSuffix: ""`. Affected modules: `app.cppm`, `input.cppm`,
+`window.cppm`, `context.cppm`, `asset_cache.cppm`, `shader.cppm`,
+`clock.cppm`, `world.cppm` plus the one call-site in
+`gorden/src/app/main.cpp`.
+
+---
+
 ## 2026-05-18 — Free-fly debug camera is an ECS component + pure tick
 
 **Decision.** `roboslop::FreeFlyCamera` (module

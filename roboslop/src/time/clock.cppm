@@ -11,21 +11,21 @@ class Clock {
   public:
     using Steady = std::chrono::steady_clock;
 
-    Clock() noexcept : last_(Steady::now()) {}
+    Clock() noexcept : last(Steady::now()) {}
 
     [[nodiscard]] auto tickFrame() noexcept -> double {
         const auto now = Steady::now();
-        const auto dt = std::chrono::duration<double>(now - last_).count();
-        last_ = now;
+        const auto dt = std::chrono::duration<double>(now - last).count();
+        last = now;
         return dt;
     }
 
     auto reset() noexcept -> void {
-        last_ = Steady::now();
+        last = Steady::now();
     }
 
   private:
-    Steady::time_point last_;
+    Steady::time_point last;
 };
 
 // Semi-fixed timestep accumulator. Feed wall-clock frame deltas via
@@ -40,29 +40,29 @@ class FixedTimestep {
 
     constexpr FixedTimestep() noexcept = default;
 
-    constexpr explicit FixedTimestep(double rateHz) noexcept : fixedDt_(1.0 / rateHz) {}
+    constexpr explicit FixedTimestep(double rateHz) noexcept : fixedDt(1.0 / rateHz) {}
 
     [[nodiscard]] constexpr auto advance(double frameDt) noexcept -> int {
-        accumulator_ += std::min(frameDt, MaxFrameTime);
+        accumulator += std::min(frameDt, MaxFrameTime);
         int steps = 0;
-        while (accumulator_ >= fixedDt_) {
-            accumulator_ -= fixedDt_;
+        while (accumulator >= fixedDt) {
+            accumulator -= fixedDt;
             ++steps;
         }
         return steps;
     }
 
     [[nodiscard]] constexpr auto fixedDelta() const noexcept -> double {
-        return fixedDt_;
+        return fixedDt;
     }
 
     [[nodiscard]] constexpr auto alpha() const noexcept -> double {
-        return accumulator_ / fixedDt_;
+        return accumulator / fixedDt;
     }
 
   private:
-    double fixedDt_ = 1.0 / DefaultRateHz;
-    double accumulator_ = 0.0;
+    double fixedDt = 1.0 / DefaultRateHz;
+    double accumulator = 0.0;
 };
 
 } // namespace roboslop

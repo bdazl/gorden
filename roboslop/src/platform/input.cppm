@@ -166,7 +166,7 @@ namespace {
 // velocity, so repeating it across sub-steps would mis-integrate motion.
 export class Input {
   public:
-    explicit Input(const Window& window) noexcept : handle_(window.handle()) {}
+    explicit Input(const Window& window) noexcept : handle(window.glfwHandle()) {}
 
     Input(const Input&) = delete;
     auto operator=(const Input&) -> Input& = delete;
@@ -175,80 +175,78 @@ export class Input {
     ~Input() = default;
 
     auto beginFrame() -> void {
-        prev_ = curr_;
+        prev = curr;
 
         for (std::size_t i = 0; i < detail::kKeyCount; ++i) {
             const auto k = static_cast<Key>(i);
-            curr_.keys[i] = glfwGetKey(handle_, translateKey(k)) == GLFW_PRESS;
+            curr.keys[i] = glfwGetKey(handle, translateKey(k)) == GLFW_PRESS;
         }
         for (std::size_t i = 0; i < detail::kMouseButtonCount; ++i) {
             const auto b = static_cast<MouseButton>(i);
-            curr_.mouseButtons[i] =
-                glfwGetMouseButton(handle_, translateMouseButton(b)) == GLFW_PRESS;
+            curr.mouseButtons[i] =
+                glfwGetMouseButton(handle, translateMouseButton(b)) == GLFW_PRESS;
         }
 
         double cx = 0.0;
         double cy = 0.0;
-        glfwGetCursorPos(handle_, &cx, &cy);
-        curr_.cursorPos = {cx, cy};
-        curr_.cursorPosValid = true;
+        glfwGetCursorPos(handle, &cx, &cy);
+        curr.cursorPos = {cx, cy};
+        curr.cursorPosValid = true;
 
-        if (resetDeltaNextFrame_) {
-            cachedDelta_ = {0.0F, 0.0F};
-            resetDeltaNextFrame_ = false;
+        if (resetDeltaNextFrame) {
+            cachedDelta = {0.0F, 0.0F};
+            resetDeltaNextFrame = false;
         } else {
-            cachedDelta_ = computeMouseDelta(prev_, curr_);
+            cachedDelta = computeMouseDelta(prev, curr);
         }
     }
 
     [[nodiscard]] auto keyDown(Key k) const noexcept -> bool {
-        return curr_.keys[static_cast<std::size_t>(k)];
+        return curr.keys[static_cast<std::size_t>(k)];
     }
 
     [[nodiscard]] auto keyPressed(Key k) const noexcept -> bool {
-        return keyPressedEdge(prev_, curr_, k);
+        return keyPressedEdge(prev, curr, k);
     }
 
     [[nodiscard]] auto keyReleased(Key k) const noexcept -> bool {
-        return keyReleasedEdge(prev_, curr_, k);
+        return keyReleasedEdge(prev, curr, k);
     }
 
     [[nodiscard]] auto mouseButton(MouseButton b) const noexcept -> bool {
-        return curr_.mouseButtons[static_cast<std::size_t>(b)];
+        return curr.mouseButtons[static_cast<std::size_t>(b)];
     }
 
     [[nodiscard]] auto mouseButtonPressed(MouseButton b) const noexcept -> bool {
-        return mouseButtonPressedEdge(prev_, curr_, b);
+        return mouseButtonPressedEdge(prev, curr, b);
     }
 
     [[nodiscard]] auto mouseButtonReleased(MouseButton b) const noexcept -> bool {
-        return mouseButtonReleasedEdge(prev_, curr_, b);
+        return mouseButtonReleasedEdge(prev, curr, b);
     }
 
     [[nodiscard]] auto mouseDelta() const noexcept -> glm::vec2 {
-        return cachedDelta_;
+        return cachedDelta;
     }
 
     // Drives the cursor through GLFW directly rather than via Window, so
     // Input doesn't need to hold a Window pointer (which would be a
-    // dangling pointer after an App move). resetDeltaNextFrame_ stops
+    // dangling pointer after an App move). resetDeltaNextFrame stops
     // the OS-driven cursor jump from showing up as motion.
     auto setCursorCaptured(bool captured) -> void {
-        glfwSetInputMode(
-            handle_, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
-        );
+        glfwSetInputMode(handle, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
         if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
-            glfwSetInputMode(handle_, GLFW_RAW_MOUSE_MOTION, captured ? GLFW_TRUE : GLFW_FALSE);
+            glfwSetInputMode(handle, GLFW_RAW_MOUSE_MOTION, captured ? GLFW_TRUE : GLFW_FALSE);
         }
-        resetDeltaNextFrame_ = true;
+        resetDeltaNextFrame = true;
     }
 
   private:
-    GLFWwindow* handle_ = nullptr;
-    InputSnapshot prev_;
-    InputSnapshot curr_;
-    glm::vec2 cachedDelta_{0.0F, 0.0F};
-    bool resetDeltaNextFrame_ = false;
+    GLFWwindow* handle = nullptr;
+    InputSnapshot prev;
+    InputSnapshot curr;
+    glm::vec2 cachedDelta{0.0F, 0.0F};
+    bool resetDeltaNextFrame = false;
 };
 
 } // namespace roboslop

@@ -62,63 +62,47 @@ export class App {
         return App{std::move(*window), std::move(*render), std::move(assets), std::move(cfg)};
     }
 
-    [[nodiscard]] auto input() noexcept -> Input& {
-        return input_;
-    }
-
     App(const App&) = delete;
     auto operator=(const App&) -> App& = delete;
     App(App&&) noexcept = default;
     auto operator=(App&&) noexcept -> App& = default;
     ~App() = default;
 
-    [[nodiscard]] auto world() noexcept -> World& {
-        return world_;
-    }
-
-    [[nodiscard]] auto assets() noexcept -> AssetCache& {
-        return assets_;
-    }
-
-    [[nodiscard]] auto config() const noexcept -> const AppConfig& {
-        return cfg_;
-    }
-
     auto run() -> Result<void> {
-        window_.setResizeCallback([this](int w, int h) { render_.resize(w, h); });
+        window.setResizeCallback([this](int w, int h) { render.resize(w, h); });
 
-        if (cfg_.onSetup) {
-            auto setupResult = cfg_.onSetup(world_, assets_);
+        if (cfg.onSetup) {
+            auto setupResult = cfg.onSetup(world, assets);
             if (!setupResult) {
                 return std::unexpected(setupResult.error());
             }
         }
 
         spdlog::info("roboslop: entering main loop");
-        clock_.reset();
+        clock.reset();
 
-        while (!window_.shouldClose()) {
+        while (!window.shouldClose()) {
             pollWindowEvents();
-            input_.beginFrame();
+            input.beginFrame();
 
-            if (input_.keyPressed(Key::Escape)) {
-                window_.requestClose();
+            if (input.keyPressed(Key::Escape)) {
+                window.requestClose();
             }
 
-            const double dt = clock_.tickFrame();
-            const int steps = ticker_.advance(dt);
+            const double dt = clock.tickFrame();
+            const int steps = ticker.advance(dt);
             for (int i = 0; i < steps; ++i) {
                 (void)i;
-                if (cfg_.onFixedUpdate) {
-                    cfg_.onFixedUpdate(world_, input_, ticker_.fixedDelta());
+                if (cfg.onFixedUpdate) {
+                    cfg.onFixedUpdate(world, input, ticker.fixedDelta());
                 }
             }
 
-            render_.beginFrame();
-            if (cfg_.onRender) {
-                cfg_.onRender(world_, render_, ticker_.alpha());
+            render.beginFrame();
+            if (cfg.onRender) {
+                cfg.onRender(world, render, ticker.alpha());
             }
-            render_.endFrame();
+            render.endFrame();
         }
 
         spdlog::info("roboslop: main loop exited");
@@ -127,23 +111,23 @@ export class App {
 
   private:
     App(Window window, RenderContext render, AssetCache assets, AppConfig cfg) noexcept
-        : window_(std::move(window)), render_(std::move(render)), input_(window_),
-          assets_(std::move(assets)), ticker_(cfg.tickRateHz), cfg_(std::move(cfg)) {}
+        : window(std::move(window)), render(std::move(render)), input(this->window),
+          assets(std::move(assets)), ticker(cfg.tickRateHz), cfg(std::move(cfg)) {}
 
-    // Member order is destruction-critical: assets_ must outlive any
-    // entity that stores its handles (world_) and must die before bgfx
-    // shuts down (render_). Declared order = construction order = reverse
-    // destruction order. input_ stores only the raw GLFWwindow handle,
+    // Member order is destruction-critical: assets must outlive any
+    // entity that stores its handles (world) and must die before bgfx
+    // shuts down (render). Declared order = construction order = reverse
+    // destruction order. input stores only the raw GLFWwindow handle,
     // which is stable across Window moves, so it carries no destruction
     // dependency of its own.
-    Window window_;
-    RenderContext render_;
-    Input input_;
-    AssetCache assets_;
-    World world_;
-    Clock clock_;
-    FixedTimestep ticker_;
-    AppConfig cfg_;
+    Window window;
+    RenderContext render;
+    Input input;
+    AssetCache assets;
+    World world;
+    Clock clock;
+    FixedTimestep ticker;
+    AppConfig cfg;
 };
 
 } // namespace roboslop
