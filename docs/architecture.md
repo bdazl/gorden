@@ -15,27 +15,38 @@ the project grows; the goal here is orientation, not detail.
 
 `roboslop::App` (module `roboslop.app`) is the bridge between a game and the
 engine. A game constructs `App::make(AppConfig{...})`, then calls `run()`;
-`App` owns the window, render context, asset cache, world, and clock, and
-drives the frame loop until the window closes. Subsystems that need to
-tick will hook into `App` as they land — there are no per-subsystem
-`tick(dt)` calls outside it.
+`App` owns the window, render context, asset cache, world, clock,
+scheduler, the per-frame `FrameArena`, the fixed-step `SystemGraph`, and
+the `RenderGraph`. It drives the frame loop until the window closes.
 
 ### App hooks
 
-Game code participates through callbacks on `AppConfig`:
+Game code participates through two callbacks on `AppConfig`:
 
 | Hook | When | Signature |
 |---|---|---|
-| `onSetup` | Once, after init, before the loop | `Result<void>(World&, AssetCache&)` |
-| `onFixedUpdate` | N times per frame at the fixed rate | `void(World&, Input&, double dt)` |
-| `onRender` | Once per frame, between bgfx begin/endFrame | `void(World&, RenderContext&, double alpha)` |
+| `onSetup` | Once, after init, before graph build | `Result<void>(World&, AssetCache&)` |
+| `onBuildGraphs` | Once, after `onSetup`, before the loop | `void(SystemGraph&, RenderGraph&, FrameArena&)` |
 
-The engine owns the loop and the ordering; the game owns the content of
-each slot. `onRender` is where game code submits draw calls — engine
-helpers like `applyActiveCamera(world, viewId, w, h)` and
-`submitMeshes(world)` are free functions the game opts into by calling
-them from its render callback. The engine never auto-runs a render
-system, so the game stays in control of what hits the GPU.
+`onSetup` seeds entities and loads assets. `onBuildGraphs` declares the
+*systems* that run during fixed-update and the *passes* that run during
+render — there is no per-frame callback. Every frame, the engine
+executes the compiled graphs:
+
+1. `arena.reset()`
+2. `Window` polls events; `Input` snapshots a new frame
+3. For each fixed sub-step at the configured rate, `Scheduler::run`
+   executes `fixedGraph` (a `SystemGraph`) on the Taskflow executor.
+4. `RenderContext::beginFrame()` → `RenderGraph::execute` (sequential,
+   on the bgfx API thread) → `RenderContext::endFrame()`.
+
+A `SystemDesc` declares the resource ids it reads and writes — opaque
+strings like `"transforms"`, `"physicsState"`, `"drawItems"`. The
+scheduler derives an add-order-forward DAG from those declarations and
+materialises it into a `tf::Taskflow` once at compile time; per-frame
+execution does no Taskflow allocation. The same conflict-edge rule
+governs `PassDesc`s in the `RenderGraph`, where each pass is assigned a
+dense bgfx view-ID in add-order.
 
 `onSetup` receives a reference to the App-owned `AssetCache`. Game code
 requests programs via `assets.program(vsName, fsName)` and stores the
@@ -57,16 +68,21 @@ not trigger a "spiral of death". Render runs once per frame; the leftover
 accumulator fraction is exposed as `alpha() ∈ [0, 1)` for interpolation
 between fixed states when subsystems begin to use it.
 
-Today `App::run()` polls `Window` events, dispatches resize to the render
-context, advances the timestep (the fixed-update slot is currently empty),
-and submits one bgfx view that clears the backbuffer. Subsystems plug into
-either the fixed-update or render slot as they arrive.
+The renderer is split into **frontend** and **backend** halves. The
+frontend (`roboslop.render.frontend`) walks the ECS once per pass and
+emits flat `DrawItem`s into the per-frame `FrameArena` — a single-
+allocation bump pointer reset at frame start — then sorts the span in
+place. The backend (`submitDraws`) iterates the sorted span and calls
+bgfx. No heap allocation runs in the render loop. The sort key bakes
+view-class, view-ID, program, and depth into a single `uint64` so a
+single `std::sort` does all draw-call ordering.
 
 ## Roboslop subsystem map
 
 | Subsystem | Library |
 |---|---|
 | ECS | EnTT |
+| System scheduling | Taskflow |
 | Rendering | bgfx |
 | Shader pipeline | bgfx `shaderc` (via CMake custom command) |
 | Windowing & input | GLFW |

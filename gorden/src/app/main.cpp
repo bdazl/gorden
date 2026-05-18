@@ -7,8 +7,11 @@ import roboslop.render.asset_cache;
 import roboslop.render.camera;
 import roboslop.render.context;
 import roboslop.render.free_fly_camera;
+import roboslop.render.frontend;
+import roboslop.render.graph;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
+import roboslop.sched;
 
 #include <array>
 #include <cstdint>
@@ -69,15 +72,31 @@ auto main() -> int {
                 world.emplace<roboslop::Transform>(e);
                 return {};
             },
-            .onFixedUpdate = [](roboslop::World& world,
-                                roboslop::Input& input,
-                                double dt) { roboslop::updateFreeFlyCameras(world, input, dt); },
-            .onRender =
-                [](roboslop::World& world, roboslop::RenderContext& ctx, double /*alpha*/) {
-                    roboslop::applyActiveCamera(
-                        world, /*viewId=*/0, ctx.framebufferWidth(), ctx.framebufferHeight()
-                    );
-                    roboslop::submitMeshes(world);
+            .onBuildGraphs =
+                [](roboslop::SystemGraph& fixed,
+                   roboslop::RenderGraph& render,
+                   roboslop::FrameArena& arena) {
+                    fixed.add({
+                        .name = "freeFlyCameras",
+                        .reads = {"input"},
+                        .writes = {"transforms"},
+                        .run = [](roboslop::SystemCtx& c) {
+                            roboslop::updateFreeFlyCameras(*c.world, *c.input, c.dt);
+                        },
+                    });
+                    render.add({
+                        .name = "main",
+                        .reads = {"transforms"},
+                        .writes = {"framebuffer"},
+                        .record = [&arena](roboslop::PassCtx& c) {
+                            roboslop::applyActiveCamera(
+                                *c.world, c.viewId, c.viewportW, c.viewportH
+                            );
+                            auto draws = roboslop::collectMeshDraws(*c.world, arena, c.viewId);
+                            roboslop::sortDraws(draws);
+                            roboslop::submitDraws(draws);
+                        },
+                    });
                 },
         }
     );

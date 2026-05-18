@@ -5,6 +5,7 @@ module;
 #include <algorithm>
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <thread>
@@ -179,32 +180,34 @@ export [[nodiscard]] auto defaultWorkerCount() noexcept -> unsigned {
 }
 
 // Owns one tf::Executor for the application. Worker count is decided at
-// construction and not resized later.
+// construction and not resized later. The executor itself is not movable
+// (it owns OS threads), so it lives behind a unique_ptr — Scheduler then
+// composes cleanly into App without forcing App to be non-movable.
 export class Scheduler {
   public:
-    explicit Scheduler(unsigned workerCount = defaultWorkerCount()) : executor(workerCount) {}
+    explicit Scheduler(unsigned workerCount = defaultWorkerCount())
+        : executor(std::make_unique<tf::Executor>(workerCount)) {}
 
     Scheduler(const Scheduler&) = delete;
     auto operator=(const Scheduler&) -> Scheduler& = delete;
-    // tf::Executor is not movable; neither is Scheduler.
-    Scheduler(Scheduler&&) = delete;
-    auto operator=(Scheduler&&) -> Scheduler& = delete;
+    Scheduler(Scheduler&&) noexcept = default;
+    auto operator=(Scheduler&&) noexcept -> Scheduler& = default;
     ~Scheduler() = default;
 
     // Synchronous: returns when every system in the graph has run for
     // this ctx. Caller's frame body resumes after the .wait().
     auto run(SystemGraph& graph, SystemCtx& ctx) -> void {
         graph.setContext(&ctx);
-        executor.run(graph.taskflowRef()).wait();
+        executor->run(graph.taskflowRef()).wait();
         graph.setContext(nullptr);
     }
 
     [[nodiscard]] auto workerCount() const noexcept -> std::size_t {
-        return executor.num_workers();
+        return executor->num_workers();
     }
 
   private:
-    tf::Executor executor;
+    std::unique_ptr<tf::Executor> executor;
 };
 
 } // namespace roboslop

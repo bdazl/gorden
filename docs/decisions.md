@@ -7,6 +7,78 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — System scheduling via Taskflow + add-order-forward DAGs
+
+**Decision.** Two new module clusters land before any engine
+fundamentals (Jolt, Assimp, lighting, audio, animation):
+
+- `roboslop.sched` exposes `SystemDesc { name; reads; writes; run }`,
+  `SystemGraph` (which materialises an add-order-forward DAG into a
+  `tf::Taskflow`), and `Scheduler` (which wraps one `tf::Executor`,
+  held behind a `unique_ptr` so the Scheduler itself stays movable).
+- `roboslop.render.graph` exposes `PassDesc { name; reads; writes;
+  record }` and `RenderGraph::execute` — sequential record on the bgfx
+  API thread, dense view-ID assignment in add-order.
+- `roboslop.render.frontend` exposes `FrameArena` (single
+  ctor-allocation, bump-pointer, reset per frame), the flat `DrawItem`
+  POD, `makeSortKey` (viewClass / viewId / program / depth packed into
+  one `u64`), `collectMeshDraws`, `sortDraws`, `submitDraws`.
+
+`AppConfig` drops the per-frame `onFixedUpdate` and `onRender`
+callbacks. Game code instead supplies `onBuildGraphs(SystemGraph&,
+RenderGraph&, FrameArena&)` — called once before the loop. The engine
+compiles the SystemGraph after the callback returns and reuses the
+same `tf::Taskflow` every frame; per-frame execution does no Taskflow
+allocation. `App::run()` resets the arena at frame start, runs the
+fixed graph N times per frame at the configured rate, then drives the
+render graph once between bgfx begin/endFrame.
+
+Resource ids are opaque strings (`"transforms"`, `"physicsState"`,
+`"drawItems"`, `"framebuffer"`). The scheduler does not introspect
+them. Edges are derived between every (earlier, later) add-order pair
+that shares any of write/write, write/read, or read/write — meaning
+the DAG is by construction acyclic, no cycle check needed.
+
+**Why.** The user's mandate for the engine-fundamentals MVP chain was
+**system-of-systems with parallel-friendly scheduling from day 1** and
+**a render-graph + frontend/backend split with zero allocations in the
+render loop**. Both needed to be in place before the five milestones
+(physics, assets, lighting, audio, animation) land, so individual
+subsystems can register their systems and passes without re-architecting
+later. Taskflow on Conan-Center gives us a header-only work-stealing
+executor; routing all systems through it means the migration to a
+fully-parallel engine is a matter of declaring more resource ids
+correctly, not rewriting plumbing.
+
+Add-order-forward edges (as opposed to all-pairs) keep the graph a DAG
+by construction and match how a hand-written game-loop reads top-to-
+bottom — registering systems in dependency order matches dependency
+order in execution. `-fno-exceptions` is preserved: we validate input
+ourselves and never trigger Taskflow's throwing paths.
+
+The frontend/backend split lives in `frontend.cppm` as free functions
+over POD `DrawItem`s in a `FrameArena`. bgfx submission stays on the
+bgfx API thread (`RenderGraph::execute` is sequential); CPU work
+inside a pass can fan out via `tf::Subflow` later when a hotspot
+warrants it. View-IDs are assigned in add-order and capped at 256 (a
+bgfx limit, asserted by `RenderGraph::add`).
+
+**Where.** [`roboslop/src/sched/scheduler.cppm`](../roboslop/src/sched/scheduler.cppm),
+[`roboslop/src/render/graph.cppm`](../roboslop/src/render/graph.cppm),
+[`roboslop/src/render/frontend.cppm`](../roboslop/src/render/frontend.cppm),
+[`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm),
+[`gorden/src/app/main.cpp`](../gorden/src/app/main.cpp).
+Build: [`conanfile.py`](../conanfile.py) requires `taskflow/3.7.0`;
+[`roboslop/CMakeLists.txt`](../roboslop/CMakeLists.txt) links
+`Taskflow::Taskflow`. Tests:
+[`roboslop/tests/scheduler_test.cpp`](../roboslop/tests/scheduler_test.cpp),
+[`roboslop/tests/render_graph_test.cpp`](../roboslop/tests/render_graph_test.cpp),
+[`roboslop/tests/frame_arena_test.cpp`](../roboslop/tests/frame_arena_test.cpp).
+Supersedes the per-frame-callback rows of the 2026-05-17
+callback-config entry below.
+
+---
+
 ## 2026-05-18 — Private members drop the trailing-underscore suffix
 
 **Decision.** Private members follow the same `camelCase` rule as every
