@@ -1,4 +1,5 @@
 import roboslop.app;
+import roboslop.audio;
 import roboslop.core.error;
 import roboslop.ecs;
 import roboslop.physics;
@@ -203,6 +204,9 @@ auto main() -> int {
                 );
                 world.emplace<roboslop::ActiveCamera>(cameraEntity);
                 world.emplace<roboslop::FreeFlyCamera>(cameraEntity);
+                // The camera doubles as the audio listener so 3D
+                // attenuation tracks the viewer.
+                world.emplace<roboslop::AudioListener>(cameraEntity);
 
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto cube = roboslop::makeStaticMesh(
@@ -304,6 +308,7 @@ auto main() -> int {
                         },
                     });
                     roboslop::registerPhysicsSystems(fixed);
+                    roboslop::registerAudioSystems(fixed);
                     render.add({
                         .name = "main",
                         .reads = {"transforms", "lights"},

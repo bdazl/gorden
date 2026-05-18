@@ -32,12 +32,25 @@ roboslop_add_module_library(roboslop
         src/physics/jolt_world.cppm
         src/assets/mesh_loader.cppm
         src/assets/texture_loader.cppm
+        src/audio/audio.cppm
+        src/audio/audio_device.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
         src/app/app.cppm
     SOURCES
         src/assets/stb_image_impl.cpp
+        src/audio/miniaudio_impl.c
+)
+
+# miniaudio_impl.c is the single TU that defines MINIAUDIO_IMPLEMENTATION;
+# it pulls in the entire single-header library, which uses idioms the
+# engine's strict warning set (Werror, sign-conversion, double-promotion,
+# format=2, ...) flags hundreds of times. Silence warnings for this one
+# file rather than weakening the project-wide flags.
+set_source_files_properties(
+    src/audio/miniaudio_impl.c
+    PROPERTIES COMPILE_OPTIONS "-w"
 )
 
 target_link_libraries(roboslop PUBLIC
@@ -52,6 +65,7 @@ target_link_libraries(roboslop PUBLIC
     Jolt::Jolt
     assimp::assimp
     stb::stb
+    roboslop::miniaudio
 )
 
 if(ROBOSLOP_BUILD_TESTS)

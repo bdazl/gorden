@@ -60,7 +60,10 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(miniaudio)
 
 add_library(roboslop_miniaudio INTERFACE)
-target_include_directories(roboslop_miniaudio INTERFACE ${miniaudio_SOURCE_DIR})
+# SYSTEM so the engine's strict warning set (-Wold-style-cast,
+# -Wsign-conversion, ...) does not flag miniaudio's C-style internals
+# when the header is included from a roboslop module.
+target_include_directories(roboslop_miniaudio SYSTEM INTERFACE ${miniaudio_SOURCE_DIR})
 add_library(roboslop::miniaudio ALIAS roboslop_miniaudio)
 
 # --- imgui_impl_bgfx ------------------------------------------------------

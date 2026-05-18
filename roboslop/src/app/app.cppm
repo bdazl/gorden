@@ -10,6 +10,8 @@ module;
 
 export module roboslop.app;
 
+import roboslop.audio;
+import roboslop.audio.device;
 import roboslop.core.error;
 import roboslop.ecs;
 import roboslop.physics;
@@ -79,11 +81,16 @@ export class App {
         FrameArena arena{cfg.frameArenaBytes};
         Scheduler scheduler{workers};
         JoltWorld physics = JoltWorld::make();
+        auto audio = AudioDevice::make();
+        if (!audio) {
+            return std::unexpected(audio.error());
+        }
         return App{
             std::move(*window),
             std::move(*render),
             std::move(assets),
             std::move(physics),
+            std::move(*audio),
             std::move(scheduler),
             std::move(arena),
             std::move(cfg)
@@ -99,6 +106,7 @@ export class App {
     auto run() -> Result<void> {
         window.setResizeCallback([this](int w, int h) { render.resize(w, h); });
         installJoltWorld(world, physics);
+        installAudioDevice(world, audio);
 
         if (cfg.onSetup) {
             auto setupResult = cfg.onSetup(world, assets);
@@ -157,12 +165,14 @@ export class App {
         RenderContext render,
         AssetCache assets,
         JoltWorld physics,
+        AudioDevice audio,
         Scheduler scheduler,
         FrameArena arena,
         AppConfig cfg) noexcept
         : window(std::move(window)), render(std::move(render)), input(this->window),
-          assets(std::move(assets)), physics(std::move(physics)), ticker(cfg.tickRateHz),
-          scheduler(std::move(scheduler)), arena(std::move(arena)), cfg(std::move(cfg)) {}
+          assets(std::move(assets)), physics(std::move(physics)), audio(std::move(audio)),
+          ticker(cfg.tickRateHz), scheduler(std::move(scheduler)), arena(std::move(arena)),
+          cfg(std::move(cfg)) {}
 
     // Member order is destruction-critical: assets must outlive any
     // entity that stores its handles (world) and must die before bgfx
@@ -180,6 +190,7 @@ export class App {
     Input input;
     AssetCache assets;
     JoltWorld physics;
+    AudioDevice audio;
     World world;
     Clock clock;
     FixedTimestep ticker;

@@ -7,6 +7,54 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Audio: miniaudio AudioDevice + 3D listener/source systems
+
+**Decision.** `roboslop.audio.device` exposes a move-only `AudioDevice`
+that owns one `ma_engine`. `roboslop.audio` exports `AudioListener`
+(tag), `AudioSource` (POD with `ma_sound*` + gain),
+`updateAudioListener` / `updateAudioSources` free functions, plus
+`registerAudioSystems(SystemGraph&)` that wires them into the
+fixed-update graph. `installAudioDevice(world, device)` parks the
+device pointer in entt's ctx storage so the systems reach it without
+SystemCtx coupling — same pattern as `installJoltWorld`.
+
+The miniaudio implementation TU is a `.c` file
+(`roboslop/src/audio/miniaudio_impl.c`), the single place that
+`#define`s `MINIAUDIO_IMPLEMENTATION`. Compiling it as C dodges
+`-fno-exceptions` and old-style-cast warnings that miniaudio's
+internals would otherwise trip on a C++ compile. The project's
+`LANGUAGES` were widened to `CXX C` for this one file.
+
+`third_party/CMakeLists.txt` marks miniaudio's include as a `SYSTEM`
+interface so the engine's strict warning set
+(`-Wold-style-cast`, `-Wsign-conversion`, ...) does not flag the
+header in modules that just declare against it.
+
+App owns one `AudioDevice` after `JoltWorld` in declaration order.
+Gorden's demo adds an `AudioListener` tag to the camera entity and
+calls `registerAudioSystems(fixed)` — no sound source yet, but the
+listener pose tracks the free-fly camera and the engine path is
+hot.
+
+**Why.** miniaudio's C API stays in one TU so the C/C++ ABI boundary
+is one file thick. The same `ctx`-storage pattern as physics avoids
+forcing every subsystem onto `SystemCtx`; the scheduler stays free
+of audio-typed dependencies. Strict warnings stay on for engine code
+but lifted for a single third-party impl file — exactly where they
+add no value.
+
+**Where.** [`roboslop/src/audio/audio_device.cppm`](../roboslop/src/audio/audio_device.cppm),
+[`roboslop/src/audio/audio.cppm`](../roboslop/src/audio/audio.cppm),
+[`roboslop/src/audio/miniaudio_impl.c`](../roboslop/src/audio/miniaudio_impl.c),
+[`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm) (owns
+AudioDevice; calls installAudioDevice),
+[`third_party/CMakeLists.txt`](../third_party/CMakeLists.txt)
+(SYSTEM include), [`CMakeLists.txt`](../CMakeLists.txt) (LANGUAGES
+CXX C), [`gorden/src/app/main.cpp`](../gorden/src/app/main.cpp)
+(AudioListener on camera, `registerAudioSystems`).
+
+---
+
 ## 2026-05-18 — Forward directional lighting with one Lambert pass
 
 **Decision.** `roboslop.render.lighting` exposes `DirectionalLight`
