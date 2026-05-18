@@ -44,7 +44,8 @@ export class AssetCache {
 
     AssetCache(AssetCache&& other) noexcept
         : assetRoot(std::move(other.assetRoot)), programs(std::move(other.programs)),
-          textures(std::move(other.textures)), samplers(std::move(other.samplers)) {}
+          textures(std::move(other.textures)), samplers(std::move(other.samplers)),
+          uniforms(std::move(other.uniforms)) {}
 
     auto operator=(AssetCache&& other) noexcept -> AssetCache& {
         if (this != &other) {
@@ -53,6 +54,7 @@ export class AssetCache {
             programs = std::move(other.programs);
             textures = std::move(other.textures);
             samplers = std::move(other.samplers);
+            uniforms = std::move(other.uniforms);
         }
         return *this;
     }
@@ -107,6 +109,20 @@ export class AssetCache {
         return h;
     }
 
+    // Cached value uniform (vec4 / mat4 / ...). Shares the sampler
+    // map's destruction schedule. Caller picks the bgfx type at first
+    // request; mismatched re-requests return the existing handle.
+    [[nodiscard]] auto uniform(std::string_view name, bgfx::UniformType::Enum type)
+        -> bgfx::UniformHandle {
+        std::string key{name};
+        if (auto it = uniforms.find(key); it != uniforms.end()) {
+            return it->second;
+        }
+        const auto h = bgfx::createUniform(key.c_str(), type);
+        uniforms.emplace(std::move(key), h);
+        return h;
+    }
+
   private:
     struct Key {
         std::string vs;
@@ -123,20 +139,27 @@ export class AssetCache {
         }
     };
 
-    auto destroySamplers() noexcept -> void {
-        for (auto& [_, handle] : samplers) {
+    auto destroyUniformMap(std::unordered_map<std::string, bgfx::UniformHandle>& m) noexcept
+        -> void {
+        for (auto& [_, handle] : m) {
             if (bgfx::isValid(handle)) {
                 bgfx::destroy(handle);
                 handle = bgfx::UniformHandle{bgfx::kInvalidHandle};
             }
         }
-        samplers.clear();
+        m.clear();
+    }
+
+    auto destroySamplers() noexcept -> void {
+        destroyUniformMap(samplers);
+        destroyUniformMap(uniforms);
     }
 
     std::filesystem::path assetRoot;
     std::unordered_map<Key, Program, KeyHash> programs;
     std::unordered_map<std::string, Texture> textures;
     std::unordered_map<std::string, bgfx::UniformHandle> samplers;
+    std::unordered_map<std::string, bgfx::UniformHandle> uniforms;
 };
 
 } // namespace roboslop

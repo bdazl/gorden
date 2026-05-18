@@ -11,6 +11,7 @@ import roboslop.render.context;
 import roboslop.render.free_fly_camera;
 import roboslop.render.frontend;
 import roboslop.render.graph;
+import roboslop.render.lighting;
 import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
@@ -267,6 +268,27 @@ auto main() -> int {
                         .restitution = 0.2F,
                     }
                 );
+
+                // One directional light shading the textured cube. The
+                // basic-shader entities (vertex-coloured) ignore lighting
+                // entirely, so the M3 lighting only affects the M2 cube.
+                const auto le = world.create();
+                world.emplace<roboslop::DirectionalLight>(
+                    le,
+                    roboslop::DirectionalLight{
+                        .direction = {-0.3F, -1.0F, -0.2F},
+                        .color = {1.0F, 0.95F, 0.85F},
+                        .intensity = 1.2F,
+                    }
+                );
+
+                // Stash light uniform handles on the world so the pass
+                // record callback can find them each frame without
+                // capturing app-locals.
+                world.registry().ctx().emplace<roboslop::LightUniforms>(roboslop::LightUniforms{
+                    .dir = assets.uniform("u_lightDir", bgfx::UniformType::Vec4),
+                    .color = assets.uniform("u_lightColor", bgfx::UniformType::Vec4),
+                });
                 return {};
             },
             .onBuildGraphs =
@@ -284,12 +306,15 @@ auto main() -> int {
                     roboslop::registerPhysicsSystems(fixed);
                     render.add({
                         .name = "main",
-                        .reads = {"transforms"},
+                        .reads = {"transforms", "lights"},
                         .writes = {"framebuffer"},
                         .record = [&arena](roboslop::PassCtx& c) {
                             roboslop::applyActiveCamera(
                                 *c.world, c.viewId, c.viewportW, c.viewportH
                             );
+                            const auto& lu =
+                                c.world->registry().ctx().get<roboslop::LightUniforms>();
+                            roboslop::uploadDirectionalLight(*c.world, lu.dir, lu.color);
                             auto draws = roboslop::collectMeshDraws(*c.world, arena, c.viewId);
                             roboslop::sortDraws(draws);
                             roboslop::submitDraws(draws);

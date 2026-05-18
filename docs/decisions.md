@@ -7,6 +7,46 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Forward directional lighting with one Lambert pass
+
+**Decision.** `roboslop.render.lighting` exposes `DirectionalLight`
+(POD: direction, color, intensity), the pure `packDirectionalLightUniform`
+helper (returns the two vec4s the shader binds — normalised dir +
+intensity, color), `uploadDirectionalLight(World&, dirUniform,
+colorUniform)` which finds the first light in the world and pushes
+its uniforms, and `LightUniforms` (a bundle of uniform handles).
+
+`AssetCache` grows a `uniform(name, type)` accessor that caches
+non-sampler bgfx uniforms with the same destruction schedule as the
+sampler cache.
+
+The textured fragment shader (`fs_textured.sc`) now computes
+`max(dot(N, -L), 0) * intensity * color * albedo` plus a 0.15
+constant ambient. Vertex-coloured entities (the M1 cubes/spheres)
+remain on `fs_basic.sc` and are unaffected.
+
+The gorden demo seeds one `DirectionalLight` entity and stashes a
+`LightUniforms` in `world.registry().ctx()`; the main render pass
+reads the uniforms from ctx and uploads them every record.
+
+**Why.** A single directional light is the minimum to show a textured
+object has shape. Routing light uniforms through ctx-storage rather
+than capturing them in the pass-record lambda keeps the lambda's
+captured state stable across App moves and matches the pattern
+already used for `JoltWorld`. Two separate `vec4` uniforms (not one
+mat or array) keep the bgfx call sites trivial; once we have
+multiple lights, an array uniform replaces them.
+
+**Where.** [`roboslop/src/render/lighting.cppm`](../roboslop/src/render/lighting.cppm),
+[`roboslop/src/render/asset_cache.cppm`](../roboslop/src/render/asset_cache.cppm)
+(uniform() accessor),
+[`gorden/assets/shaders/src/fs_textured.sc`](../gorden/assets/shaders/src/fs_textured.sc)
+(Lambert pass), [`gorden/src/app/main.cpp`](../gorden/src/app/main.cpp)
+(light entity + ctx wiring). Tests:
+[`roboslop/tests/lighting_test.cpp`](../roboslop/tests/lighting_test.cpp).
+
+---
+
 ## 2026-05-18 — Asset pipeline: Assimp meshes, stb_image textures, Material component
 
 **Decision.** Three new asset/render modules plus an `AssetCache`

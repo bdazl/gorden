@@ -27,6 +27,7 @@ roboslop_add_module_library(roboslop
         src/render/asset_cache.cppm
         src/render/frontend.cppm
         src/render/graph.cppm
+        src/render/lighting.cppm
         src/physics/components.cppm
         src/physics/jolt_world.cppm
         src/assets/mesh_loader.cppm
