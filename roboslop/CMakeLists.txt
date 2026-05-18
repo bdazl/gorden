@@ -18,6 +18,7 @@ roboslop_add_module_library(roboslop
         src/render/shader.cppm
         src/render/mesh.cppm
         src/render/camera.cppm
+        src/render/free_fly_camera.cppm
         src/render/asset_cache.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm

@@ -7,6 +7,35 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Free-fly debug camera is an ECS component + pure tick
+
+**Decision.** `roboslop::FreeFlyCamera` (module
+`roboslop.render.free_fly_camera`) is an ECS component holding accumulated
+yaw/pitch (radians, Euler), `moveSpeed`, `boostMultiplier`, and
+`lookSensitivity`. The system `updateFreeFlyCameras(World&, Input&, dt)`
+packs the current `Input` state into a `FreeFlyTickInput` value and
+dispatches to the pure helper `tickFreeFlyCamera(ctrl, transform, in, dt)`
+for each entity that has both a `FreeFlyCamera` and a `Transform`.
+Right-mouse-button held = active (capture cursor + read motion); released
+= idle (the controller skips the tick). Pitch is clamped just inside ±90°
+so the forward vector never aligns with world-up. Diagonal motion is
+normalised so WASD + Space don't produce a √3× speed boost.
+
+**Why.** Matches the existing `Camera`/`ActiveCamera` pattern — controllers
+are components, not free-standing classes. Storing yaw/pitch on the
+controller (rather than reading them back from `Transform.rotation`) keeps
+the pitch clamp authoritative and avoids the lossy quat→Euler round-trip
+near the poles. Exposing a pure `tickFreeFlyCamera` over a hand-built
+`FreeFlyTickInput` lets the math be unit-tested without `Input`/`World`/
+GLFW. The system's RMB capture/release uses the new
+`mouseButtonReleased` edge predicate so the toggle is exact (no
+re-asserting state every frame, which would reset the mouse-delta).
+
+**Where.** [`roboslop/src/render/free_fly_camera.cppm`](../roboslop/src/render/free_fly_camera.cppm),
+[`roboslop/tests/free_fly_camera_test.cpp`](../roboslop/tests/free_fly_camera_test.cpp).
+
+---
+
 ## 2026-05-18 — Input is a polled per-frame module with a pure-helper split
 
 **Decision.** `roboslop::Input` (module `roboslop.platform.input`) wraps GLFW

@@ -93,6 +93,13 @@ mouseButtonPressedEdge(const InputSnapshot& prev, const InputSnapshot& curr, Mou
     return curr.mouseButtons[i] && !prev.mouseButtons[i];
 }
 
+export [[nodiscard]] auto mouseButtonReleasedEdge(
+    const InputSnapshot& prev, const InputSnapshot& curr, MouseButton b
+) noexcept -> bool {
+    const auto i = static_cast<std::size_t>(b);
+    return prev.mouseButtons[i] && !curr.mouseButtons[i];
+}
+
 namespace {
 
 [[nodiscard]] auto translateKey(Key k) noexcept -> int {
@@ -212,6 +219,10 @@ export class Input {
 
     [[nodiscard]] auto mouseButtonPressed(MouseButton b) const noexcept -> bool {
         return mouseButtonPressedEdge(prev_, curr_, b);
+    }
+
+    [[nodiscard]] auto mouseButtonReleased(MouseButton b) const noexcept -> bool {
+        return mouseButtonReleasedEdge(prev_, curr_, b);
     }
 
     [[nodiscard]] auto mouseDelta() const noexcept -> glm::vec2 {
