@@ -16,6 +16,13 @@ Go-inspired naming, adapted for C++:
 | Template parameters | `PascalCase` | `template<typename T, std::size_t N>` |
 | File names | `lowercase_snake_case` | `entity_registry.cppm`, `entity_registry.cpp` |
 
+Private members follow the same `camelCase` rule — no trailing `_`, no
+`m_` prefix. When an accessor method would collide with the bare member
+name, give the accessor a descriptive name (`glfwHandle()`,
+`bgfxHandle()`, `framebufferWidth()`) or remove it if nothing calls it.
+`.clang-tidy` enforces this via
+`readability-identifier-naming.PrivateMemberSuffix: ""`.
+
 ## Language rules
 
 - **No exceptions.** The project compiles with `-fno-exceptions`. Use

@@ -66,6 +66,10 @@ CheckOptions:
     value: camelBack
   - key: readability-identifier-naming.MemberCase
     value: camelBack
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: ""
 
   # Constants (PascalCase per Go-inspired convention)
   - key: readability-identifier-naming.ConstexprVariableCase
