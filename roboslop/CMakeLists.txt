@@ -34,6 +34,9 @@ roboslop_add_module_library(roboslop
         src/assets/texture_loader.cppm
         src/audio/audio.cppm
         src/audio/audio_device.cppm
+        src/animation/clip.cppm
+        src/animation/skeleton.cppm
+        src/animation/state.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm

@@ -7,6 +7,45 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Animation MVP: data layer + clip sampling, GPU skinning deferred
+
+**Decision.** `roboslop.animation.skeleton` (Skeleton + BoneTransform
++ toMatrix), `roboslop.animation.clip` (BoneTrack + AnimationClip +
+pure `sampleClip(clip, t, out)`), `roboslop.animation.state`
+(AnimationState component + `tickAnimations` system +
+`registerAnimationSystems` helper).
+
+`sampleClip` is heap-free — caller provides the output span. Per-
+channel keyframe streams (positions / rotations / scales) are
+independent so a clip can hold position-only tracks without
+allocating quaternion buffers. Lookups use `std::upper_bound` for
+O(log n) keyframe search. Interpolation is lerp for positions/scales
+and slerp for rotations.
+
+`tickAnimations` advances every `AnimationState`'s clock by `dt` and
+loops by `fmod`-style subtraction.
+
+**Out of scope for this slice (deferred to a follow-up):** Assimp
+rig extraction, GPU skinning (vs_skinned + bone-palette uniform),
+SkinnedMesh component wiring, the lyft-demo rigged character. The
+data layer + tick is enough to confirm the API shape, drive unit
+tests, and let an Assimp-driven scene write to the same structures.
+
+**Why.** Skeletal animation is the largest milestone of the chain; a
+properly thin slice lands the pure-CPU pieces in one self-contained
+PR-set so they can be exercised by tests and reviewed independently.
+GPU skinning brings a new vertex layout, a new shader pair, frame-
+arena bone-matrix allocation, and a frontend extension — none of
+which would compile in isolation without the data types. Splitting
+them lets each half land green.
+
+**Where.** [`roboslop/src/animation/skeleton.cppm`](../roboslop/src/animation/skeleton.cppm),
+[`roboslop/src/animation/clip.cppm`](../roboslop/src/animation/clip.cppm),
+[`roboslop/src/animation/state.cppm`](../roboslop/src/animation/state.cppm),
+[`roboslop/tests/animation_test.cpp`](../roboslop/tests/animation_test.cpp).
+
+---
+
 ## 2026-05-18 — Audio: miniaudio AudioDevice + 3D listener/source systems
 
 **Decision.** `roboslop.audio.device` exposes a move-only `AudioDevice`

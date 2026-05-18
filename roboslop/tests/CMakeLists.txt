@@ -13,6 +13,7 @@ add_executable(roboslop_tests
     frame_arena_test.cpp
     physics_test.cpp
     lighting_test.cpp
+    animation_test.cpp
 )
 
 # Tests must use the same -fno-exceptions code-gen as the engine so the
