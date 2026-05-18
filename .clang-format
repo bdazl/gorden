@@ -23,6 +23,11 @@ AllowAllArgumentsOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 IncludeBlocks: Regroup
 IncludeCategories:
+  # Umbrella headers that define macros used by their siblings — must
+  # come first. Jolt's <Jolt/Jolt.h> is the canonical example; sibling
+  # Jolt headers reference JPH_NAMESPACE_BEGIN etc. defined inside it.
+  - Regex:    '^<Jolt/Jolt\.h>$'
+    Priority: 0
   - Regex:    '^<.*\.h(pp)?>$'
     Priority: 1
   - Regex:    '^<.*>$'
