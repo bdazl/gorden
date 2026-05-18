@@ -84,6 +84,17 @@ export enum class NativePlatform : int {
     Cocoa,
 };
 
+// Cursor presentation mode. Maps directly to GLFW_CURSOR_NORMAL/HIDDEN/DISABLED.
+// Captured locks the cursor to the window centre and feeds unbounded
+// virtual motion to the position queries — the model expected by FPS-style
+// look-around. Hidden keeps free movement but draws no cursor (rarely used,
+// kept for parity with the GLFW surface).
+export enum class CursorMode : int {
+    Normal = 0,
+    Hidden,
+    Captured,
+};
+
 // Backend-agnostic view of the native window handles a renderer needs to
 // attach. display is null on platforms (Win32, Cocoa) that don't expose one.
 export struct NativeHandles {
@@ -123,7 +134,7 @@ export class Window {
 
     Window(Window&& other) noexcept
         : handle_(std::exchange(other.handle_, nullptr)),
-          resizeCallback_(std::move(other.resizeCallback_)) {
+          resizeCallback_(std::move(other.resizeCallback_)), cursorMode_(other.cursorMode_) {
         rebindUserPointer();
     }
 
@@ -132,6 +143,7 @@ export class Window {
             shutdown();
             handle_ = std::exchange(other.handle_, nullptr);
             resizeCallback_ = std::move(other.resizeCallback_);
+            cursorMode_ = other.cursorMode_;
             rebindUserPointer();
         }
         return *this;
@@ -158,6 +170,42 @@ export class Window {
 
     [[nodiscard]] auto escapePressed() const -> bool {
         return glfwGetKey(handle_, GLFW_KEY_ESCAPE) == GLFW_PRESS;
+    }
+
+    // Raw GLFW handle. Stable for the lifetime of the Window (and across
+    // moves — only the wrapper's pointer is exchanged, not the underlying
+    // GLFW object). Used by input.cppm to poll keys/mouse without holding
+    // a reference to the Window itself.
+    [[nodiscard]] auto handle() const noexcept -> GLFWwindow* {
+        return handle_;
+    }
+
+    [[nodiscard]] auto cursorMode() const noexcept -> CursorMode {
+        return cursorMode_;
+    }
+
+    auto setCursorMode(CursorMode mode) -> void {
+        cursorMode_ = mode;
+        int glfwMode = GLFW_CURSOR_NORMAL;
+        switch (mode) {
+        case CursorMode::Normal:
+            glfwMode = GLFW_CURSOR_NORMAL;
+            break;
+        case CursorMode::Hidden:
+            glfwMode = GLFW_CURSOR_HIDDEN;
+            break;
+        case CursorMode::Captured:
+            glfwMode = GLFW_CURSOR_DISABLED;
+            break;
+        }
+        glfwSetInputMode(handle_, GLFW_CURSOR, glfwMode);
+        if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
+            glfwSetInputMode(
+                handle_,
+                GLFW_RAW_MOUSE_MOTION,
+                mode == CursorMode::Captured ? GLFW_TRUE : GLFW_FALSE
+            );
+        }
     }
 
     // Registers a callback fired when GLFW reports a new framebuffer size.
@@ -215,6 +263,7 @@ export class Window {
 
     GLFWwindow* handle_ = nullptr;
     std::function<void(int, int)> resizeCallback_;
+    CursorMode cursorMode_ = CursorMode::Normal;
 };
 
 // Drives the process-wide GLFW event queue. Single-window engines call this
