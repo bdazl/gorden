@@ -40,6 +40,10 @@ class Gorden(ConanFile):
         self.requires("stb/cci.20230920")
         self.requires("joltphysics/5.2.0")
 
+        # System scheduling. Header-only task graph executor used by the
+        # engine's SystemGraph / RenderGraph; one tf::Executor per App.
+        self.requires("taskflow/3.7.0")
+
         # Dev UI. Docking branch for multi-viewport / dockable panels.
         self.requires("imgui/1.90.8-docking")
 

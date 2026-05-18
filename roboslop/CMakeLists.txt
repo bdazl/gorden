@@ -6,6 +6,7 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
+find_package(Taskflow CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -22,6 +23,7 @@ roboslop_add_module_library(roboslop
         src/render/asset_cache.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm
+        src/sched/scheduler.cppm
         src/app/app.cppm
 )
 
@@ -33,6 +35,7 @@ target_link_libraries(roboslop PUBLIC
     bimg
     spdlog::spdlog
     EnTT::EnTT
+    Taskflow::Taskflow
 )
 
 if(ROBOSLOP_BUILD_TESTS)
