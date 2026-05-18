@@ -16,8 +16,9 @@ the project grows; the goal here is orientation, not detail.
 `roboslop::App` (module `roboslop.app`) is the bridge between a game and the
 engine. A game constructs `App::make(AppConfig{...})`, then calls `run()`;
 `App` owns the window, render context, asset cache, world, clock,
-scheduler, the per-frame `FrameArena`, the fixed-step `SystemGraph`, and
-the `RenderGraph`. It drives the frame loop until the window closes.
+scheduler, the per-frame `FrameArena`, the fixed-step `SystemGraph`,
+the `RenderGraph`, and the `JoltWorld`. It drives the frame loop until
+the window closes.
 
 ### App hooks
 
@@ -76,6 +77,36 @@ place. The backend (`submitDraws`) iterates the sorted span and calls
 bgfx. No heap allocation runs in the render loop. The sort key bakes
 view-class, view-ID, program, and depth into a single `uint64` so a
 single `std::sort` does all draw-call ordering.
+
+## Physics
+
+`roboslop.physics` exposes a `JoltWorld` value type owned by `App`.
+Construction registers Jolt's global allocator + factory + types and
+brings up a `JPH::PhysicsSystem` with two object layers
+(`NonMoving`/`Moving`) and two matching broadphase layers. The
+single-instance global state means destructing the `JoltWorld`
+unregisters Jolt types so a second instance can be made later
+(useful for tests).
+
+`App::run()` calls `installJoltWorld(world, joltWorld)` once before
+`onBuildGraphs`; that places a `JoltWorld*` in the ECS context so
+physics systems reach the world via `SystemCtx.world->registry().ctx()`
+without `roboslop.sched` needing a typed dependency on physics.
+
+Game code spawns dynamic bodies by attaching `BodyDesc` to an entity
+with a `Transform`. The three physics systems —
+`physicsSpawn`/`physicsStep`/`syncPhysicsToTransform` — are registered
+into the fixed-update graph with one call to `registerPhysicsSystems(g)`
+inside `onBuildGraphs`. Spawn turns each `BodyDesc` into a Jolt body
+plus a `RigidBody` handle and seeds a `PrevTransform`; step runs the
+solver at the fixed sub-step dt; sync copies the body pose back to
+the ECS `Transform` and captures the prior pose for render-time
+interpolation by `alpha`.
+
+Jolt's job system is `JPH::JobSystemSingleThreaded` for MVP. Steps run
+on whichever Taskflow worker drew the task, serialised by their
+write to `"physicsState"` — we never mix Jolt's own pool with the
+engine's executor.
 
 ## Roboslop subsystem map
 

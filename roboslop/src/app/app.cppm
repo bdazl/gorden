@@ -12,6 +12,7 @@ export module roboslop.app;
 
 import roboslop.core.error;
 import roboslop.ecs;
+import roboslop.physics;
 import roboslop.platform.input;
 import roboslop.platform.window;
 import roboslop.render.asset_cache;
@@ -77,10 +78,12 @@ export class App {
         const unsigned workers = cfg.workerThreads == 0 ? defaultWorkerCount() : cfg.workerThreads;
         FrameArena arena{cfg.frameArenaBytes};
         Scheduler scheduler{workers};
+        JoltWorld physics = JoltWorld::make();
         return App{
             std::move(*window),
             std::move(*render),
             std::move(assets),
+            std::move(physics),
             std::move(scheduler),
             std::move(arena),
             std::move(cfg)
@@ -95,6 +98,7 @@ export class App {
 
     auto run() -> Result<void> {
         window.setResizeCallback([this](int w, int h) { render.resize(w, h); });
+        installJoltWorld(world, physics);
 
         if (cfg.onSetup) {
             auto setupResult = cfg.onSetup(world, assets);
@@ -152,25 +156,30 @@ export class App {
     App(Window window,
         RenderContext render,
         AssetCache assets,
+        JoltWorld physics,
         Scheduler scheduler,
         FrameArena arena,
         AppConfig cfg) noexcept
         : window(std::move(window)), render(std::move(render)), input(this->window),
-          assets(std::move(assets)), ticker(cfg.tickRateHz), scheduler(std::move(scheduler)),
-          arena(std::move(arena)), cfg(std::move(cfg)) {}
+          assets(std::move(assets)), physics(std::move(physics)), ticker(cfg.tickRateHz),
+          scheduler(std::move(scheduler)), arena(std::move(arena)), cfg(std::move(cfg)) {}
 
     // Member order is destruction-critical: assets must outlive any
     // entity that stores its handles (world) and must die before bgfx
     // shuts down (render). Declared order = construction order =
     // reverse destruction order. input stores only the raw GLFWwindow
     // handle, which is stable across Window moves, so it carries no
-    // destruction dependency of its own. fixedGraph and renderGraph
-    // hold lambdas captured from onBuildGraphs that may reference
-    // arena and world by pointer; both die before those targets do.
+    // destruction dependency of its own. physics is declared before
+    // world so world destructs first — clearing entt's ctx<JoltWorld*>
+    // entry before the JoltWorld itself tears down Jolt globals.
+    // fixedGraph and renderGraph hold lambdas captured from
+    // onBuildGraphs that may reference arena and world by pointer; both
+    // die before those targets do.
     Window window;
     RenderContext render;
     Input input;
     AssetCache assets;
+    JoltWorld physics;
     World world;
     Clock clock;
     FixedTimestep ticker;

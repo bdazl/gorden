@@ -7,6 +7,7 @@ find_package(glm CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(EnTT CONFIG REQUIRED)
 find_package(Taskflow CONFIG REQUIRED)
+find_package(Jolt CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -23,6 +24,8 @@ roboslop_add_module_library(roboslop
         src/render/asset_cache.cppm
         src/render/frontend.cppm
         src/render/graph.cppm
+        src/physics/components.cppm
+        src/physics/jolt_world.cppm
         src/scene/transform.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
@@ -38,6 +41,7 @@ target_link_libraries(roboslop PUBLIC
     spdlog::spdlog
     EnTT::EnTT
     Taskflow::Taskflow
+    Jolt::Jolt
 )
 
 if(ROBOSLOP_BUILD_TESTS)

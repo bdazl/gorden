@@ -7,6 +7,66 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Jolt physics integrated as a fixed-update subsystem
+
+**Decision.** `roboslop.physics` exposes `JoltWorld` (move-only value
+type, single-instance per process), the engine's three physics layer
+filters (single-instance concrete implementations of Jolt's virtual
+interfaces, hidden in `namespace detail`), and the three physics
+systems registered into the fixed-update SystemGraph via
+`registerPhysicsSystems(SystemGraph&)`:
+
+- `physicsSpawn` — turns `BodyDesc` components into Jolt bodies, swaps
+  in `RigidBody` and seeds `PrevTransform`.
+- `physicsStep` — calls `system->Update(dt, 1, &tempAlloc, &jobSystem)`
+  with `JPH::JobSystemSingleThreaded`.
+- `syncPhysicsToTransform` — copies pose back to ECS `Transform`,
+  capturing the prior pose into `PrevTransform`.
+
+App owns one `JoltWorld` and calls `installJoltWorld(world, joltWorld)`
+once at the start of `run()`, placing the pointer in entt's
+ctx-storage. Physics systems reach the JoltWorld via
+`SystemCtx.world->registry().ctx().get<JoltWorld*>()` rather than a
+typed member on `SystemCtx`, so `roboslop.sched` keeps zero
+dependencies on subsystem modules.
+
+`roboslop.physics.components` is the POD-only component module:
+`BodyShape` (`std::variant<SphereShape, BoxShape>`), `BodyMotion`,
+`BodyDesc`, `RigidBody` (wraps `JPH::BodyID`), `PrevTransform`.
+
+**Why.** The plan called for an MVP-thin Jolt slice (rigid bodies,
+sphere + box, dynamic + static, no character controller). Putting the
+JoltWorld pointer in `entt::registry::ctx()` rather than `SystemCtx`
+avoids forcing `roboslop.sched` to declare physics types — a non-
+exported forward declaration in a different C++23 module raised a
+duplicate-class error from clang. The ctx-storage approach is the
+opposite trade-off (untyped lookup at runtime) but keeps the
+dependency graph clean: every subsystem that later wants engine-
+owned state can register through the same ctx mechanism.
+
+`JobSystemSingleThreaded` rather than `JobSystemThreadPool` keeps
+Taskflow as the only thread-pool in the process — Jolt steps are
+serialised in the SystemGraph via the `"physicsState"` write
+declaration, so the cost of single-threading the solver shows up only
+if the solver itself is the bottleneck. Re-evaluate when we feel it.
+
+`-fno-exceptions` is preserved: Jolt's public surface returns error
+codes or invalid handles rather than throwing, and `JPH::Ref<Shape>`
+ref-counts shape lifetimes without unwind-table assumptions.
+
+**Where.** [`roboslop/src/physics/jolt_world.cppm`](../roboslop/src/physics/jolt_world.cppm),
+[`roboslop/src/physics/components.cppm`](../roboslop/src/physics/components.cppm),
+[`roboslop/src/app/app.cppm`](../roboslop/src/app/app.cppm) (declares
+JoltWorld member, calls `installJoltWorld`),
+[`gorden/src/app/main.cpp`](../gorden/src/app/main.cpp) (M1 demo:
+3 dynamic boxes + 2 dynamic spheres + 1 static ground).
+Tests: [`roboslop/tests/physics_test.cpp`](../roboslop/tests/physics_test.cpp).
+Build: [`conanfile.py`](../conanfile.py) already required
+`joltphysics/5.2.0`; [`roboslop/CMakeLists.txt`](../roboslop/CMakeLists.txt)
+links `Jolt::Jolt`.
+
+---
+
 ## 2026-05-18 — System scheduling via Taskflow + add-order-forward DAGs
 
 **Decision.** Two new module clusters land before any engine

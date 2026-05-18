@@ -19,11 +19,14 @@ import roboslop.platform.input;
 
 namespace roboslop {
 
-// Per-call frame context passed to every system. Input is nullable so
-// scheduler tests can drive graphs without GLFW. dt is the fixed
-// sub-step delta in the fixed-update stage and the render frame delta
-// in the render stage; alpha is the [0,1) accumulator fraction for
-// visual interpolation between fixed states.
+// Per-call frame context passed to every system. All pointers are
+// nullable so unit tests can drive graphs without GLFW / bgfx / Jolt
+// initialised. dt is the fixed sub-step delta in the fixed-update
+// stage and the render frame delta in the render stage; alpha is the
+// [0,1) accumulator fraction for visual interpolation between fixed
+// states. Engine-owned subsystems (JoltWorld, ...) are surfaced via
+// World::registry().ctx() rather than typed members here, so this
+// module does not depend on physics / audio / anim.
 export enum class FrameStage : int {
     FixedUpdate,
     Render,
