@@ -6,6 +6,7 @@ add_executable(roboslop_tests
     ecs_world_test.cpp
     transform_test.cpp
     render_camera_test.cpp
+    input_test.cpp
 )
 
 # Tests must use the same -fno-exceptions code-gen as the engine so the

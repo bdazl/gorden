@@ -7,6 +7,48 @@ one — don't edit in place.
 
 ---
 
+## 2026-05-18 — Input is a polled per-frame module with a pure-helper split
+
+**Decision.** `roboslop::Input` (module `roboslop.platform.input`) wraps GLFW
+key/mouse polling. Construction captures the raw `GLFWwindow*` from
+`Window::handle()` and never reseats — the underlying GLFW object has a
+stable address, so Input survives any Window/App move without rebinding.
+`Input::beginFrame()` is called once per render frame after
+`pollWindowEvents()`; it diffs the previous frame's snapshot against a
+freshly polled one and caches a single mouse delta. Key/mouse-button edge
+detection (`keyPressed` / `keyReleased` / `mouseButtonPressed`) and
+`computeMouseDelta` are also exported as free functions on `InputSnapshot`
+values so the edge logic can be unit-tested without GLFW. Cursor capture is
+toggled via `Input::setCursorCaptured(bool)`, which calls
+`glfwSetInputMode` directly (not through `Window::setCursorMode`) and
+flags the next frame's delta to zero so the OS-driven cursor jump is not
+read as motion.
+
+**Why.** Window already owns RAII for a GLFW handle; a separate `Input`
+keeps polling state, edge tracking, and snapshot history out of Window
+and gives a single seam to attach gamepad/rebinding later. Storing the
+raw GLFW handle (rather than a `Window&` or `Window*`) keeps Input
+movable without lifetime hazards — relevant because `App::make()` returns
+`Result<App>` and the contained App is move-constructed once into the
+`std::expected`. Splitting edge predicates and delta computation out as
+free functions on the snapshot value type means tests don't need to
+initialise GLFW. Driving cursor capture from `Input` directly avoids the
+Window-pointer-into-App problem entirely.
+
+The mouse delta is captured *once per render frame* even though the
+free-fly camera reads it from `onFixedUpdate` (which may run multiple
+sub-steps per frame). Mouse motion is an angular quantity (pixels per
+frame), not a velocity, so re-applying the same delta across sub-steps
+is the correct semantics — re-polling per sub-step would multiply look
+sensitivity by the sub-step count.
+
+**Where.** [`roboslop/src/platform/input.cppm`](../roboslop/src/platform/input.cppm),
+[`roboslop/src/platform/window.cppm`](../roboslop/src/platform/window.cppm)
+(adds `CursorMode` enum, `setCursorMode`, `handle()` accessor for Input),
+[`roboslop/tests/input_test.cpp`](../roboslop/tests/input_test.cpp).
+
+---
+
 ## 2026-05-17 — Camera is an ECS component picked by `ActiveCamera` tag
 
 **Decision.** `roboslop::Camera` (module `roboslop.render.camera`) is an

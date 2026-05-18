@@ -13,6 +13,7 @@ roboslop_add_module_library(roboslop
         src/core/error.cppm
         src/time/clock.cppm
         src/platform/window.cppm
+        src/platform/input.cppm
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm
