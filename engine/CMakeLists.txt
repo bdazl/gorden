@@ -23,6 +23,7 @@ roboslop_add_module_library(roboslop
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm
+        src/render/primitives.cppm
         src/render/material.cppm
         src/render/camera.cppm
         src/render/free_fly_camera.cppm

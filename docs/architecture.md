@@ -185,6 +185,9 @@ build break.
   (`makeProgram`) or from the asset root (`loadProgram`), static mesh
   creation with two vertex layouts, and a POD `Material` (program +
   albedo + sampler) the frontend reads per entity.
+- `roboslop.render.primitives`: procedural UV-sphere and plane
+  generators (`sphereGeometry`, `planeGeometry`) producing pos/normal/uv
+  `Geometry`, plus `makeGeometryMesh` to upload one as a static `Mesh`.
 - Hot replacement of a program is a two-step swap on the render thread:
   `AssetCache::replaceProgram` exchanges the owning `Program` (bgfx
   defers the old handle's release to the end of the frame), then

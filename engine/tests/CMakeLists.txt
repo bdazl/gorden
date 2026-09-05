@@ -16,6 +16,7 @@ add_executable(roboslop_tests
     frontend_rebind_test.cpp
     physics_test.cpp
     lighting_test.cpp
+    primitives_test.cpp
     animation_test.cpp
 )
 
