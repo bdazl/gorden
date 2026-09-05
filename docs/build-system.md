@@ -86,8 +86,29 @@ preset takes 10–20 minutes and bifurcates the Conan cache.
 | Custom Conan recipe  | Reserved for cases where FetchContent doesn't suffice; nothing in the tree today. |
 
 bgfx (+ bx, bimg, shaderc) and miniaudio currently come in via FetchContent.
-The `imgui_impl_bgfx` slot is intentionally empty until the dev-UI subsystem
-lands a minimal local implementation.
+Dear ImGui comes from Conan; its GLFW platform backend is compiled directly
+from the package's `res/bindings/` directory (located through the
+`imgui_PACKAGE_FOLDER_<CONFIG>` variable CMakeDeps generates), and the
+bgfx renderer backend is our own TU in `engine/src/ui/`. Nothing ImGui-
+related is fetched or vendored.
+
+## Options
+
+| Option | Default | Effect |
+|---|---|---|
+| `ROBOSLOP_DEV_UI` | `ON` | `App` honours `AppConfig::enableDevUi` and the `shaderlab` app is configured. `OFF` still builds `roboslop.ui` (the module is unconditional to keep `App` free of `#if`-guarded members) but `App` logs a warning and skips the dev UI. |
+| `ROBOSLOP_BUILD_TESTS` | `ON` | Build the Catch2 test executable. |
+| `ROBOSLOP_SANITIZERS` | empty | See "Sanitisers". |
+
+## Shaders
+
+`cmake/ShaderCompile.cmake` wraps bgfx's `bgfx_compile_shaders()`. Every
+`roboslop_compile_shader()` call writes `<build>/assets/shaders/<backend>/<name>.sc.bin`
+and registers a per-call custom target under the aggregate `shaders`
+target (`make shaders`). The aggregate is *not* part of `all`; a target
+that loads shaders at runtime should pass `TARGET_VAR` and
+`add_dependencies()` on the result so `make build` alone produces a
+runnable binary (the engine does this for its ImGui pair).
 
 ## C++23 module notes
 

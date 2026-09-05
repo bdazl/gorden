@@ -12,7 +12,12 @@
 #       SHADERS     vs_basic.sc fs_basic.sc
 #       VARYING     varying.def.sc
 #       OUTPUT_DIR  ${CMAKE_CURRENT_BINARY_DIR}/shaders   # optional
+#       TARGET_VAR  my_shader_target                       # optional
 #   )
+#
+# TARGET_VAR receives the name of the per-call custom target so a
+# library or executable can add_dependencies() on exactly the shaders it
+# loads at runtime (the aggregate `shaders` target is not part of ALL).
 #
 # Outputs land at <OUTPUT_DIR>/<profile-ext>/<name>.bin per backend. The
 # active backend set follows bgfx_compile_shaders defaults (spirv + glsl on
@@ -26,7 +31,7 @@ if(NOT COMMAND bgfx_compile_shaders)
 endif()
 
 function(roboslop_compile_shader)
-    cmake_parse_arguments(ARG "" "TYPE;VARYING;OUTPUT_DIR" "SHADERS" ${ARGN})
+    cmake_parse_arguments(ARG "" "TYPE;VARYING;OUTPUT_DIR;TARGET_VAR" "SHADERS" ${ARGN})
 
     if(NOT ARG_TYPE OR NOT ARG_VARYING OR NOT ARG_SHADERS)
         message(FATAL_ERROR
@@ -57,4 +62,8 @@ function(roboslop_compile_shader)
 
     add_custom_target(${sub_target} DEPENDS ${out_files})
     add_dependencies(shaders ${sub_target})
+
+    if(ARG_TARGET_VAR)
+        set(${ARG_TARGET_VAR} ${sub_target} PARENT_SCOPE)
+    endif()
 endfunction()

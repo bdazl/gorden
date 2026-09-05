@@ -11,6 +11,32 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — Dev UI: ImGui as an engine module, panels drawn by the app
+
+**Decision.** `roboslop.ui` owns one Dear ImGui context and is created
+by `App` when `AppConfig::enableDevUi` is set. Input uses ImGui's own
+GLFW platform backend compiled from the Conan package's `res/bindings`
+(same version as the library, no vendored copy). Rendering uses a
+minimal bgfx backend written in-tree (`engine/src/ui/imgui_bgfx_renderer.cpp`)
+instead of a third-party `imgui_impl_bgfx`. The engine adds no widgets;
+an app draws its panels inside its own last render pass between
+`beginFrame()` and `endFrame(viewId)`, and reaches the instance through
+the world context like `JoltWorld`. The module is always built;
+`ROBOSLOP_DEV_UI=OFF` only makes `App` skip creating it.
+
+**Why.** Shader Lab needs a diagnostics panel, which is the first real
+consumer. Keeping ImGui in the engine avoids every app re-implementing
+the same glue, while leaving widget content to the app keeps the engine
+free of app-specific UI. The bgfx backend is ~150 lines; no maintained
+external implementation was worth a FetchContent pin. Building the
+module unconditionally keeps `App` free of `#if`-guarded members and
+PCM configuration differences between presets.
+
+**Where.** `engine/src/ui/`, `engine/assets/shaders/src/{vs,fs}_imgui.sc`,
+`AppConfig::enableDevUi` in `engine/src/app/app.cppm`.
+
+---
+
 ## 2026-09-05 — Replay = the validated event/action sequence, not model output
 
 **Decision.** AI-driven sessions are made replayable by logging the

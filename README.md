@@ -45,8 +45,11 @@ exists today, all driven by the Gorden demo:
 - Animation data layer: skeleton, clips, CPU clip sampling, and an
   animation-state tick system. No GPU skinning yet.
 
-Not yet started: any LLM/agent code, dev UI, serialisation, scene
-files, shader hot-reload. The Gorden executable is a physics/rendering
+- Dev UI: Dear ImGui over GLFW + bgfx (`roboslop.ui`), opt-in per app.
+- Runtime shader compilation through the `shaderc` binary and hot
+  replacement of a running program.
+
+Not yet started: any LLM/agent code, serialisation, scene files. The Gorden executable is a physics/rendering
 demo scene, not a game, which is intentional at this stage.
 
 ## Prerequisites

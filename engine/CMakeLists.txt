@@ -10,6 +10,7 @@ find_package(Taskflow CONFIG REQUIRED)
 find_package(Jolt CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(stb REQUIRED)
+find_package(imgui CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -44,10 +45,12 @@ roboslop_add_module_library(roboslop
         src/scene/transform.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
+        src/ui/dev_ui.cppm
         src/app/app.cppm
     SOURCES
         src/assets/stb_image_impl.cpp
         src/audio/miniaudio_impl.c
+        src/ui/imgui_bgfx_renderer.cpp
 )
 
 # miniaudio_impl.c is the single TU that defines MINIAUDIO_IMPLEMENTATION;
@@ -59,6 +62,59 @@ set_source_files_properties(
     src/audio/miniaudio_impl.c
     PROPERTIES COMPILE_OPTIONS "-w"
 )
+
+# --- Dev UI (Dear ImGui) -------------------------------------------------
+# roboslop.ui is always built: imgui is a declared Conan dependency and
+# keeping the module unconditional avoids #if-guarded members in App.
+# ROBOSLOP_DEV_UI decides whether App honours AppConfig::enableDevUi
+# (and, at the top level, whether the shaderlab app is configured).
+#
+# The GLFW platform backend is compiled straight from the Conan
+# package's res/bindings — same imgui version, no vendored copy. The
+# bgfx renderer backend is ours (src/ui/imgui_bgfx_renderer.cpp).
+string(TOUPPER "${CMAKE_BUILD_TYPE}" roboslop_cfg_upper)
+set(imgui_bindings_dir "${imgui_PACKAGE_FOLDER_${roboslop_cfg_upper}}/res/bindings")
+if(NOT EXISTS "${imgui_bindings_dir}/imgui_impl_glfw.cpp")
+    message(FATAL_ERROR
+        "imgui_impl_glfw.cpp not found at ${imgui_bindings_dir}; "
+        "the Conan imgui package layout changed."
+    )
+endif()
+target_sources(roboslop PRIVATE "${imgui_bindings_dir}/imgui_impl_glfw.cpp")
+# Third-party TU: same treatment as miniaudio_impl.c.
+set_source_files_properties(
+    "${imgui_bindings_dir}/imgui_impl_glfw.cpp"
+    PROPERTIES COMPILE_OPTIONS "-w"
+)
+target_include_directories(roboslop SYSTEM PRIVATE "${imgui_bindings_dir}")
+if(ROBOSLOP_DEV_UI)
+    target_compile_definitions(roboslop PUBLIC ROBOSLOP_DEV_UI=1)
+else()
+    target_compile_definitions(roboslop PUBLIC ROBOSLOP_DEV_UI=0)
+endif()
+
+# Engine-owned shaders (the ImGui pair) compile into the same
+# <build-root>/assets/shaders/<backend>/ tree app shaders use, so
+# AssetCache::program("vs_imgui", "fs_imgui") resolves from any app's
+# asset root. The engine target depends on them so `make build` alone
+# yields a runnable dev UI.
+include(ShaderCompile)
+set(ui_shader_src ${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/src)
+roboslop_compile_shader(
+    TYPE        VERTEX
+    SHADERS     ${ui_shader_src}/vs_imgui.sc
+    VARYING     ${ui_shader_src}/varying.def.sc
+    OUTPUT_DIR  ${CMAKE_BINARY_DIR}/assets/shaders
+    TARGET_VAR  ui_vs_target
+)
+roboslop_compile_shader(
+    TYPE        FRAGMENT
+    SHADERS     ${ui_shader_src}/fs_imgui.sc
+    VARYING     ${ui_shader_src}/varying.def.sc
+    OUTPUT_DIR  ${CMAKE_BINARY_DIR}/assets/shaders
+    TARGET_VAR  ui_fs_target
+)
+add_dependencies(roboslop ${ui_vs_target} ${ui_fs_target})
 
 target_link_libraries(roboslop PUBLIC
     glfw
@@ -73,6 +129,7 @@ target_link_libraries(roboslop PUBLIC
     assimp::assimp
     stb::stb
     roboslop::miniaudio
+    imgui::imgui
 )
 
 if(ROBOSLOP_BUILD_TESTS)

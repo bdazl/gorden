@@ -6,6 +6,7 @@ module;
 #include <expected>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <utility>
 
 export module roboslop.app;
@@ -23,6 +24,7 @@ import roboslop.render.frontend;
 import roboslop.render.graph;
 import roboslop.sched;
 import roboslop.time.clock;
+import roboslop.ui;
 
 namespace roboslop {
 
@@ -55,6 +57,11 @@ export struct AppConfig {
     // clamped [1, 8]).
     unsigned workerThreads = 0;
 
+    // Create a DevUi (Dear ImGui) and install it into the world so
+    // passes can reach it via devUi(world). Ignored with a warning when
+    // the engine was configured with ROBOSLOP_DEV_UI=OFF.
+    bool enableDevUi = false;
+
     std::function<Result<void>(World&, AssetCache&)> onSetup;
     std::function<void(SystemGraph&, RenderGraph&, FrameArena&)> onBuildGraphs;
 };
@@ -77,6 +84,18 @@ export class App {
             return std::unexpected(render.error());
         }
         AssetCache assets{cfg.assetRoot};
+        std::optional<DevUi> ui;
+        if (cfg.enableDevUi) {
+#if ROBOSLOP_DEV_UI
+            auto made = DevUi::make(*window, assets);
+            if (!made) {
+                return std::unexpected(made.error());
+            }
+            ui.emplace(std::move(*made));
+#else
+            spdlog::warn("roboslop: enableDevUi requested but ROBOSLOP_DEV_UI is OFF");
+#endif
+        }
         const unsigned workers = cfg.workerThreads == 0 ? defaultWorkerCount() : cfg.workerThreads;
         FrameArena arena{cfg.frameArenaBytes};
         Scheduler scheduler{workers};
@@ -89,6 +108,7 @@ export class App {
             std::move(*window),
             std::move(*render),
             std::move(assets),
+            std::move(ui),
             std::move(physics),
             std::move(*audio),
             std::move(scheduler),
@@ -107,6 +127,9 @@ export class App {
         window.setResizeCallback([this](int w, int h) { render.resize(w, h); });
         installJoltWorld(world, physics);
         installAudioDevice(world, audio);
+        if (ui) {
+            installDevUi(world, *ui);
+        }
 
         if (cfg.onSetup) {
             auto setupResult = cfg.onSetup(world, assets);
@@ -164,22 +187,26 @@ export class App {
     App(Window window,
         RenderContext render,
         AssetCache assets,
+        std::optional<DevUi> ui,
         JoltWorld physics,
         AudioDevice audio,
         Scheduler scheduler,
         FrameArena arena,
         AppConfig cfg) noexcept
         : window(std::move(window)), render(std::move(render)), input(this->window),
-          assets(std::move(assets)), physics(std::move(physics)), audio(std::move(audio)),
-          ticker(cfg.tickRateHz), scheduler(std::move(scheduler)), arena(std::move(arena)),
-          cfg(std::move(cfg)) {}
+          assets(std::move(assets)), ui(std::move(ui)), physics(std::move(physics)),
+          audio(std::move(audio)), ticker(cfg.tickRateHz), scheduler(std::move(scheduler)),
+          arena(std::move(arena)), cfg(std::move(cfg)) {}
 
     // Member order is destruction-critical: assets must outlive any
     // entity that stores its handles (world) and must die before bgfx
     // shuts down (render). Declared order = construction order =
     // reverse destruction order. input stores only the raw GLFWwindow
     // handle, which is stable across Window moves, so it carries no
-    // destruction dependency of its own. physics is declared before
+    // destruction dependency of its own. ui borrows its program from
+    // assets and owns bgfx resources, so it sits right after assets:
+    // destroyed before the cache and before bgfx shuts down, after the
+    // world (whose ctx holds a DevUi*). physics is declared before
     // world so world destructs first — clearing entt's ctx<JoltWorld*>
     // entry before the JoltWorld itself tears down Jolt globals.
     // fixedGraph and renderGraph hold lambdas captured from
@@ -189,6 +216,7 @@ export class App {
     RenderContext render;
     Input input;
     AssetCache assets;
+    std::optional<DevUi> ui;
     JoltWorld physics;
     AudioDevice audio;
     World world;

@@ -67,6 +67,7 @@ target_include_directories(roboslop_miniaudio SYSTEM INTERFACE ${miniaudio_SOURC
 add_library(roboslop::miniaudio ALIAS roboslop_miniaudio)
 
 # --- imgui_impl_bgfx ------------------------------------------------------
-# Deferred. No actively maintained, single-source fork verified yet; the
-# dev-UI subsystem will land its own minimal implementation linking
-# imgui::imgui (Conan) + bgfx (above) when ROBOSLOP_DEV_UI=ON code arrives.
+# Not fetched: the bgfx renderer backend for Dear ImGui is our own
+# minimal implementation at engine/src/ui/imgui_bgfx_renderer.cpp, and
+# the GLFW platform backend is compiled from the Conan imgui package's
+# res/bindings (see engine/CMakeLists.txt).
