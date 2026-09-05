@@ -31,11 +31,32 @@ invalidate other build directories.
 ```sh
 make bootstrap PRESET=debug     # conan install, writes the toolchain file
 make configure                  # cmake --preset
-make build                      # cmake --build --preset
+make build                      # cmake --build --preset (engine, every app, tests)
 make test                       # ctest --preset
-make run [ARGS=...]             # ./build/<preset>/apps/gorden/gorden
 make shaders                    # compile every registered shader via shaderc
 ```
+
+### Per-app development loop
+
+Apps are discovered from `apps/*/`; each builds an executable named after
+its directory. `make apps` lists them.
+
+```sh
+make shaderlab                  # build only shaderlab (+ engine, its shaders), then run it
+make gorden ARGS="..."          # same for gorden; ARGS are forwarded
+make build-<app>                # build only <app>
+make run-<app>                  # run without building
+make run APP=<app>              # alias for run-<app>; APP defaults to gorden
+```
+
+`make <app>` is the inner loop while working on one application: it
+rebuilds only that app's target and what it depends on, then launches it
+from `build/<preset>/` so the relative asset root resolves. The `debug`
+preset is the development flavour (asserts on, bgfx debug output, no
+optimisation); pass `PRESET=release` for performance runs or
+`PRESET=asan-ubsan` / `tsan` for sanitised runs. For Shader Lab the
+edit-while-running hot reload means one launch usually lasts a whole
+session.
 
 `make build` does **not** auto-bootstrap. If the Conan toolchain is missing,
 it fails with cmake's preset error pointing at `make bootstrap`. `make help`

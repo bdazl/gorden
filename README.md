@@ -76,9 +76,11 @@ make bootstrap     # conan install for the default preset (debug)
 make configure     # cmake --preset debug
 make build         # cmake --build --preset debug
 make test          # ctest --preset debug
-make run           # ./build/debug/apps/gorden/gorden
-make run APP=shaderlab
 make shaders       # compile registered shaders through bgfx shaderc
+make apps          # list the apps under apps/
+make gorden        # build only gorden, then run it
+make shaderlab     # build only shaderlab, then run it
+make run-<app>     # run without building (make run APP=<app> also works)
 ```
 
 Other presets: `make build PRESET=release|relwithdebinfo|asan-ubsan|tsan`.
