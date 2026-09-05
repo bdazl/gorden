@@ -86,9 +86,30 @@ The core game idea is stable: the player has a robot companion whose
 high-level behaviour is decided by an AI/LLM. The robot perceives the
 world mainly through structured, semantic observations, acts through
 validated high-level tools, and never drives locomotion or physics
-frame by frame. Today Gorden is a physics + textured-cube demo scene
-with a free-fly camera; the agent loop does not exist yet (see the
-[roadmap](roadmap.md), M2).
+frame by frame. Today Gorden is the physics + textured-cube demo scene with a free-fly
+camera plus the first agent loop (roadmap M2, first slice): a robot
+entity, three named props, a "Robot" chat panel, and the pipeline below.
+
+The agent code is the `gorden_agent` module library
+(`apps/gorden/src/agent/`, tested by `gorden_tests`):
+
+- `gorden.agent.observation` — `Named` component, `buildObservation`
+  (every named entity within a radius, sorted by distance; no
+  line-of-sight yet) and `observationToJson`, the text the model reads.
+- `gorden.agent.tools` — the tool schemas, `parseToolCall` (JSON →
+  `MoveTo` / `Inspect` / `Say`), and `validate`, the boundary that turns
+  a proposal into a `Command` or a rejection with the rule named.
+- `gorden.agent.robot` — `RobotMotion` and the kinematic
+  `robotLocomotion` system (straight line on XZ, no physics body).
+- `gorden.agent.brain` — `AgentBrain`: an event queue (player message,
+  tool rejected, move completed, inspect result), a bounded working
+  memory, one in-flight `AsyncCompletion`, and the validated action log.
+  Events are the only trigger for a think; chained thinks are capped
+  per player message; provider errors are logged and never retried on
+  their own.
+
+The provider is chosen at startup: `OPENAI_API_KEY` set → the
+OpenAI-compatible backend, otherwise the scripted demo.
 
 ### Shader Lab (M1, first slice done)
 
@@ -297,9 +318,10 @@ prompts, tools, or memory — those live in the app.
 
 ## Accepted direction: AI and agents
 
-Nothing in this section exists in code. It is written down now so that
-M2 and M3 (see the [roadmap](roadmap.md)) share one vocabulary and do
-not each invent their own.
+The first slice of this exists in code as of M2 (see "Gorden" above and
+the [roadmap](roadmap.md)); memory, reflection opportunities beyond the
+event triggers, and replay (M3) do not. The section stays the shared
+vocabulary for both.
 
 ### Semantic-first perception
 

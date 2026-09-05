@@ -124,6 +124,16 @@ related is fetched or vendored.
 | `ROBOSLOP_BUILD_TESTS` | `ON` | Build the Catch2 test executable. |
 | `ROBOSLOP_SANITIZERS` | empty | See "Sanitisers". |
 
+## Runtime environment variables
+
+Read by the applications, never by the build:
+
+| Variable | Used by | Effect |
+|---|---|---|
+| `OPENAI_API_KEY` | gorden | Selects the OpenAI-compatible LLM backend. Absent → scripted demo provider. Never logged. |
+| `OPENAI_BASE_URL` | gorden | Base URL of the chat-completions API (default `https://api.openai.com/v1`; e.g. `http://127.0.0.1:8080/v1` for a llama.cpp server). |
+| `GORDEN_MODEL` | gorden | Model name sent in the request (default `gpt-4.1-mini`). |
+
 ## Shaders
 
 `cmake/ShaderCompile.cmake` wraps bgfx's `bgfx_compile_shaders()`. Every

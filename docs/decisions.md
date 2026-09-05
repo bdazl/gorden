@@ -11,6 +11,67 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — First LLM backend is OpenAI-compatible over libcurl, verified against OpenAI
+
+**Decision.** `roboslop.llm.backend:openai` talks to any server that
+implements the OpenAI chat-completions API (tools included) through
+`roboslop.platform.http`, a blocking libcurl wrapper. The first
+verification target is OpenAI itself (`gpt-4.1-mini`, key from
+`OPENAI_API_KEY`); a llama.cpp server or Ollama is the same code with
+`OPENAI_BASE_URL` changed. libcurl was chosen over cpp-httplib for
+TLS out of the box and for future remote backends.
+
+**Why.** No local model server was available on the development
+machine, and the API shape is identical, so verifying against OpenAI
+first costs nothing architecturally. The local-first direction in
+`architecture.md` stands: nothing in the engine assumes a remote
+service, and the scripted backend keeps the whole chain runnable and
+testable without any server.
+
+**Where.** `engine/src/llm/`, `engine/src/platform/http.cppm`,
+`conanfile.py` (`libcurl`).
+
+---
+
+## 2026-09-05 — Agent split: provider in the engine, observation/tools/brain in the app
+
+**Decision.** The engine owns the backend-neutral chat vocabulary, the
+`Provider` interface, async completion, the wire format, and the
+backends. Everything that gives the robot meaning — what it observes,
+which tools exist, how a proposal is validated, how it moves, when it
+thinks — is Gorden code (`gorden_agent`).
+
+**Why.** The provider layer is the same for any app that wants a model;
+the agent semantics are exactly what the application-driven principle
+says not to generalise before a second consumer exists. `gorden_agent`
+being a separate module library with its own tests keeps the app's
+logic testable without a window.
+
+**Where.** `engine/src/llm/`, `apps/gorden/src/agent/`,
+`apps/gorden/tests/`.
+
+---
+
+## 2026-09-05 — Kinematic robot, event-triggered thinks, capped chains, action log
+
+**Decision.** The robot moves kinematically in a straight line on the
+XZ plane (`RobotMotion`, no physics body). The brain thinks only when
+events arrive (player message, tool rejected, move completed, inspect
+result); a `say` and an accepted `moveTo` produce no immediate event. At
+most `maxChainedThinks` (4) thinks follow one player message. Provider
+errors are logged and shown but never retried automatically. Every
+observation delivered, proposal, verdict, and resulting event is
+appended to a plain-text validated action log.
+
+**Why.** Straight-line motion is enough to prove the loop and keeps
+tests deterministic. Event-only triggers implement the "no think tick"
+direction from the start. The cap bounds cost and stops a looping
+model. The log is the M3 replay signal in its simplest form.
+
+**Where.** `apps/gorden/src/agent/robot.cppm`, `brain.cppm`.
+
+---
+
 ## 2026-09-05 — Runtime shader compilation shells out to the shaderc binary
 
 **Decision.** `roboslop.assets.shader_compiler` runs the `shaderc`

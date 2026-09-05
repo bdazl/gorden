@@ -1,7 +1,12 @@
+import gorden.agent.brain;
+import gorden.agent.observation;
+import gorden.agent.robot;
 import roboslop.app;
 import roboslop.audio;
 import roboslop.core.error;
 import roboslop.ecs;
+import roboslop.llm;
+import roboslop.llm.backend;
 import roboslop.physics;
 import roboslop.physics.components;
 import roboslop.platform.input;
@@ -17,15 +22,23 @@ import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
 import roboslop.sched;
+import roboslop.ui;
 
 #include <bgfx/bgfx.h>
 #include <glm/vec3.hpp>
+#include <imgui.h>
+#include <spdlog/spdlog.h>
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <expected>
+#include <format>
+#include <memory>
 #include <print>
 #include <span>
+#include <string>
+#include <vector>
 
 namespace {
 
@@ -161,6 +174,145 @@ auto spawnDynamicSphere(roboslop::World& world, const roboslop::Mesh& mesh, glm:
     );
 }
 
+// A named, static prop the robot can perceive and inspect. Reuses the
+// vertex-coloured cube; physics keeps the player's dynamic cubes from
+// falling through it.
+auto spawnProp(
+    roboslop::World& world, const roboslop::Mesh& mesh, std::string name, glm::vec3 pos, float size
+) -> void {
+    const auto e = world.create();
+    world.emplace<roboslop::Transform>(
+        e, roboslop::Transform{.position = pos, .scale = {size, size, size}}
+    );
+    world.emplace<roboslop::Mesh>(e, mesh);
+    world.emplace<gorden::Named>(e, gorden::Named{.name = std::move(name)});
+    world.emplace<roboslop::BodyDesc>(
+        e,
+        roboslop::BodyDesc{
+            .shape = roboslop::BoxShape{.halfExtents = {size * 0.5F, size * 0.5F, size * 0.5F}},
+            .motion = roboslop::BodyMotion::Static,
+        }
+    );
+}
+
+// Per-frame UI state for the Robot panel, parked in the world context.
+struct RobotPanelState {
+    std::array<char, 256> input{};
+    bool uiWantsMouse = false;
+    bool cameraActive = false;
+    bool scrollTranscript = false;
+};
+
+// OPENAI_API_KEY present → the OpenAI-compatible backend (model and
+// base URL overridable via GORDEN_MODEL / OPENAI_BASE_URL, so the same
+// code targets a llama.cpp server). Otherwise a scripted demo so the
+// whole chain still runs. The key is read once and never logged.
+auto makeProvider() -> std::unique_ptr<roboslop::Provider> {
+    const char* key = std::getenv("OPENAI_API_KEY");
+    if (key != nullptr && key[0] != '\0') {
+        roboslop::OpenAiConfig cfg;
+        cfg.apiKey = key;
+        if (const char* model = std::getenv("GORDEN_MODEL"); model != nullptr && model[0] != '\0') {
+            cfg.model = model;
+        }
+        if (const char* base = std::getenv("OPENAI_BASE_URL"); base != nullptr && base[0] != '\0') {
+            cfg.baseUrl = base;
+        }
+        spdlog::info(
+            "gorden: LLM backend openai-compatible, model={}, base={}", cfg.model, cfg.baseUrl
+        );
+        return std::make_unique<roboslop::OpenAiProvider>(std::move(cfg));
+    }
+    spdlog::warn("gorden: OPENAI_API_KEY not set; using the scripted demo provider");
+    auto say = [](std::string text, std::string id) {
+        return roboslop::ToolCall{
+            .id = std::move(id),
+            .name = "say",
+            .argumentsJson = "{\"text\":\"" + std::move(text) + "\"}",
+        };
+    };
+    std::vector<roboslop::ChatResponse> script{
+        roboslop::ChatResponse{
+            .toolCalls =
+                {say("Hello! I am a scripted robot. Watch me walk to the generator.", "s1"),
+                 {.id = "s2", .name = "moveTo", .argumentsJson = "{\"x\":0,\"z\":-4.5}"}},
+            .finishReason = "tool_calls",
+        },
+        roboslop::ChatResponse{
+            .toolCalls = {say("I am at the generator. Set OPENAI_API_KEY for a real brain.", "s3")},
+            .finishReason = "tool_calls",
+        },
+    };
+    return std::make_unique<roboslop::ScriptedProvider>(
+        std::move(script),
+        roboslop::ChatResponse{
+            .toolCalls = {say("(scripted) I have run out of script.", "s0")},
+            .finishReason = "tool_calls",
+        }
+    );
+}
+
+auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPanelState& st)
+    -> void {
+    ImGui::SetNextWindowPos(ImVec2(16.0F, 16.0F), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(520.0F, 460.0F), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Robot");
+
+    ImGui::TextUnformatted(
+        std::format(
+            "provider: {}   state: {}   thinks: {}",
+            brain.providerName(),
+            brain.thinking() ? "Thinking" : "Idle",
+            brain.thinkCount()
+        )
+            .c_str()
+    );
+    ImGui::Separator();
+
+    ImGui::BeginChild("transcript", ImVec2(0.0F, 180.0F), ImGuiChildFlags_Border);
+    for (const auto& line : brain.transcript()) {
+        const bool robot = line.who == "robot";
+        ImGui::PushStyleColor(
+            ImGuiCol_Text, robot ? ImVec4(0.6F, 0.9F, 1.0F, 1.0F) : ImVec4(0.9F, 0.9F, 0.9F, 1.0F)
+        );
+        ImGui::TextWrapped("%s: %s", line.who.c_str(), line.text.c_str());
+        ImGui::PopStyleColor();
+    }
+    if (st.scrollTranscript) {
+        ImGui::SetScrollHereY(1.0F);
+        st.scrollTranscript = false;
+    }
+    ImGui::EndChild();
+
+    ImGui::SetNextItemWidth(-80.0F);
+    const bool entered = ImGui::InputText(
+        "##say", st.input.data(), st.input.size(), ImGuiInputTextFlags_EnterReturnsTrue
+    );
+    ImGui::SameLine();
+    const bool clicked = ImGui::Button("Send", ImVec2(-1.0F, 0.0F));
+    if ((entered || clicked) && st.input[0] != '\0') {
+        brain.playerSays(std::string{st.input.data()});
+        st.input.fill('\0');
+        st.scrollTranscript = true;
+        ImGui::SetKeyboardFocusHere(-1);
+    }
+
+    ImGui::Separator();
+    ImGui::TextUnformatted("Validated action log");
+    ImGui::BeginChild("log", ImVec2(0.0F, 0.0F), ImGuiChildFlags_Border);
+    const auto& log = brain.actionLog();
+    const std::size_t first = log.size() > 60 ? log.size() - 60 : 0;
+    for (std::size_t i = first; i < log.size(); ++i) {
+        ImGui::TextWrapped("%s", log[i].c_str());
+    }
+    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 2.0F) {
+        ImGui::SetScrollHereY(1.0F);
+    }
+    ImGui::EndChild();
+    ImGui::End();
+    (void)world;
+}
+
 auto spawnGround(roboslop::World& world, const roboslop::Mesh& mesh) -> void {
     const auto e = world.create();
     world.emplace<roboslop::Transform>(
@@ -188,6 +340,7 @@ auto main() -> int {
             .window = roboslop::WindowConfig{.title = "gorden", .width = 1280, .height = 720},
             .tickRateHz = 60.0,
             .assetRoot = "assets",
+            .enableDevUi = true,
             .onSetup = [](roboslop::World& world,
                           roboslop::AssetCache& assets) -> roboslop::Result<void> {
                 auto prog = assets.program("vs_basic", "fs_basic");
@@ -207,6 +360,7 @@ auto main() -> int {
                 // The camera doubles as the audio listener so 3D
                 // attenuation tracks the viewer.
                 world.emplace<roboslop::AudioListener>(cameraEntity);
+                world.emplace<gorden::Named>(cameraEntity, gorden::Named{.name = "player"});
 
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto cube = roboslop::makeStaticMesh(
@@ -215,6 +369,9 @@ auto main() -> int {
                 cube.program = prog->value;
 
                 spawnGround(world, cube);
+                spawnProp(world, cube, "crate-1", {4.0F, 0.0F, -2.0F}, 1.0F);
+                spawnProp(world, cube, "crate-2", {-4.0F, 0.0F, -3.0F}, 1.0F);
+                spawnProp(world, cube, "generator", {0.0F, 0.25F, -6.0F}, 1.5F);
                 spawnDynamicCube(world, cube, glm::vec3{-1.5F, 5.0F, 0.0F});
                 spawnDynamicCube(world, cube, glm::vec3{+1.5F, 5.5F, 0.0F});
                 spawnDynamicCube(world, cube, glm::vec3{0.0F, 7.0F, -1.0F});
@@ -273,6 +430,25 @@ auto main() -> int {
                     }
                 );
 
+                // The robot: a textured cube with no physics body, moved
+                // kinematically by gorden.agent.robot when the brain
+                // accepts a moveTo.
+                const auto robot = world.create();
+                world.emplace<roboslop::Transform>(
+                    robot, roboslop::Transform{.position = {2.0F, 0.0F, 4.0F}}
+                );
+                world.emplace<roboslop::Mesh>(robot, texMesh);
+                world.emplace<roboslop::Material>(robot, material);
+                world.emplace<gorden::Named>(robot, gorden::Named{.name = "robot"});
+                world.emplace<gorden::Robot>(robot);
+                world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 2.5F});
+
+                auto& ctx = world.registry().ctx();
+                ctx.emplace<gorden::AgentBrain>(
+                    makeProvider(), gorden::BrainConfig{}, robot, cameraEntity
+                );
+                ctx.emplace<RobotPanelState>();
+
                 // One directional light shading the textured cube. The
                 // basic-shader entities (vertex-coloured) ignore lighting
                 // entirely, so the M3 lighting only affects the M2 cube.
@@ -304,7 +480,33 @@ auto main() -> int {
                         .reads = {"input"},
                         .writes = {"transforms"},
                         .run = [](roboslop::SystemCtx& c) {
+                            auto& st = c.world->registry().ctx().get<RobotPanelState>();
+                            // Same gating as shaderlab: a fly starts only
+                            // when the press lands outside the UI.
+                            if (c.input->mouseButtonPressed(roboslop::MouseButton::Right)) {
+                                st.cameraActive = !st.uiWantsMouse;
+                            }
+                            if (!st.cameraActive) {
+                                return;
+                            }
                             roboslop::updateFreeFlyCameras(*c.world, *c.input, c.dt);
+                            if (c.input->mouseButtonReleased(roboslop::MouseButton::Right)) {
+                                st.cameraActive = false;
+                            }
+                        },
+                    });
+                    fixed.add({
+                        .name = "robotLocomotion",
+                        .reads = {},
+                        .writes = {"transforms"},
+                        .run = [](roboslop::SystemCtx& c) { gorden::robotLocomotion(c); },
+                    });
+                    fixed.add({
+                        .name = "agentPump",
+                        .reads = {"transforms"},
+                        .writes = {"agent"},
+                        .run = [](roboslop::SystemCtx& c) {
+                            c.world->registry().ctx().get<gorden::AgentBrain>().pump(*c.world);
                         },
                     });
                     roboslop::registerPhysicsSystems(fixed);
@@ -323,6 +525,24 @@ auto main() -> int {
                             auto draws = roboslop::collectMeshDraws(*c.world, arena, c.viewId);
                             roboslop::sortDraws(draws);
                             roboslop::submitDraws(draws);
+                        },
+                    });
+                    render.add({
+                        .name = "robotChat",
+                        .reads = {"framebuffer"},
+                        .writes = {"framebuffer"},
+                        .record = [](roboslop::PassCtx& c) {
+                            auto* ui = roboslop::devUi(*c.world);
+                            if (ui == nullptr) {
+                                return;
+                            }
+                            auto& ctx = c.world->registry().ctx();
+                            auto& st = ctx.get<RobotPanelState>();
+                            auto& brain = ctx.get<gorden::AgentBrain>();
+                            ui->beginFrame();
+                            drawRobotPanel(*c.world, brain, st);
+                            st.uiWantsMouse = ui->wantCaptureMouse();
+                            ui->endFrame(c.viewId);
                         },
                     });
                 },

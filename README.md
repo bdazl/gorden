@@ -52,8 +52,17 @@ exists today, all driven by the Gorden demo:
 - Dev UI: Dear ImGui over GLFW + bgfx (`roboslop.ui`), opt-in per app.
 - Runtime shader compilation through the `shaderc` binary and hot
   replacement of a running program.
+- LLM provider abstraction (`roboslop.llm`) with a scripted backend and
+  an OpenAI-compatible HTTPS backend over libcurl; asynchronous
+  completions that never block the frame loop.
+- In Gorden: the first agent loop. The robot receives a structured
+  observation, proposes `moveTo` / `inspect` / `say` tool calls, the
+  app validates them, and the simulation executes them. Talk to it in
+  the "Robot" panel; set `OPENAI_API_KEY` for a real model, otherwise a
+  scripted provider runs the same chain.
 
-Not yet started: any LLM/agent code, serialisation, scene files. The Gorden executable is a physics/rendering
+Not yet started: agent memory and replay (M3), serialisation, scene
+files. The Gorden executable is a physics/rendering
 demo scene, not a game, which is intentional at this stage.
 
 ## Prerequisites
@@ -81,6 +90,7 @@ make apps          # list the apps under apps/
 make gorden        # build only gorden, then run it
 make shaderlab     # build only shaderlab, then run it
 make run-<app>     # run without building (make run APP=<app> also works)
+OPENAI_API_KEY=sk-... make gorden   # robot with a real LLM (gpt-4.1-mini by default)
 ```
 
 Other presets: `make build PRESET=release|relwithdebinfo|asan-ubsan|tsan`.

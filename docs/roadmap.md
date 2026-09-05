@@ -119,16 +119,28 @@ of those commands (pathfinding/locomotion can be trivial to start with).
 Inference must be asynchronous relative to the fixed-update loop from
 the first version; the game loop never blocks on the model.
 
+**Status.** First slice done (2026-09-05): `roboslop.llm` with a
+scripted backend and an OpenAI-compatible HTTPS backend; in Gorden the
+`gorden_agent` library (observation, tools + validation, kinematic
+locomotion, `AgentBrain`) and a chat panel. Verified with the scripted
+provider in tests and against OpenAI (`gpt-4.1-mini`).
+
+**Resolved questions** (details in [`decisions.md`](decisions.md)).
+
+- Runtime: one OpenAI-compatible backend, verified against OpenAI first;
+  a llama.cpp server is the same backend with another base URL. The
+  local-first direction is unchanged, the order of verification is not.
+- First `Observation`: robot and player positions, named entities within
+  a radius with distance, recent events, the player's message. Nothing
+  else.
+- Validation lives in the app (`gorden.agent.tools`), as planned.
+
 **Open questions.**
 
-- Which local runtime do we target first (llama.cpp server, Ollama,
-  an in-process library)? Pick the one with the lowest integration cost
-  that still supports structured tool-call output.
-- How rich is the first `Observation`? Start with what the three tools
-  need and nothing else.
-- Where does the tool-call validation live — engine or app? Start in
-  the app; move to the engine once Shader Lab or the editor wants the
-  same shape.
+- When a second agent-driven app appears, which of observation building,
+  validation rules, and the brain's event loop move into the engine.
+- Line-of-sight and other perception limits: today every named entity
+  in range is visible.
 
 ---
 
