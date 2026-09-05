@@ -4,6 +4,7 @@ add_executable(gorden_tests
     tools_test.cpp
     observation_test.cpp
     robot_test.cpp
+    brain_test.cpp
 )
 
 # Same language baseline as the engine so the imported PCMs match.
