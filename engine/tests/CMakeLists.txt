@@ -13,6 +13,7 @@ add_executable(roboslop_tests
     scheduler_test.cpp
     render_graph_test.cpp
     frame_arena_test.cpp
+    frontend_rebind_test.cpp
     physics_test.cpp
     lighting_test.cpp
     animation_test.cpp

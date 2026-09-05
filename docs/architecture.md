@@ -179,9 +179,16 @@ build break.
 - `roboslop.render.lighting`: one `DirectionalLight` and a Lambert term
   in the textured fragment shader.
 - `roboslop.render.shader`, `roboslop.render.mesh`,
-  `roboslop.render.material`: program loading from the asset root,
-  static mesh creation with two vertex layouts, and a POD `Material`
-  (program + albedo + sampler) the frontend reads per entity.
+  `roboslop.render.material`: program creation from compiled blobs
+  (`makeProgram`) or from the asset root (`loadProgram`), static mesh
+  creation with two vertex layouts, and a POD `Material` (program +
+  albedo + sampler) the frontend reads per entity.
+- Hot replacement of a program is a two-step swap on the render thread:
+  `AssetCache::replaceProgram` exchanges the owning `Program` (bgfx
+  defers the old handle's release to the end of the frame), then
+  `rebindProgram` rewrites the handle copies held in `Mesh` / `Material`
+  components. Components keep storing raw bgfx handles; there is no
+  asset-identity indirection yet.
 
 ### Assets
 
@@ -194,8 +201,8 @@ or shaderc's diagnostics text. `roboslop.core.file` holds the shared
 whole-file reader.
 `roboslop.render.asset_cache` caches programs, textures, samplers, and
 uniforms and destroys them before bgfx shutdown. There is no asset
-identity beyond file paths and no invalidation; Shader Lab is expected
-to change that.
+identity beyond file paths and no automatic invalidation; a caller that
+recompiles a shader swaps it in explicitly via `replaceProgram`.
 
 ### Physics
 

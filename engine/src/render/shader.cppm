@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -134,7 +135,7 @@ export class Program {
     }
 
   private:
-    friend auto loadProgram(const std::filesystem::path&, std::string_view, std::string_view)
+    friend auto makeProgram(std::span<const char>, std::span<const char>, std::string_view)
         -> Result<Program>;
 
     explicit Program(bgfx::ProgramHandle h) noexcept : handle(h) {}
@@ -150,21 +151,50 @@ export class Program {
     bgfx::ProgramHandle handle{bgfx::kInvalidHandle};
 };
 
-// Load a compiled bgfx shader (.bin) and create the bgfx shader object.
+// Create a bgfx shader object from an already-compiled blob (the
+// contents of a shaderc .bin). `label` only feeds the error context.
 // Caller owns the returned handle until passed into createProgram.
+export [[nodiscard]] auto makeShader(std::span<const char> bytes, std::string_view label = {})
+    -> Result<bgfx::ShaderHandle> {
+    const bgfx::Memory* mem = bgfx::copy(bytes.data(), static_cast<std::uint32_t>(bytes.size()));
+    const auto handle = bgfx::createShader(mem);
+    if (!bgfx::isValid(handle)) {
+        return std::unexpected(toError(ShaderError::ShaderCreateFailed, std::string{label}));
+    }
+    return handle;
+}
+
+// Load a compiled bgfx shader (.bin) and create the bgfx shader object.
 export [[nodiscard]] auto loadShader(const std::filesystem::path& path)
     -> Result<bgfx::ShaderHandle> {
     auto bytes = readFileBytes(path);
     if (!bytes) {
         return std::unexpected(bytes.error());
     }
+    return makeShader(*bytes, path.string());
+}
 
-    const bgfx::Memory* mem = bgfx::copy(bytes->data(), static_cast<std::uint32_t>(bytes->size()));
-    const auto handle = bgfx::createShader(mem);
-    if (!bgfx::isValid(handle)) {
-        return std::unexpected(toError(ShaderError::ShaderCreateFailed, path.string()));
+// Link a vertex+fragment pair of compiled blobs into a Program. This is
+// the entry point for runtime-compiled shaders (Shader Lab hot reload):
+// bytes come from ShaderCompiler, and the resulting Program is handed
+// to AssetCache::replaceProgram. Must run on the bgfx API thread.
+export [[nodiscard]] auto
+makeProgram(std::span<const char> vsBytes, std::span<const char> fsBytes, std::string_view label)
+    -> Result<Program> {
+    auto vsh = makeShader(vsBytes, label);
+    if (!vsh) {
+        return std::unexpected(vsh.error());
     }
-    return handle;
+    auto fsh = makeShader(fsBytes, label);
+    if (!fsh) {
+        bgfx::destroy(*vsh);
+        return std::unexpected(fsh.error());
+    }
+    const auto program = bgfx::createProgram(*vsh, *fsh, /*destroyShaders=*/true);
+    if (!bgfx::isValid(program)) {
+        return std::unexpected(toError(ShaderError::ProgramCreateFailed, std::string{label}));
+    }
+    return Program{program};
 }
 
 // Load a vertex+fragment shader pair from assetRoot/shaders/<backend>/<name>.bin
@@ -185,23 +215,15 @@ export [[nodiscard]] auto loadProgram(
     const auto vsPath = shaderDir / (std::string{vsName} + ".sc.bin");
     const auto fsPath = shaderDir / (std::string{fsName} + ".sc.bin");
 
-    auto vsh = loadShader(vsPath);
-    if (!vsh) {
-        return std::unexpected(vsh.error());
+    auto vsBytes = readFileBytes(vsPath);
+    if (!vsBytes) {
+        return std::unexpected(vsBytes.error());
     }
-    auto fsh = loadShader(fsPath);
-    if (!fsh) {
-        bgfx::destroy(*vsh);
-        return std::unexpected(fsh.error());
+    auto fsBytes = readFileBytes(fsPath);
+    if (!fsBytes) {
+        return std::unexpected(fsBytes.error());
     }
-
-    const auto program = bgfx::createProgram(*vsh, *fsh, /*destroyShaders=*/true);
-    if (!bgfx::isValid(program)) {
-        return std::unexpected(
-            toError(ShaderError::ProgramCreateFailed, vsPath.string() + " + " + fsPath.string())
-        );
-    }
-    return Program{program};
+    return makeProgram(*vsBytes, *fsBytes, vsPath.string() + " + " + fsPath.string());
 }
 
 } // namespace roboslop

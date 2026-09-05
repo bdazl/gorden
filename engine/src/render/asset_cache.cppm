@@ -31,9 +31,11 @@ export struct ProgramHandle {
 };
 
 // Owns Programs keyed by (vsName, fsName). Single-threaded — read and
-// mutated only from the render thread. No hot-reload, no invalidation:
-// entries live until the cache is destroyed, which happens before
-// bgfx::shutdown() in App's destruction order.
+// mutated only from the render thread. Entries live until replaced via
+// replaceProgram or until the cache is destroyed, which happens before
+// bgfx::shutdown() in App's destruction order. There is no
+// invalidation by file change: a caller that recompiles a shader hands
+// the new Program to replaceProgram explicitly.
 export class AssetCache {
   public:
     explicit AssetCache(std::filesystem::path assetRoot) noexcept
@@ -75,6 +77,26 @@ export class AssetCache {
         }
         const auto handle = loaded->bgfxHandle();
         programs.emplace(std::move(key), std::move(*loaded));
+        return ProgramHandle{handle};
+    }
+
+    // Swap the Program stored under (vsName, fsName) for `next`, or
+    // insert it when the key is new. Returns the new non-owning handle.
+    // The previous Program is destroyed here; bgfx defers the actual
+    // release until the current frame has been rendered, so draws
+    // already submitted with the old handle stay valid. Handles copied
+    // into components are NOT updated — call rebindProgram (in
+    // roboslop.render.frontend) with the old and new handles.
+    [[nodiscard]] auto
+    replaceProgram(std::string_view vsName, std::string_view fsName, Program next)
+        -> ProgramHandle {
+        Key key{std::string{vsName}, std::string{fsName}};
+        const auto handle = next.bgfxHandle();
+        if (auto it = programs.find(key); it != programs.end()) {
+            it->second = std::move(next);
+        } else {
+            programs.emplace(std::move(key), std::move(next));
+        }
         return ProgramHandle{handle};
     }
 

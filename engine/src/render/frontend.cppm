@@ -173,6 +173,32 @@ collectMeshDraws(const World& world, FrameArena& arena, std::uint16_t viewId)
     return draws;
 }
 
+// Rewrites every Mesh.program and Material.program that currently
+// equals `from` to `to`. Companion to AssetCache::replaceProgram: the
+// cache swaps the owning Program, this swaps the copies entities hold.
+// Returns how many component fields were rewritten. Pure ECS walk, no
+// bgfx calls — safe to unit test without a device.
+export auto rebindProgram(World& world, bgfx::ProgramHandle from, bgfx::ProgramHandle to)
+    -> std::size_t {
+    std::size_t count = 0;
+    auto& reg = world.registry();
+    for (auto [e, m] : reg.view<Mesh>().each()) {
+        (void)e;
+        if (m.program.idx == from.idx) {
+            m.program = to;
+            ++count;
+        }
+    }
+    for (auto [e, mat] : reg.view<Material>().each()) {
+        (void)e;
+        if (mat.program.value.idx == from.idx) {
+            mat.program.value = to;
+            ++count;
+        }
+    }
+    return count;
+}
+
 // In-place sort. std::sort on a contiguous span is heap-free.
 export auto sortDraws(std::span<DrawItem> items) -> void {
     std::sort(items.begin(), items.end(), [](const DrawItem& a, const DrawItem& b) noexcept {
