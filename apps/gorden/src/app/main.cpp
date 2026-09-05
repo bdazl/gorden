@@ -36,6 +36,7 @@ import roboslop.vfs;
 #include <spdlog/spdlog.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -210,6 +211,7 @@ struct RobotPanelState {
     std::array<char, 256> input{};
     bool uiWantsMouse = false;
     bool scrollTranscript = false;
+    std::size_t seenLines = 0;
 };
 
 // Settings as loaded/edited, plus the edit buffers for the Settings
@@ -338,8 +340,14 @@ auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPane
     );
     ImGui::Separator();
 
-    ImGui::BeginChild("transcript", ImVec2(0.0F, 180.0F), ImGuiChildFlags_Border);
+    // The transcript fills the window above one row of input, so the
+    // Send row follows the window's size. Scrolling follows new lines
+    // (ours or the robot's) unless the user has scrolled up to read.
+    const float footer = ImGui::GetFrameHeightWithSpacing();
+    ImGui::BeginChild("transcript", ImVec2(0.0F, -footer), ImGuiChildFlags_Border);
     const auto& names = brain.config();
+    const bool nearBottom = ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 2.0F;
+    const std::size_t lineCount = brain.transcript().size();
     for (const auto& line : brain.transcript()) {
         const bool robot = line.who == "robot";
         ImGui::PushStyleColor(
@@ -350,10 +358,11 @@ auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPane
         );
         ImGui::PopStyleColor();
     }
-    if (st.scrollTranscript) {
+    if (st.scrollTranscript || (lineCount != st.seenLines && nearBottom)) {
         ImGui::SetScrollHereY(1.0F);
         st.scrollTranscript = false;
     }
+    st.seenLines = lineCount;
     ImGui::EndChild();
 
     ImGui::SetNextItemWidth(-80.0F);
