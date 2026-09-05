@@ -59,8 +59,11 @@ export struct AppConfig {
 
     // Create a DevUi (Dear ImGui) and install it into the world so
     // passes can reach it via devUi(world). Ignored with a warning when
-    // the engine was configured with ROBOSLOP_DEV_UI=OFF.
+    // the engine was configured with ROBOSLOP_DEV_UI=OFF. F1 toggles
+    // the overlay at runtime.
     bool enableDevUi = false;
+    // ImGui layout persistence; empty keeps the layout in memory.
+    std::filesystem::path devUiIniPath{};
 
     std::function<Result<void>(World&, AssetCache&)> onSetup;
     std::function<void(SystemGraph&, RenderGraph&, FrameArena&)> onBuildGraphs;
@@ -87,7 +90,7 @@ export class App {
         std::optional<DevUi> ui;
         if (cfg.enableDevUi) {
 #if ROBOSLOP_DEV_UI
-            auto made = DevUi::make(*window, assets);
+            auto made = DevUi::make(*window, assets, DevUiConfig{.iniPath = cfg.devUiIniPath});
             if (!made) {
                 return std::unexpected(made.error());
             }
@@ -158,6 +161,9 @@ export class App {
 
             if (input.keyPressed(Key::Escape)) {
                 window.requestClose();
+            }
+            if (ui && input.keyPressed(Key::F1)) {
+                ui->toggleEnabled();
             }
 
             const double dt = clock.tickFrame();

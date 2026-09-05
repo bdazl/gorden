@@ -254,9 +254,6 @@ auto makeProvider() -> std::unique_ptr<roboslop::Provider> {
 
 auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPanelState& st)
     -> void {
-    ImGui::SetNextWindowPos(ImVec2(16.0F, 16.0F), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(520.0F, 460.0F), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Robot");
 
     ImGui::TextUnformatted(
         std::format(
@@ -309,7 +306,6 @@ auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPane
         ImGui::SetScrollHereY(1.0F);
     }
     ImGui::EndChild();
-    ImGui::End();
     (void)world;
 }
 
@@ -449,6 +445,23 @@ auto main() -> int {
                 );
                 ctx.emplace<RobotPanelState>();
 
+                if (auto* ui = roboslop::devUi(world); ui != nullptr) {
+                    ui->registerWindow(
+                        roboslop::DevWindow{
+                            .id = "robot",
+                            .title = "Robot",
+                            .draw =
+                                [&world]() {
+                                    auto& c = world.registry().ctx();
+                                    drawRobotPanel(
+                                        world, c.get<gorden::AgentBrain>(), c.get<RobotPanelState>()
+                                    );
+                                },
+                            .visible = true,
+                        }
+                    );
+                }
+
                 // One directional light shading the textured cube. The
                 // basic-shader entities (vertex-coloured) ignore lighting
                 // entirely, so the M3 lighting only affects the M2 cube.
@@ -536,11 +549,9 @@ auto main() -> int {
                             if (ui == nullptr) {
                                 return;
                             }
-                            auto& ctx = c.world->registry().ctx();
-                            auto& st = ctx.get<RobotPanelState>();
-                            auto& brain = ctx.get<gorden::AgentBrain>();
+                            auto& st = c.world->registry().ctx().get<RobotPanelState>();
                             ui->beginFrame();
-                            drawRobotPanel(*c.world, brain, st);
+                            ui->drawWindows();
                             st.uiWantsMouse = ui->wantCaptureMouse();
                             ui->endFrame(c.viewId);
                         },

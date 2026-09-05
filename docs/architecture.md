@@ -273,13 +273,20 @@ own GLFW platform backend (compiled from the Conan package's
 through a minimal bgfx renderer of our own
 (`engine/src/ui/imgui_bgfx_renderer.cpp`: transient buffers, per-view
 ortho transform, scissor, alpha blend, font atlas). The engine draws no
-widgets itself. An app that sets `AppConfig::enableDevUi` reaches the
-instance from a pass via `devUi(*ctx.world)`, calls `beginFrame()`,
-issues ImGui calls, and calls `endFrame(ctx.viewId)` — normally in its
-last render pass so the UI lands on top. `wantCaptureMouse()` /
-`wantCaptureKeyboard()` let gameplay or camera systems yield input to
-the UI. The ImGui shader pair lives under `engine/assets/shaders/` and
-compiles into the shared `<build>/assets/shaders/<backend>/` tree.
+widgets of its own, but it owns the **window registry**: an app calls
+`registerWindow(DevWindow{id, title, draw, visible})` once (in
+`onSetup`, where `devUi(world)` is already installed) and, in its last
+render pass, `beginFrame()` → `drawWindows()` → `endFrame(viewId)`.
+`drawWindows()` draws the main menu bar with a View menu (one checkbox
+per window, Show all / Hide all, Hide overlay) and `Begin`/`End` around
+every visible window's `draw` callback. F1 toggles the whole overlay
+(`App` calls `toggleEnabled()`); `visibility()` / `applyVisibility()`
+let an app persist which windows are open. `AppConfig::devUiIniPath`
+gives ImGui an ini file so docking layouts survive restarts.
+`wantCaptureMouse()` / `wantCaptureKeyboard()` let gameplay or camera
+systems yield input to the UI. The ImGui shader pair lives under
+`engine/assets/shaders/` and compiles into the shared
+`<build>/assets/shaders/<backend>/` tree.
 
 ### LLM runtime
 
