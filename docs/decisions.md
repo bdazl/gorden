@@ -27,25 +27,6 @@ registry means a closed window can always be reopened from the menu.
 
 ---
 
-## 2026-09-05 — Dev windows form a stack in the top-right corner
-
-**Decision.** Registered dev windows are not free-floating. `DevUi`
-lays them out as one column anchored to the top-right corner with a
-shared width, per-window heights, and per-window collapse; the
-registry imposes position and size every frame and reads the user's
-resizes back. Apps persist the layout (`DevLayout`) in their settings.
-
-**Why.** Free-floating windows kept ending up on top of the scene and
-each other, and resizing one meant resizing all by hand. A stack keeps
-the 3D view clear, makes "minimise this panel" one click, and makes the
-widths follow each other by construction. Docking was considered and
-rejected for now: it solves a more general problem with a heavier UI.
-
-**Where.** `DevUi::drawWindows` in `engine/src/ui/dev_ui.cppm`;
-`WindowLayout` in `apps/gorden/src/agent/settings.cppm`.
-
----
-
 ## 2026-09-05 — Debug terminal: own widget over an in-memory VFS, not libghostty or a PTY
 
 **Decision.** The terminal is a line-based ImGui widget

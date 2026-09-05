@@ -21,30 +21,17 @@ namespace gorden {
 // Stored as JSON under the XDG config dir (see settingsPath). Unknown
 // keys are ignored on load so older files keep working; missing keys
 // keep their defaults.
-export struct WindowLayout {
-    bool visible = true;
-    float height = 300.0F;
-    bool collapsed = false;
-    auto operator==(const WindowLayout&) const -> bool = default;
-};
-
 export struct GordenSettings {
     std::string playerName = "Player";
     std::string robotName = "Gorden";
-    float stackWidth = 0.0F;                       // 0 = engine default
-    std::map<std::string, WindowLayout> windows{}; // dev-window id → layout
+    std::map<std::string, bool> windows{}; // dev-window id → visible
 };
 
 export [[nodiscard]] auto toJson(const GordenSettings& s) -> nlohmann::json {
     nlohmann::json j;
     j["playerName"] = s.playerName;
     j["robotName"] = s.robotName;
-    j["stackWidth"] = s.stackWidth;
-    nlohmann::json windows = nlohmann::json::object();
-    for (const auto& [id, w] : s.windows) {
-        windows[id] = {{"visible", w.visible}, {"height", w.height}, {"collapsed", w.collapsed}};
-    }
-    j["windows"] = std::move(windows);
+    j["windows"] = s.windows;
     return j;
 }
 
@@ -59,28 +46,11 @@ export [[nodiscard]] auto fromJson(const nlohmann::json& j) -> GordenSettings {
     if (const auto it = j.find("robotName"); it != j.end() && it->is_string()) {
         s.robotName = it->get<std::string>();
     }
-    if (const auto it = j.find("stackWidth"); it != j.end() && it->is_number()) {
-        s.stackWidth = it->get<float>();
-    }
     if (const auto it = j.find("windows"); it != j.end() && it->is_object()) {
-        for (const auto& [id, v] : it->items()) {
-            WindowLayout w;
-            if (v.is_boolean()) { // pre-stack files stored only visibility
-                w.visible = v.get<bool>();
-            } else if (v.is_object()) {
-                if (v.contains("visible") && v["visible"].is_boolean()) {
-                    w.visible = v["visible"].get<bool>();
-                }
-                if (v.contains("height") && v["height"].is_number()) {
-                    w.height = v["height"].get<float>();
-                }
-                if (v.contains("collapsed") && v["collapsed"].is_boolean()) {
-                    w.collapsed = v["collapsed"].get<bool>();
-                }
-            } else {
-                continue;
+        for (const auto& [id, visible] : it->items()) {
+            if (visible.is_boolean()) {
+                s.windows[id] = visible.get<bool>();
             }
-            s.windows[id] = w;
         }
     }
     return s;

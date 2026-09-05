@@ -219,23 +219,9 @@ struct SettingsState {
     std::filesystem::path path;
     std::array<char, 64> playerBuf{};
     std::array<char, 64> robotBuf{};
-    gorden::GordenSettings lastSaved; // layout snapshot as last written
+    std::map<std::string, bool> lastVisibility;
     std::string status;
 };
-
-// Copies the dev-UI layout into the settings; true when it changed.
-auto captureLayout(const roboslop::DevUi& ui, gorden::GordenSettings& settings) -> bool {
-    const auto layout = ui.layout();
-    gorden::GordenSettings next = settings;
-    next.stackWidth = layout.stackWidth;
-    next.windows.clear();
-    for (const auto& w : layout.windows) {
-        next.windows[w.id] = {.visible = w.visible, .height = w.height, .collapsed = w.collapsed};
-    }
-    const bool changed = next.stackWidth != settings.stackWidth || next.windows != settings.windows;
-    settings = std::move(next);
-    return changed;
-}
 
 auto copyToBuffer(std::array<char, 64>& buf, const std::string& text) -> void {
     buf.fill('\0');
@@ -714,7 +700,6 @@ auto main() -> int {
                                     );
                                 },
                             .visible = true,
-                            .height = 320.0F,
                         }
                     );
                     ui->registerWindow(
@@ -729,7 +714,6 @@ auto main() -> int {
                                     );
                                 },
                             .visible = true,
-                            .height = 240.0F,
                         }
                     );
                     ui->registerWindow(
@@ -744,7 +728,6 @@ auto main() -> int {
                                     );
                                 },
                             .visible = false,
-                            .height = 130.0F,
                         }
                     );
                     auto& fs = ctx.emplace<roboslop::Vfs>();
@@ -767,23 +750,17 @@ auto main() -> int {
                                     world.registry().ctx().get<roboslop::TerminalWindow>().draw();
                                 },
                             .visible = true,
-                            .height = 360.0F,
                         }
                     );
 
-                    roboslop::DevLayout saved;
-                    saved.stackWidth = st.settings.stackWidth;
-                    for (const auto& [id, w] : st.settings.windows) {
-                        saved.windows.push_back(
-                            {.id = id,
-                             .visible = w.visible,
-                             .height = w.height,
-                             .collapsed = w.collapsed}
-                        );
+                    std::vector<roboslop::WindowVisibility> saved;
+                    for (const auto& [id, visible] : st.settings.windows) {
+                        saved.push_back({.id = id, .visible = visible});
                     }
-                    ui->applyLayout(saved);
-                    captureLayout(*ui, st.settings);
-                    st.lastSaved = st.settings;
+                    ui->applyVisibility(saved);
+                    for (const auto& v : ui->visibility()) {
+                        st.lastVisibility[v.id] = v.visible;
+                    }
                 }
 
                 // One directional light shading the textured cube. The
@@ -873,17 +850,17 @@ auto main() -> int {
                             st.uiWantsMouse = ui->wantCaptureMouse();
                             ui->endFrame(c.viewId);
 
-                            // Persist the layout (visibility, heights,
-                            // collapsed, stack width) once a change has
-                            // settled: not while a drag is in progress.
+                            // Persist window visibility when it changes
+                            // (menu or close button; F1 does not count).
                             auto& settings = ctx.get<SettingsState>();
-                            captureLayout(*ui, settings.settings);
-                            const bool dragging = ImGui::IsAnyMouseDown();
-                            if (!dragging &&
-                                (settings.settings.stackWidth != settings.lastSaved.stackWidth ||
-                                 settings.settings.windows != settings.lastSaved.windows)) {
+                            std::map<std::string, bool> now;
+                            for (const auto& v : ui->visibility()) {
+                                now[v.id] = v.visible;
+                            }
+                            if (now != settings.lastVisibility) {
+                                settings.lastVisibility = now;
+                                settings.settings.windows = now;
                                 saveSettingsNow(settings);
-                                settings.lastSaved = settings.settings;
                             }
                         },
                     });
