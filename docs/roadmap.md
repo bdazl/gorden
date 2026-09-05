@@ -91,6 +91,18 @@ last working program stays live. The "later targets" above remain open.
 
 ---
 
+## Cross-cutting: developer tooling
+
+Not a milestone, but the milestones lean on it. Exists today: the dev
+UI with a window registry (View menu, F1, persisted layout and
+visibility), per-app settings under the XDG config dir, an in-memory
+virtual filesystem with live and host mounts (`roboslop.vfs`), a small
+shell over it (`roboslop.shell`), and a terminal window
+(`roboslop.ui.terminal`). Gorden exposes its agent log, observation,
+transcript, status, and settings as files. Candidates: a monospace
+font, a diegetic role for the terminal inside the game, mounting Shader
+Lab's diagnostics.
+
 ## M2 — Gorden agent vertical slice
 
 **Goal.** The minimal real AI/gameplay loop, proving the agent/runtime

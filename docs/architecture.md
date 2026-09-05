@@ -120,6 +120,18 @@ Settings window applies them live and saves them. Window visibility is
 saved whenever it changes; the ImGui layout lives in
 `configDir()/gorden.imgui.ini`.
 
+The "Terminal" window is a `TerminalWindow` over a `Shell` over the
+app's `Vfs`, which mounts:
+
+| Path | Backing |
+|---|---|
+| `/var/log/agent.log` | live, read-only: the validated action log |
+| `/proc/gorden/observation` | live: `observationToJson` of a fresh observation |
+| `/proc/gorden/transcript`, `/proc/gorden/status` | live: chat lines; provider/state/thinks |
+| `/etc/gorden/settings.json` | live, writable: reads the settings, a write applies and saves them |
+| `/home/<player>`, `/tmp` | in-memory, writable |
+| `/persist` | host mount → `dataDir()/gorden/`, survives restarts |
+
 ### Shader Lab (M1, first slice done)
 
 A Shadertoy-like live shader environment that is not limited to a

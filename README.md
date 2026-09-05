@@ -61,6 +61,11 @@ exists today, all driven by the Gorden demo:
   the "Robot" panel; set `OPENAI_API_KEY` for a real model, otherwise a
   scripted provider runs the same chain. Player and robot names live in
   `~/.config/roboslop/gorden.json` (Settings window).
+- Developer tooling: a window registry with a View menu (F1 toggles the
+  overlay), an in-memory virtual filesystem with live and host mounts,
+  a small shell, and a Terminal window. In Gorden, `tail -f
+  /var/log/agent.log` follows the agent; `/persist` is a real directory
+  under `~/.local/share/roboslop/gorden/`.
 
 Not yet started: agent memory and replay (M3), serialisation, scene
 files. The Gorden executable is a physics/rendering

@@ -11,6 +11,62 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — Dev windows are registered with the engine; the app only draws contents
+
+**Decision.** `DevUi` owns a window registry: apps call
+`registerWindow({id, title, draw, visible})` and `drawWindows()`; the
+engine draws the main menu bar (View: per-window checkboxes, Show all,
+Hide all, Hide overlay), `Begin`/`End`, and handles F1. Visibility is
+exposed for persistence; ImGui's ini file lives in the app's config dir.
+
+**Why.** Every app was about to grow the same "which windows are open"
+code, and Shader Lab already had a panel. Keeping `Begin`/`End` in the
+registry means a closed window can always be reopened from the menu.
+
+**Where.** `engine/src/ui/dev_ui.cppm`, `AppConfig::devUiIniPath`.
+
+---
+
+## 2026-09-05 — Debug terminal: own widget over an in-memory VFS, not libghostty or a PTY
+
+**Decision.** The terminal is a line-based ImGui widget
+(`roboslop.ui.terminal`) over a builtin shell (`roboslop.shell`) over an
+in-memory filesystem (`roboslop.vfs`). No VT emulation, no host
+processes. The VFS has live files (callbacks) and host mounts (a subtree
+backed by a real directory); only host-mounted subtrees persist. Apps
+mount what they want to expose; Gorden mounts its agent log,
+observation, transcript, status, settings, and `/persist`.
+
+**Why.** The need is inspecting and poking at the running app, not
+running real programs: `tail -f` on the agent log, reading the
+observation, editing settings. libghostty would add a Zig toolchain and
+a young embedding API for capabilities we would not use; a PTY would
+defeat the virtual filesystem and the sandbox. Persisting only through
+explicit host mounts keeps the default state disposable while giving a
+clear place for things that should survive.
+
+**Where.** `engine/src/vfs/`, `engine/src/shell/`,
+`engine/src/ui/terminal.cppm`, `mountGordenFiles` in
+`apps/gorden/src/app/main.cpp`.
+
+---
+
+## 2026-09-05 — Per-user settings as JSON in the XDG config dir; names are settings
+
+**Decision.** `roboslop.core.paths` resolves `$XDG_CONFIG_HOME/roboslop`
+and `$XDG_DATA_HOME/roboslop`; `roboslop.core.json_file` reads and
+atomically writes JSON. Gorden keeps player name, robot name (default
+"Gorden"), and window visibility in `gorden.json`. Names feed the
+`Named` components and the brain's system prompt.
+
+**Why.** Settings must survive `make clean` and be per user, and the
+schema is app-owned so the engine only provides paths and file I/O.
+
+**Where.** `engine/src/core/paths.cppm`, `json_file.cppm`,
+`apps/gorden/src/agent/settings.cppm`.
+
+---
+
 ## 2026-09-05 — First LLM backend is OpenAI-compatible over libcurl, verified against OpenAI
 
 **Decision.** `roboslop.llm.backend:openai` talks to any server that

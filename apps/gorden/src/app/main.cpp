@@ -24,11 +24,15 @@ import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
 import roboslop.sched;
+import roboslop.shell;
 import roboslop.ui;
+import roboslop.ui.terminal;
+import roboslop.vfs;
 
 #include <bgfx/bgfx.h>
 #include <glm/vec3.hpp>
 #include <imgui.h>
+#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
 #include <array>
@@ -406,6 +410,129 @@ auto drawAgentLogPanel(gorden::AgentBrain& brain, AgentLogState& st) -> void {
     ImGui::EndChild();
 }
 
+// The debug terminal's view of the app: live files over the brain and
+// settings, a writable in-memory home, and one host-mounted directory
+// that persists. Everything is read on demand; nothing is copied.
+auto mountGordenFiles(roboslop::World& world, roboslop::Vfs& fs) -> void {
+    auto* w = &world;
+    const auto& st = world.registry().ctx().get<SettingsState>();
+    const std::string home = "/home/" + st.settings.playerName;
+    (void)fs.mkdir(home, true);
+    (void)fs.mkdir("/tmp", true);
+    (void)fs.writeFile(
+        home + "/README",
+        "This is Gorden's inside. Try:\n"
+        "  tail -f /var/log/agent.log\n"
+        "  cat /proc/gorden/observation\n"
+        "  cat /etc/gorden/settings.json\n"
+        "  echo note > /persist/note.txt   (survives restarts)\n"
+    );
+
+    (void)fs.mountLive(
+        "/var/log/agent.log",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    std::string out;
+                    for (const auto& line :
+                         w->registry().ctx().get<gorden::AgentBrain>().actionLog()) {
+                        out += line;
+                        out += '\n';
+                    }
+                    return out;
+                },
+            .write = {},
+        }
+    );
+    (void)fs.mountLive(
+        "/proc/gorden/observation",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    const auto& brain = w->registry().ctx().get<gorden::AgentBrain>();
+                    return gorden::observationToJson(
+                               gorden::buildObservation(
+                                   *w,
+                                   brain.robotEntity(),
+                                   brain.playerEntity(),
+                                   brain.config().observeRadius
+                               )
+                           ) +
+                           "\n";
+                },
+            .write = {},
+        }
+    );
+    (void)fs.mountLive(
+        "/proc/gorden/transcript",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    const auto& brain = w->registry().ctx().get<gorden::AgentBrain>();
+                    std::string out;
+                    for (const auto& line : brain.transcript()) {
+                        const bool robot = line.who == "robot";
+                        out += (robot ? brain.config().robotName : brain.config().playerName) +
+                               ": " + line.text + "\n";
+                    }
+                    return out;
+                },
+            .write = {},
+        }
+    );
+    (void)fs.mountLive(
+        "/proc/gorden/status",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    const auto& brain = w->registry().ctx().get<gorden::AgentBrain>();
+                    return std::format(
+                        "provider: {}\nstate: {}\nthinks: {}\npending events: {}\n",
+                        brain.providerName(),
+                        brain.thinking() ? "thinking" : "idle",
+                        brain.thinkCount(),
+                        brain.pendingEventCount()
+                    );
+                },
+            .write = {},
+        }
+    );
+    (void)fs.mountLive(
+        "/etc/gorden/settings.json",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    return gorden::toJson(w->registry().ctx().get<SettingsState>().settings)
+                               .dump(2) +
+                           "\n";
+                },
+            .write = [w](std::string_view text) -> roboslop::Result<void> {
+                const auto doc = nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
+                if (doc.is_discarded() || !doc.is_object()) {
+                    return std::unexpected(
+                        roboslop::toError(roboslop::VfsError::InvalidPath, "not a JSON object")
+                    );
+                }
+                auto& c = w->registry().ctx();
+                auto& state = c.get<SettingsState>();
+                const auto parsed = gorden::fromJson(doc);
+                if (doc.contains("playerName")) {
+                    state.settings.playerName = parsed.playerName;
+                }
+                if (doc.contains("robotName")) {
+                    state.settings.robotName = parsed.robotName;
+                }
+                copyToBuffer(state.playerBuf, state.settings.playerName);
+                copyToBuffer(state.robotBuf, state.settings.robotName);
+                applyNames(*w, state, c.get<gorden::AgentBrain>());
+                saveSettingsNow(state);
+                return {};
+            },
+        }
+    );
+    (void)fs.mountHost("/persist", roboslop::dataDir() / "gorden");
+}
+
 auto spawnGround(roboslop::World& world, const roboslop::Mesh& mesh) -> void {
     const auto e = world.create();
     world.emplace<roboslop::Transform>(
@@ -604,6 +731,29 @@ auto main() -> int {
                             .visible = false,
                         }
                     );
+                    auto& fs = ctx.emplace<roboslop::Vfs>();
+                    mountGordenFiles(world, fs);
+                    auto& shell = ctx.emplace<roboslop::Shell>(
+                        fs,
+                        roboslop::ShellConfig{
+                            .user = st.settings.playerName,
+                            .host = "gorden",
+                            .home = "/home/" + st.settings.playerName,
+                        }
+                    );
+                    ctx.emplace<roboslop::TerminalWindow>(shell);
+                    ui->registerWindow(
+                        roboslop::DevWindow{
+                            .id = "terminal",
+                            .title = "Terminal",
+                            .draw =
+                                [&world]() {
+                                    world.registry().ctx().get<roboslop::TerminalWindow>().draw();
+                                },
+                            .visible = true,
+                        }
+                    );
+
                     std::vector<roboslop::WindowVisibility> saved;
                     for (const auto& [id, visible] : st.settings.windows) {
                         saved.push_back({.id = id, .visible = visible});
