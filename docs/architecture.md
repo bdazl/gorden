@@ -90,15 +90,24 @@ frame by frame. Today Gorden is a physics + textured-cube demo scene
 with a free-fly camera; the agent loop does not exist yet (see the
 [roadmap](roadmap.md), M2).
 
-### Shader Lab (planned, M1)
+### Shader Lab (M1, first slice done)
 
 A Shadertoy-like live shader environment that is not limited to a
-fullscreen quad: edit shaders, hot-reload them, apply them to different
-geometry (sphere, plane, imported mesh, terrain, fullscreen pass), move
-around the scene, and see compile errors without losing the last
-working program. It is the next engine-driving experiment and is
-expected to surface runtime asset identity, shader recompilation, safe
-render-thread resource replacement, diagnostics, and a dev UI.
+fullscreen quad. Today (`apps/shaderlab/`): a UV sphere and a plane
+rendered with the lab shader pair, a free-fly camera, and a dev-UI
+panel. The app polls the shader sources on disk; on a change it runs
+`shaderc` on a worker thread through `roboslop.assets.shader_compiler`,
+then on the render thread builds the program from the compiled bytes,
+swaps it into the `AssetCache`, and rebinds the handles held by
+entities. A failed compile leaves the previous program live and shows
+shaderc's diagnostics in the panel. Engine pieces this slice pulled in:
+`roboslop.platform.process`, `roboslop.assets.shader_compiler`,
+`makeProgram` / `replaceProgram` / `rebindProgram`,
+`roboslop.render.primitives`, `roboslop.ui`, and `PassCtx::assets`.
+
+Still to come for Shader Lab: imported meshes, terrain, fullscreen
+passes, several geometry types side by side, and a real asset identity
+once a second consumer needs it.
 
 ### Level Editor (planned, M4)
 

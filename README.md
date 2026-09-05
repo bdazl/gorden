@@ -15,10 +15,14 @@ This repository is a monorepo:
   with an LLM-controlled robot companion. Today it doubles as the
   gameplay/AI sandbox and the debug/demo app where new engine features
   are first exercised.
+- `apps/shaderlab/` — **Shader Lab**, a live shader sandbox: edit a
+  shader on disk, it is recompiled through `shaderc` and swapped into
+  the running scene; compile errors show in a panel while the last
+  working program keeps rendering.
 
-Further applications (a live shader lab, a level editor) are planned;
-see the [roadmap](docs/roadmap.md). Each is created when work on it
-starts, not before.
+Further applications (a level editor) are planned; see the
+[roadmap](docs/roadmap.md). Each is created when work on it starts, not
+before.
 
 ## Status
 
@@ -73,6 +77,7 @@ make configure     # cmake --preset debug
 make build         # cmake --build --preset debug
 make test          # ctest --preset debug
 make run           # ./build/debug/apps/gorden/gorden
+make run APP=shaderlab
 make shaders       # compile registered shaders through bgfx shaderc
 ```
 

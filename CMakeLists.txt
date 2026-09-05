@@ -43,3 +43,8 @@ add_subdirectory(engine)
 # Applications built on the engine. One subdirectory per app under apps/;
 # add a line here when a new app starts, not before.
 add_subdirectory(apps/gorden)
+if(ROBOSLOP_DEV_UI)
+    add_subdirectory(apps/shaderlab)
+else()
+    message(STATUS "ROBOSLOP_DEV_UI=OFF: skipping apps/shaderlab (needs the dev UI)")
+endif()

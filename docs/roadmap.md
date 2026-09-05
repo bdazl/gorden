@@ -68,15 +68,26 @@ terrain, fullscreen passes, multiple geometry types side by side.
 Build what Shader Lab needs; generalise when Gorden or the editor needs
 the same thing.
 
+**Status.** First vertical slice done (2026-09-05): `apps/shaderlab`
+renders a sphere and a plane, watches the shader sources, recompiles
+through the `shaderc` binary on a worker thread, swaps the program on
+the render thread, and shows diagnostics in an ImGui panel while the
+last working program stays live. The "later targets" above remain open.
+
+**Resolved questions** (details in [`decisions.md`](decisions.md)).
+
+- Runtime compilation shells out to the `shaderc` binary; linking it in
+  stays an option if diagnostics or latency become a problem.
+- Shader sources live under each app's `assets/shaders/`; the engine's
+  own ImGui pair lives under `engine/assets/shaders/`. No shared
+  top-level `assets/` yet.
+- File watching polls `last_write_time` at 250 ms, app-side.
+
 **Open questions.**
 
-- Does Shader Lab compile shaders by shelling out to the `shaderc`
-  binary or by linking it in? Shelling out is simpler and keeps the
-  compiler out of the process; linking gives better diagnostics.
-- Should shader *sources* live under the app's asset root or under a
-  shared `assets/` at the repo root once more than one app needs them?
-- File watching: polling `last_write_time` versus a platform watcher.
-  Polling is enough for the first slice.
+- Asset identity: programs are still raw bgfx handles copied into
+  components and rewritten on swap. Revisit when the editor (M4) or a
+  second hot-reloaded asset type needs a stable id.
 
 ---
 

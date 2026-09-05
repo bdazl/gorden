@@ -5,7 +5,7 @@
 #   make configure                      cmake --preset
 #   make build                          cmake --build --preset
 #   make test                           ctest --preset
-#   make run ARGS="..."                 run the gorden binary
+#   make run [APP=gorden] ARGS="..."    run an app binary from build/$(PRESET)
 #   make shaders                        compile shaders for PRESET
 #   make format / format-check          clang-format
 #   make tidy                           clang-tidy via compile_commands.json
@@ -15,6 +15,7 @@
 #   make all                            bootstrap configure build
 
 PRESET ?= debug
+APP    ?= gorden
 JOBS   ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 .DEFAULT_GOAL := help
@@ -37,7 +38,7 @@ test:
 	@ctest --preset $(PRESET)
 
 run:
-	@cd build/$(PRESET) && exec apps/gorden/gorden $(ARGS)
+	@cd build/$(PRESET) && exec apps/$(APP)/$(APP) $(ARGS)
 
 shaders:
 	@cmake --build --preset $(PRESET) --target shaders -j$(JOBS)

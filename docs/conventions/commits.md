@@ -20,8 +20,8 @@ scope: imperative subject line
 Use whichever fits best:
 
 - `engine` — anything in `engine/`
-- `gorden` — anything in `apps/gorden/` (each app is its own scope, named
-  after its directory)
+- `gorden`, `shaderlab` — anything in `apps/gorden/` / `apps/shaderlab/`
+  (each app is its own scope, named after its directory)
 - `apps` — changes spanning several apps or the `apps/` layout itself
 - `build` — CMake, Conan, presets, scripts
 - `cmake` — CMake-specific helpers under `cmake/`

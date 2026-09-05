@@ -11,6 +11,69 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — Runtime shader compilation shells out to the shaderc binary
+
+**Decision.** `roboslop.assets.shader_compiler` runs the `shaderc`
+executable that bgfx.cmake already builds (via
+`roboslop.platform.process`, a fork/exec wrapper that captures merged
+stdout/stderr) rather than linking shaderc into the engine. The
+`--profile` is derived from the live bgfx renderer (`shaderProfileFor`),
+the `--platform` from the compile-time OS, and the argument list is
+built by a pure function so it can be unit-tested against what
+`bgfxToolUtils.cmake` generates at build time. Diagnostics are shaderc's
+text output, verbatim.
+
+**Why.** Lowest integration cost and it keeps a large compiler (glslang,
+SPIRV-Cross, fcpp) out of the process. shaderc's text diagnostics are
+good enough for a panel. Linking it in remains possible behind the same
+`ShaderCompiler` interface if latency or structured errors are needed.
+
+**Where.** `engine/src/assets/shader_compiler.cppm`,
+`engine/src/platform/process.cppm`, `shaderProfileFor` in
+`engine/src/render/shader.cppm`.
+
+---
+
+## 2026-09-05 — Program hot swap by handle rebinding, not asset identity
+
+**Decision.** Components keep storing raw `bgfx::ProgramHandle`s. A
+hot swap is `makeProgram(bytes)` → `AssetCache::replaceProgram` (which
+destroys the old `Program`; bgfx defers the release to end of frame) →
+`rebindProgram(world, old, new)` walking `Mesh` and `Material`. No
+stable asset id or indirection table is introduced yet.
+
+**Why.** Shader Lab has one program and a handful of entities; an ECS
+walk is trivial and leaves the frontend, sort key, and draw path
+untouched. A proper asset identity is a cross-cutting design that the
+level editor (M4) will need for scenes anyway — that is the right time
+to design it with two consumers in hand.
+
+**Where.** `engine/src/render/shader.cppm`, `asset_cache.cppm`,
+`frontend.cppm`. Roadmap M1 open question.
+
+---
+
+## 2026-09-05 — Shader sources per app; polling file watcher in the app
+
+**Decision.** Each app keeps its shader sources under its own
+`assets/shaders/src/`; the engine's ImGui pair lives under
+`engine/assets/shaders/src/`. All compile into one
+`<build>/assets/shaders/<backend>/` tree so any app's `assetRoot`
+resolves engine and app programs alike. Shader Lab's file watching is
+an app-local `ShaderWatcher` that polls `last_write_time` every 250 ms;
+the reload state machine (`ShaderReloader`) is app-local too.
+
+**Why.** No two apps share a shader yet, so a top-level `assets/` would
+solve a problem nobody has. Polling three files is three `stat` calls
+and needs no platform code. Both the watcher and the reloader move into
+the engine when a second app wants the same shape (application-driven
+principle).
+
+**Where.** `apps/shaderlab/src/lab/`, `engine/CMakeLists.txt` (shader
+output dir), `cmake/ShaderCompile.cmake` (`TARGET_VAR`).
+
+---
+
 ## 2026-09-05 — Dev UI: ImGui as an engine module, panels drawn by the app
 
 **Decision.** `roboslop.ui` owns one Dear ImGui context and is created
