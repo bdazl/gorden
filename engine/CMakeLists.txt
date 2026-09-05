@@ -51,6 +51,7 @@ roboslop_add_module_library(roboslop
         src/ecs/world.cppm
         src/sched/scheduler.cppm
         src/vfs/vfs.cppm
+        src/shell/shell.cppm
         src/ui/dev_ui.cppm
         src/llm/llm.cppm
         src/llm/openai_wire.cppm

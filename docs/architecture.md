@@ -322,6 +322,14 @@ on disk so everything under it persists. Paths are normalised before
 any mount is consulted, so `..` cannot escape a mount. Apps mount what
 they want to expose; the shell and terminal below read it.
 
+`roboslop.shell` is a small zsh-flavoured shell over a `Vfs`: builtins
+(`ls cd pwd cat echo mkdir rm touch head tail grep wc tree clear env
+export history date uptime help`), `|` pipes between builtins, `>` /
+`>>` redirection into the VFS, `;` and `&&` sequencing, `$VAR` / `~`
+expansion, history, and command/path completion. `tail -f` returns a
+`followPath` that the terminal widget keeps polling. Apps add commands
+with `registerCommand`; nothing here executes on the host.
+
 ### Subsystem map
 
 | Subsystem | Library | State |
