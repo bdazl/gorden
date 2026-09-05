@@ -23,6 +23,7 @@ roboslop_add_module_library(roboslop
         src/platform/window.cppm
         src/platform/input.cppm
         src/platform/process.cppm
+        src/platform/http.cppm
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm

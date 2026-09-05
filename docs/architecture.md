@@ -174,7 +174,9 @@ pointer in `entt::registry::ctx()` rather than adding typed fields to
 captures its merged stdout/stderr (`runProcess`); it exists so tools such
 as `shaderc` can be shelled out to from a worker thread. POSIX only —
 other platforms get a `ProcessError::Unsupported` result rather than a
-build break.
+build break. `roboslop.platform.http` is a blocking HTTP(S) request over
+libcurl (`httpRequest`), also meant for worker threads; transport
+failures are `Error`s, HTTP status codes are data.
 
 ### Rendering
 
