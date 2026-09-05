@@ -10,8 +10,9 @@ file minimal — new rules go in `docs/`.
   atomicity, branch model.
 - [`docs/conventions/code-style.md`](docs/conventions/code-style.md) — naming,
   language rules, formatter and linter expectations.
-- [`docs/architecture.md`](docs/architecture.md) — engine / game separation and
-  subsystem map.
+- [`docs/architecture.md`](docs/architecture.md) — engine / apps separation,
+  application-driven principle, subsystem map, AI direction.
+- [`docs/roadmap.md`](docs/roadmap.md) — milestones and open questions.
 - [`docs/build-system.md`](docs/build-system.md) — toolchain, presets, profiles,
   sanitisers, dependency policy, C++23 module notes.
 - [`docs/decisions.md`](docs/decisions.md) — running log of design and tooling

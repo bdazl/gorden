@@ -11,6 +11,152 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — Replay = the validated event/action sequence, not model output
+
+**Decision.** AI-driven sessions are made replayable by logging the
+*observed and validated* sequence — observations delivered, tool calls
+proposed, accepted/rejected verdicts, resulting simulation events — and
+by a replay mode that feeds previously accepted actions back into the
+simulation without invoking the model. Observation/prompt/response
+captures are kept for analysis but are not the authoritative replay
+signal. Full determinism of physics or the engine is not a requirement
+of this design.
+
+**Why.** Requiring an LLM to reproduce identical output from identical
+state is neither achievable nor desirable; nondeterminism is part of the
+robot being its own thinker. What we need for debugging is to re-run
+what *happened*. Logging at the validation boundary keeps the log small,
+engine-owned, and independent of provider.
+
+**Where.** Direction only; documented in
+[`docs/architecture.md`](architecture.md) ("Replay and reproducibility").
+Implementation is roadmap M3.
+
+---
+
+## 2026-09-05 — Agent memory is a first-class concept with explicit layers
+
+**Decision.** The robot's memory is modelled as distinct layers: world
+truth (simulator), perception/observations (what the robot saw), working
+memory (the bounded context for one inference call), episodic memory
+(remembered events), semantic memory/beliefs (which may be incomplete,
+stale, wrong, or hearsay), goals, and retrieval. World truth and robot
+belief are explicitly different things. Beliefs are expected to carry
+provenance (subject, predicate, value, source, learned_at, confidence)
+so "why does the robot believe this?" is answerable. The concrete data
+model and any embedding/vector-store choice are left open.
+
+**Why.** Reducing memory to chat history makes it invisible to gameplay
+and impossible to reason about. Separate layers make memory both AI
+infrastructure and a design surface: upgrades such as bigger episodic
+memory or better retrieval become meaningful. Deferring the storage
+technology avoids committing to embeddings before a slice shows they
+are needed.
+
+**Where.** Direction only; documented in
+[`docs/architecture.md`](architecture.md) ("Memory is a first-class
+concept"). Implementation is roadmap M3.
+
+---
+
+## 2026-09-05 — AI architecture: semantic-first, high-level tools, local-first, event-driven
+
+**Decision.** The agent pipeline is `World → Observation → Agent →
+Proposed ToolCall → Validation → Command/Intent → Simulation → Events`,
+with those four nouns kept conceptually separate from the first
+implementation. Perception is semantic-first: an engine-produced
+structured observation is the canonical channel; rendered frames are
+optional augmentation. Actions are high-level validated tools
+(`moveTo`, `pickUp`, `inspect`, `say`); the simulation owns pathfinding,
+locomotion, animation, and physics. Inference is local-first and
+asynchronous relative to the simulation; the game loop never blocks on
+the model. The agent has no fixed think tick: the simulation emits
+event-driven opportunities (player interaction, world event, tool
+failure, goal completion, memory trigger, `ReflectionOpportunity`), and
+internal activity is expressed through explicit mechanisms (update goal,
+store memory, revise belief, inspect memory) rather than persistent
+free-text chain-of-thought. Which facts a robot may observe is an open
+experimental question; the first observation carries only what the
+first tools need.
+
+Supersedes the "LLM integration" section of the 2026-05-17-era
+architecture (provider list naming remote vendors, battery/token-budget
+model, robot-customisation mechanics): those remain possible gameplay
+ideas, not accepted architecture.
+
+**Why.** The model is a decision maker, not a controller; frame-level
+control would be slow, fragile, and unfun to debug. Structured
+perception is inspectable and testable, and keeps the world state
+authoritative in the simulation. Local-first keeps the project usable
+without an external service and forces the asynchronous boundary early.
+Event-driven reflection avoids burning inference on idle ticks and
+gives gameplay a lever (more opportunities = smarter robot).
+
+**Where.** Direction only; documented in
+[`docs/architecture.md`](architecture.md) ("Accepted direction: AI and
+agents"). Implementation is roadmap M2/M3.
+
+---
+
+## 2026-09-05 — Modules by default, headers where they are simply better
+
+**Decision.** C++23 modules remain the default unit for our own modern
+C++ code. Plain headers and classic TUs are used when third-party
+integration, toolchain support, or concrete ergonomics make them the
+better choice — not only under `src/<subsystem>/shims/`. We do not bend
+the architecture or the build system just so that everything is a
+module. `import std;` stays off until the supported toolchains ship it.
+
+Supersedes the "modules-first" framing of the 2026-05-17 entry
+"C++23 modules-first; no internal headers; no `import std;`". The
+one-module-per-logical-unit and partition rules from that entry still
+apply to module code.
+
+**Why.** We have paid the modules integration cost and there is no
+concrete reason to remove them. But treating modules as ideology has a
+cost of its own: every C-API bridge or awkward header becomes a special
+case to justify. The policy now names the trade-off instead of hiding
+it.
+
+**Where.** [`docs/conventions/code-style.md`](conventions/code-style.md)
+(Language rules, Module layout), [`docs/build-system.md`](build-system.md).
+
+---
+
+## 2026-09-05 — Roboslop is the umbrella project; application-driven engine development
+
+**Decision.** Roboslop is the project. It is an experimental but serious
+platform for real-time rendering and games/simulation, AI/LLM-integrated
+interactive systems, tools around the engine, graphical experiments, and
+future adjacent libraries. Gorden is one application within it: a future
+single-player top-down 3D game, the gameplay/AI experiment surface, and
+the debug/demo app where new engine features are tried first. Gorden is
+allowed to look like a technical sandbox for long stretches. At least
+two more first-class apps are planned — a Shader Lab and a Level Editor
+— and each gets a directory under `apps/` when work starts.
+
+The working principle is **application-driven engine development**: a
+concrete program needs a capability → implement the smallest good
+solution for that program → when the concept recurs across consumers,
+identify the shared abstraction → move it into the engine once the
+boundary is real. No large generic subsystems are built for
+hypothetical future needs.
+
+Supersedes the 2026-05-17-era framing (in the original brief and the
+first README/architecture) of "Gorden, a game on the Roboslop engine".
+
+**Why.** The engine already had several consumers in mind (game, shader
+experiments, editor), and framing everything as "the engine for Gorden"
+either under-served those or invited speculative generality. Naming the
+platform and stating the principle keeps the generalisation honest:
+engine features earn their place by being needed twice.
+
+**Where.** [`README.md`](../README.md), [`docs/architecture.md`](architecture.md),
+[`docs/roadmap.md`](roadmap.md). Layout change is the separate
+"Repository is Roboslop; `engine/` + `apps/` layout" entry below.
+
+---
+
 ## 2026-09-05 — Exceptions are enabled; `Result` stays the API convention
 
 **Decision.** Drop `-fno-exceptions` (and MSVC `/EHs-c-`) from the

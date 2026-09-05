@@ -30,9 +30,11 @@ name, give the accessor a descriptive name (`glfwHandle()`,
   lives in `roboslop.core.error`. Exceptions are compiled *in* (compiler
   default) but are not used as control flow in engine or app code; they are
   tolerated where third-party code throws and where nothing better exists.
-- **Modules-first.** New code lives in C++23 module interface units (`.cppm`).
-  Header files are a last resort, reserved for shimming non-module
-  dependencies.
+- **Modules by default, not by dogma.** Our own modern C++ code lives in
+  C++23 module interface units (`.cppm`). Use plain headers and classic
+  TUs when third-party integration, toolchain support, or concrete
+  ergonomics make them better; say why in a comment. Do not contort the
+  architecture or the build so that everything is a module.
 - **Trailing return types.** Use `auto foo() -> T` for new code. Consistency
   over dogma.
 - **`[[nodiscard]]`** on functions returning `std::expected`, status flags,
@@ -42,18 +44,21 @@ name, give the accessor a descriptive name (`glfwHandle()`,
 
 ## Namespaces
 
-Each subsystem has its own namespace under the project root. Examples:
-
-- `roboslop::ecs`
-- `roboslop::render`
-- `roboslop::llm`
-- `gorden::world`
+Engine code lives in the single `roboslop` namespace; module names carry
+the subsystem (`roboslop.render.camera`, `roboslop.physics`), so a
+`roboslop::render::` prefix would repeat information the import already
+gives. `namespace detail` holds non-exported internals. Introduce a
+sub-namespace only when two subsystems genuinely need the same name.
+App code uses a namespace named after the app (`gorden`) or an anonymous
+namespace for translation-unit-local helpers.
 
 ## Module layout
 
 C++23 modules are the default unit of code organisation. Interface units use
-`.cppm`; impl units use `.cpp` and start with `module :impl;`. Filename and
-module-name mapping:
+`.cppm`; impl units use `.cpp` and start with `module :impl;`. Plain `.cpp`
+TUs without a module (for example the single-TU third-party implementation
+files `stb_image_impl.cpp` and `miniaudio_impl.c`) are fine where a module
+would add nothing. Filename and module-name mapping:
 
 | Filesystem path | Module name |
 |---|---|
@@ -67,9 +72,10 @@ Rules:
 - **One module per logical unit.** Use partitions (`module foo:bar`) only
   when a single interface has multiple concrete implementations (e.g. LLM
   backends).
-- **No `include/` tree for internal engine code.** Headers are tolerated only
-  under `src/<subsystem>/shims/` as a bridge to non-modular C-APIs (bgfx,
-  GLFW, Assimp, ...).
+- **No `include/` tree for internal engine code.** Internal headers are
+  acceptable where they beat a module in practice (C-API bridges, macro-
+  heavy third-party glue, code shared with a non-module TU); keep them
+  next to the code that uses them, e.g. `src/<subsystem>/shims/`.
 - **`import std;` stays off** until libc++/libstdc++ ship a usable `std`
   module. Inside a `.cppm`, use the global module fragment
   (`module;` + `#include <print>` etc.) for stdlib headers.

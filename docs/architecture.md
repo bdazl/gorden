@@ -1,28 +1,124 @@
 # Architecture
 
-A short, structural overview. This document is expected to evolve heavily as
-the project grows; the goal here is orientation, not detail.
+A structural overview for orientation, not a specification. The first
+half describes **what exists today**; the second half describes the
+**accepted direction** for the AI/agent side, which is documented here
+before it is implemented so the coming vertical slices build on the same
+vocabulary. Anything marked *open question* is deliberately still an
+experiment.
 
-## Engine / game separation
+## What Roboslop is
 
-- **`engine/`** is a library. **`apps/gorden/`** links against it. The engine
-  knows nothing about Gorden specifically.
-- The public surface of the engine is its exported modules.
-- Anything game-specific (player loadouts, robot personalities, level layout,
-  story content) lives in `apps/gorden/`.
+Roboslop is a platform, not a single game's engine. It hosts:
 
-## Engine entry point
+- a real-time rendering / game / simulation core (`engine/`),
+- applications built on that core (`apps/`), of which Gorden is the
+  first,
+- tools around the engine (a shader lab and a level editor are planned),
+- graphical experiments, and eventually adjacent libraries or "fusion
+  projects" that reuse parts of the core.
 
-`roboslop::App` (module `roboslop.app`) is the bridge between a game and the
-engine. A game constructs `App::make(AppConfig{...})`, then calls `run()`;
-`App` owns the window, render context, asset cache, world, clock,
-scheduler, the per-frame `FrameArena`, the fixed-step `SystemGraph`,
-the `RenderGraph`, and the `JoltWorld`. It drives the frame loop until
-the window closes.
+The core is usable as a general game engine, but it is not designed as
+an abstract universal engine. See the working principle below.
 
-### App hooks
+## Working principle: application-driven engine development
 
-Game code participates through two callbacks on `AppConfig`:
+We work as a variant of "game-driven engine development". Because
+Roboslop has several consumers rather than one game, we call it
+**application-driven**:
+
+> Do not build general engine abstractions because game engines
+> "usually need them". Let concrete programs and experiments create the
+> requirements.
+
+In practice:
+
+1. A concrete program needs a capability.
+2. Implement the smallest good solution that makes *that program*
+   useful. It may live in the app.
+3. When the same concept shows up in several consumers, identify the
+   shared abstraction.
+4. Move it into the engine layer once the boundary has become real.
+
+We specifically avoid building large generic subsystems up front for
+hypothetical future needs. Roboslop generalises through concrete use,
+not speculation. Corollary: a subsystem that exists in the engine today
+is there because Gorden's demo scene needed it, and it is as small as
+that need allowed.
+
+## Repository layout
+
+```text
+/
+├── engine/          # the roboslop library: src/, tests/, CMakeLists.txt
+├── apps/
+│   └── gorden/      # Gorden: game, gameplay/AI sandbox, engine demo
+├── docs/
+├── cmake/           # CMake helpers (modules, warnings, sanitisers, shaders)
+├── conan/           # Conan profiles
+├── third_party/     # FetchContent deps not on Conan Center
+└── CMakeLists.txt
+```
+
+- **`engine/`** builds the static library target `roboslop`. Its public
+  surface is its exported C++23 modules (`roboslop.*`), all in the
+  `roboslop` namespace. The engine knows nothing about any particular
+  app.
+- **`apps/<name>/`** is one executable each, linking `roboslop`. App
+  code owns everything specific to that app: scene content, gameplay
+  rules, robot personalities, UI. New app directories are created when
+  work on the app starts.
+- Compiled shaders land at `build/<preset>/assets/shaders/<backend>/`;
+  apps pass `assetRoot = "assets"` and `make run` executes from the
+  build root so the relative path resolves.
+
+## The applications
+
+### Gorden
+
+A future single-player top-down 3D game and, at the same time, our
+gameplay/AI sandbox and the debug/demo app where new engine features
+are tried first. It is acceptable for Gorden to look more like a
+technical sandbox than a finished game for long stretches; that is part
+of the strategy, not a failure of it.
+
+The core game idea is stable: the player has a robot companion whose
+high-level behaviour is decided by an AI/LLM. The robot perceives the
+world mainly through structured, semantic observations, acts through
+validated high-level tools, and never drives locomotion or physics
+frame by frame. Today Gorden is a physics + textured-cube demo scene
+with a free-fly camera; the agent loop does not exist yet (see the
+[roadmap](roadmap.md), M2).
+
+### Shader Lab (planned, M1)
+
+A Shadertoy-like live shader environment that is not limited to a
+fullscreen quad: edit shaders, hot-reload them, apply them to different
+geometry (sphere, plane, imported mesh, terrain, fullscreen pass), move
+around the scene, and see compile errors without losing the last
+working program. It is the next engine-driving experiment and is
+expected to surface runtime asset identity, shader recompilation, safe
+render-thread resource replacement, diagnostics, and a dev UI.
+
+### Level Editor (planned, M4)
+
+A separate program for creating and editing scenes. It will drive
+serialisation, asset identity, selection, gizmos, undo/redo, the
+editing-vs-runtime state split, and physics/live preview. It is not
+designed yet.
+
+## Engine: current state
+
+### Entry point and hooks
+
+`roboslop::App` (module `roboslop.app`) is the bridge between an app and
+the engine. An app constructs `App::make(AppConfig{...})` and calls
+`run()`. `App` owns the window, render context, asset cache, world,
+clock, scheduler, per-frame `FrameArena`, fixed-step `SystemGraph`,
+`RenderGraph`, `JoltWorld`, and `AudioDevice`, and drives the frame loop
+until the window closes.
+
+App code participates through two callbacks on `AppConfig`:
 
 | Hook | When | Signature |
 |---|---|---|
@@ -30,197 +126,234 @@ Game code participates through two callbacks on `AppConfig`:
 | `onBuildGraphs` | Once, after `onSetup`, before the loop | `void(SystemGraph&, RenderGraph&, FrameArena&)` |
 
 `onSetup` seeds entities and loads assets. `onBuildGraphs` declares the
-*systems* that run during fixed-update and the *passes* that run during
-render — there is no per-frame callback. Every frame, the engine
-executes the compiled graphs:
+*systems* that run during fixed update and the *passes* that run during
+render; there is no per-frame callback. Every frame the engine:
 
-1. `arena.reset()`
-2. `Window` polls events; `Input` snapshots a new frame
-3. For each fixed sub-step at the configured rate, `Scheduler::run`
-   executes `fixedGraph` (a `SystemGraph`) on the Taskflow executor.
-4. `RenderContext::beginFrame()` → `RenderGraph::execute` (sequential,
-   on the bgfx API thread) → `RenderContext::endFrame()`.
+1. resets the arena;
+2. polls window events and snapshots `Input`;
+3. runs the fixed `SystemGraph` N times at the configured rate via the
+   Taskflow executor;
+4. runs `RenderGraph::execute` between `RenderContext::beginFrame()` and
+   `endFrame()`, sequentially on the bgfx API thread.
 
-A `SystemDesc` declares the resource ids it reads and writes — opaque
-strings like `"transforms"`, `"physicsState"`, `"drawItems"`. The
-scheduler derives an add-order-forward DAG from those declarations and
-materialises it into a `tf::Taskflow` once at compile time; per-frame
-execution does no Taskflow allocation. The same conflict-edge rule
-governs `PassDesc`s in the `RenderGraph`, where each pass is assigned a
-dense bgfx view-ID in add-order.
+### Frame loop
 
-`onSetup` receives a reference to the App-owned `AssetCache`. Game code
-requests programs via `assets.program(vsName, fsName)` and stores the
-returned `ProgramHandle` on components; the cache keeps the underlying
-`Program` alive until App destruction (which happens before bgfx
-shutdown).
+Semi-fixed timestep (Fiedler-style accumulator) in `roboslop.time.clock`:
+default 60 Hz fixed rate, frames clamped at 0.25 s, leftover fraction
+exposed as `alpha()` for render-time interpolation.
 
-`AppConfig::assetRoot` points the engine at the game's runtime asset
-directory; shader loaders (`roboslop::loadProgram`) and the `AssetCache`
-resolve paths relative to it.
+### Scheduling
 
-## Frame loop
+`roboslop.sched`. A `SystemDesc` declares the resource ids it reads and
+writes (opaque strings such as `"transforms"`, `"physicsState"`). The
+scheduler derives an add-order-forward DAG from those declarations,
+materialises it into one `tf::Taskflow` at compile time, and reuses it
+every frame with no per-frame allocation. Subsystems that need
+engine-owned state (Jolt world, audio device, light uniforms) park a
+pointer in `entt::registry::ctx()` rather than adding typed fields to
+`SystemCtx`, so `roboslop.sched` has no dependency on any subsystem.
 
-The engine drives a **semi-fixed timestep** (Glenn Fiedler, "Fix Your
-Timestep!"): wall-clock dt is accumulated by `roboslop::FixedTimestep`,
-which emits N fixed sub-steps per frame at a configurable rate (default
-60 Hz). Frames longer than 0.25 s are clamped so a debugger pause does
-not trigger a "spiral of death". Render runs once per frame; the leftover
-accumulator fraction is exposed as `alpha() ∈ [0, 1)` for interpolation
-between fixed states when subsystems begin to use it.
+### Rendering
 
-The renderer is split into **frontend** and **backend** halves. The
-frontend (`roboslop.render.frontend`) walks the ECS once per pass and
-emits flat `DrawItem`s into the per-frame `FrameArena` — a single-
-allocation bump pointer reset at frame start — then sorts the span in
-place. The backend (`submitDraws`) iterates the sorted span and calls
-bgfx. No heap allocation runs in the render loop. The sort key bakes
-view-class, view-ID, program, and depth into a single `uint64` so a
-single `std::sort` does all draw-call ordering.
+- `roboslop.render.context` owns bgfx init/shutdown and the frame.
+- `roboslop.render.graph`: `PassDesc` + `RenderGraph`, same
+  conflict-edge rule as systems, dense bgfx view-ID per pass.
+- `roboslop.render.frontend`: `FrameArena` (single allocation,
+  bump-pointer, reset per frame), flat `DrawItem`s, a packed 64-bit sort
+  key (view class, view id, program, depth), and `collectMeshDraws` /
+  `sortDraws` / `submitDraws`. No heap allocation in the render loop.
+- `roboslop.render.camera`: `Camera` component with a
+  perspective/orthographic variant, `ActiveCamera` tag, view/projection
+  pushed through bgfx's per-view transforms.
+- `roboslop.render.free_fly_camera`: debug camera as a component plus a
+  pure tick function.
+- `roboslop.render.lighting`: one `DirectionalLight` and a Lambert term
+  in the textured fragment shader.
+- `roboslop.render.shader`, `roboslop.render.mesh`,
+  `roboslop.render.material`: program loading from the asset root,
+  static mesh creation with two vertex layouts, and a POD `Material`
+  (program + albedo + sampler) the frontend reads per entity.
 
-## Assets
+### Assets
 
-Two loader modules under `roboslop.assets.*`, each backed by a single
-external library:
+`roboslop.assets.mesh` wraps Assimp (`loadMeshFile`), and
+`roboslop.assets.texture` wraps stb_image (`loadTexture2D`).
+`roboslop.render.asset_cache` caches programs, textures, samplers, and
+uniforms and destroys them before bgfx shutdown. There is no asset
+identity beyond file paths and no invalidation; Shader Lab is expected
+to change that.
 
-- `roboslop.assets.mesh` wraps Assimp. `loadMeshFile(path)` returns a
-  `MeshAsset` with interleaved `MeshVertex { position, normal, uv }`
-  vertices and uint16 indices. The default postprocess flags are
-  `Triangulate | GenSmoothNormals | FlipUVs | CalcTangentSpace |
-  JoinIdenticalVertices`. MVP loads only the first mesh in a scene.
-- `roboslop.assets.texture` wraps stb_image. `loadTexture2D(path)`
-  decodes any stb-supported format into a bgfx RGBA8 2D texture and
-  returns an RAII `Texture` handle. The implementation TU
-  (`stb_image_impl.cpp`) is the single place that `#define`s
-  `STB_IMAGE_IMPLEMENTATION`.
+### Physics
 
-`AssetCache` (in `roboslop.render.asset_cache`) caches both: a
-`texture(path)` accessor returns a non-owning `bgfx::TextureHandle`;
-the cache destroys the underlying `Texture` before `bgfx::shutdown`.
-A `sampler(name)` accessor caches sampler uniforms (`s_albedo`,
-`s_normal`, ...) on the same schedule.
+`roboslop.physics` + `roboslop.physics.components`: a `JoltWorld` owned
+by `App` and three fixed-update systems (`physicsSpawn`, `physicsStep`,
+`syncPhysicsToTransform`) registered with one call. Bodies are described
+by `BodyDesc` (sphere/box, static/dynamic). Jolt runs a single-threaded
+job system so Taskflow is the only thread pool in the process.
 
-`roboslop.render.material` defines the POD `Material { ProgramHandle
-program, bgfx::TextureHandle albedo, bgfx::UniformHandle sAlbedo }`.
-The frontend reads it via `try_get<Material>` per entity at draw
-collection time: when present, it overrides `Mesh.program` and
-populates the `DrawItem`'s texture+sampler so `submitDraws` can call
-`bgfx::setTexture` before submission.
+### Audio
 
-The pos+color triangle path stays alongside the textured path —
-`vertexLayoutPosColor()` for vertex-coloured debug geometry,
-`vertexLayoutPosNormalUv()` for textured meshes loaded via Assimp.
+`roboslop.audio.device` owns one miniaudio engine; `roboslop.audio`
+provides `AudioListener` / `AudioSource` components and the two systems
+that update them. No sound source is spawned in the demo yet.
 
-## Physics
+### Animation
 
-`roboslop.physics` exposes a `JoltWorld` value type owned by `App`.
-Construction registers Jolt's global allocator + factory + types and
-brings up a `JPH::PhysicsSystem` with two object layers
-(`NonMoving`/`Moving`) and two matching broadphase layers. The
-single-instance global state means destructing the `JoltWorld`
-unregisters Jolt types so a second instance can be made later
-(useful for tests).
+`roboslop.animation.skeleton`, `.clip`, `.state`: skeleton and bone
+transforms, per-channel keyframe tracks with heap-free `sampleClip`, and
+an `AnimationState` component with a tick system. GPU skinning and rig
+extraction from Assimp are not implemented.
 
-`App::run()` calls `installJoltWorld(world, joltWorld)` once before
-`onBuildGraphs`; that places a `JoltWorld*` in the ECS context so
-physics systems reach the world via `SystemCtx.world->registry().ctx()`
-without `roboslop.sched` needing a typed dependency on physics.
+### Subsystem map
 
-Game code spawns dynamic bodies by attaching `BodyDesc` to an entity
-with a `Transform`. The three physics systems —
-`physicsSpawn`/`physicsStep`/`syncPhysicsToTransform` — are registered
-into the fixed-update graph with one call to `registerPhysicsSystems(g)`
-inside `onBuildGraphs`. Spawn turns each `BodyDesc` into a Jolt body
-plus a `RigidBody` handle and seeds a `PrevTransform`; step runs the
-solver at the fixed sub-step dt; sync copies the body pose back to
-the ECS `Transform` and captures the prior pose for render-time
-interpolation by `alpha`.
+| Subsystem | Library | State |
+|---|---|---|
+| ECS | EnTT | in use (`roboslop.ecs` facade) |
+| System scheduling | Taskflow | in use |
+| Rendering | bgfx (FetchContent) | in use |
+| Shader pipeline | bgfx `shaderc` via CMake | in use (build-time only) |
+| Windowing & input | GLFW | in use |
+| Physics | Jolt | in use |
+| Math | glm | in use |
+| Assets — 3D models | Assimp | in use |
+| Assets — textures | stb_image | in use |
+| Audio | miniaudio (FetchContent) | in use |
+| Logging | spdlog | in use (a handful of call sites) |
+| Serialisation | nlohmann/json | declared in Conan, not yet linked |
+| Debug UI | Dear ImGui (docking) | declared in Conan, not yet linked; `ROBOSLOP_DEV_UI` option exists but gates nothing yet |
+| LLM / agent runtime | — | not started; direction below |
 
-Jolt's job system is `JPH::JobSystemSingleThreaded` for MVP. Steps run
-on whichever Taskflow worker drew the task, serialised by their
-write to `"physicsState"` — we never mix Jolt's own pool with the
-engine's executor.
+## Accepted direction: AI and agents
 
-## Roboslop subsystem map
-
-| Subsystem | Library |
-|---|---|
-| ECS | EnTT |
-| System scheduling | Taskflow |
-| Rendering | bgfx |
-| Shader pipeline | bgfx `shaderc` (via CMake custom command) |
-| Windowing & input | GLFW |
-| Physics | Jolt |
-| Math | glm |
-| Assets — 3D models | Assimp |
-| Assets — textures | stb_image (when needed) |
-| Audio | miniaudio |
-| Logging | spdlog |
-| Serialisation | nlohmann/json |
-| Debug UI | Dear ImGui (`imgui_impl_glfw` + ImGui-bgfx renderer) |
-| **LLM** | first-class engine subsystem (see below) |
-
-Debug UI is gated by a `ROBOSLOP_DEV_UI` CMake option, default ON in `debug`
-and `relwithdebinfo` and OFF in `release`.
-
-## LLM integration
-
-The LLM is a first-class engine subsystem, not a bolt-on.
-
-### Provider-agnostic backend interface
-
-An abstract `LLMBackend` interface, with concrete backends:
-
-- Anthropic
-- OpenAI
-- Local (Ollama / llama.cpp)
-- `NullBackend`
-
-**The game must remain fully playable without any LLM configured.** Designs
-that route any gameplay-critical signal through the LLM must degrade
-gracefully when `NullBackend` is active.
+Nothing in this section exists in code. It is written down now so that
+M2 and M3 (see the [roadmap](roadmap.md)) share one vocabulary and do
+not each invent their own.
 
 ### Semantic-first perception
 
-- **Primary path:** the engine produces a structured world snapshot — the
-  visible entities and their components from the robot's perspective —
-  serialised as JSON.
-- **Optional augmentation:** a rendered frame for multimodal backends that
-  support image input. Snapshots remain the canonical channel; vision is
-  additive.
+The agent primarily receives an **engine-produced, structured
+observation** of the world from the robot's point of view. Rendered
+images may be used as multimodal augmentation for backends that accept
+them, but they are not the canonical world-state channel.
 
-### Event-driven invocation
+Exactly which facts a robot may observe is an *open question* for
+experiments. We deliberately avoid locking in a broad or god-like
+perception model now; the first `Observation` should contain what the
+first tools need and nothing more.
 
-The LLM is not on a fixed clock. It is invoked when meaningful world state
-changes or the player interacts with the robot. The cadence policy lives in
-the engine and is tunable.
+### High-level actions
 
-### Action interface
+The LLM is a decision maker, not a low-level controller. The
+conceptual pipeline is:
 
-Tool / function-calls only. Examples: `moveTo`, `pickUp`, `say`, `inspect`.
-The engine validates and applies each call; raw free-form text is not an
-executable action.
+```text
+World
+  ↓
+Observation
+  ↓
+Agent
+  ↓
+Proposed Tool Call
+  ↓
+Validation
+  ↓
+Command / Intent
+  ↓
+Simulation
+  ↓
+Events
+```
 
-### Battery / token-budget model
+Appropriate action granularity is `moveTo(target)`, `pickUp(entity)`,
+`inspect(entity)`, `say(...)`. The engine/simulation owns pathfinding,
+locomotion, animation, and physics. `Observation`, `ToolCall`,
+`Command`/`Intent`, and `Event` are kept conceptually separate even
+while the first implementations are tiny: a tool call is a *proposal*
+until validation turns it into a command, and events are what the
+simulation reports back, not what the agent asked for.
 
-Each LLM call draws from a configurable budget of tokens or API credits. The
-player sets thresholds and policies for what happens as the battery depletes.
-This is surfaced in-game as a property of the robot companion.
+### Local-first, asynchronous inference
 
-### Robot customisation
+The primary target is local inference. The provider abstraction may
+grow remote backends later, but the architecture must not assume an
+external API service is always present. Inference is asynchronous
+relative to the simulation: the game loop never blocks while the model
+thinks. Results arrive as proposed tool calls to be validated on the
+simulation side.
 
-- **Modular capabilities** — perception range, memory size, available tools —
-  unlocked, bought, or found in-world.
-- **Personality and partial system-prompt tuning,** exposed to the player at
-  a controlled granularity.
-- **Future direction (out of scope for the skeleton, but not foreclosed):**
-  generative assets (models, plot lines) via LLM — Dwarf-Fortress-style
-  emergent storytelling.
+### Reflection opportunities
 
-## Gorden gameplay
+The agent has no fixed "think tick". Instead the simulation emits
+event-driven opportunities: player interaction, a meaningful world
+event, a tool failure, goal completion, a memory trigger, or a generic
+`ReflectionOpportunity` — a voluntary chance for internal activity when
+nothing demands immediate action.
 
-- Top-down 3D. Outdoor, free movement is the primary mode.
-- The robot mostly follows the player.
-- Additional modes / mini-games may exist in the future. Mode-switching is
-  retained as a concept the architecture can accommodate, but is not yet
-  designed.
+Internal activity is expressed through explicit mechanisms (update goal,
+store memory, revise belief, inspect memory) rather than by making
+private free text or chain-of-thought persistent gameplay state.
+
+### Memory is a first-class concept
+
+The robot's memory is not "chat history" or a token count. We separate:
+
+| Layer | Meaning |
+|---|---|
+| **World truth** | What the simulator knows to be true. |
+| **Perception / observations** | What the robot actually observed. |
+| **Working memory** | The bounded active context assembled for one inference call. |
+| **Episodic memory** | Events the robot remembers ("Anna asked me at the bridge to find the generator"). |
+| **Semantic memory / beliefs** | Facts or opinions the robot holds. May be incomplete, stale, wrong, or based on what an NPC said. |
+| **Goals** | The agent's explicit active intentions and sub-goals. |
+| **Retrieval** | The mechanism that decides which old memories become relevant again. |
+
+World truth and robot belief are explicitly not the same thing. This
+makes memory both AI infrastructure and potential gameplay: future robot
+upgrades can be larger episodic memory, better retrieval, better
+perception, more tools, or more reflection opportunities.
+
+The exact data model and any embedding/vector-store technology are
+*open questions*. Provenance for beliefs is an accepted direction,
+roughly:
+
+```text
+belief:
+    subject
+    predicate
+    value
+    source
+    learned_at
+    confidence
+```
+
+so that we can later answer "why does the robot believe this?".
+
+### Replay and reproducibility
+
+We want to debug and replay AI-driven sessions. The goal is **not** that
+the same initial state makes the LLM produce identical output again;
+nondeterminism, and the robot becoming its own thinker, is part of the
+point. The goal is to replay the **observed and validated event and
+action sequence**, e.g.
+
+```text
+RobotObserved(...)
+AgentToolCall(moveTo(...))
+ToolAccepted
+RobotArrived(...)
+AgentToolCall(inspect(...))
+```
+
+In replay mode, previously accepted actions are fed back into the
+simulation without asking the model. For debugging we also want to save
+observation, prompt, and model response, but those are analysis data,
+not the authoritative replay signal. Full determinism of physics or the
+whole engine is not required by this design.
+
+## Out of scope for now
+
+Earlier documents described a "battery / token budget" model, a
+provider list including specific remote vendors, and robot
+customisation mechanics. These remain possible gameplay ideas but are
+not part of the accepted architecture until an app needs them; they are
+recorded in the history of [`decisions.md`](decisions.md), not here.

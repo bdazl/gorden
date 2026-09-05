@@ -96,6 +96,10 @@ lands a minimal local implementation.
   `FILE_SET cxx_modules` together with the language defaults bundle.
 - `import std;` stays off. Use the global module fragment +
   `#include <print>` (etc.) inside a `.cppm`.
+- Modules are the default, not a requirement. A plain `.cpp`/`.c` TU or a
+  header is added via `SOURCES` in `roboslop_add_module_library()` when
+  that is the simpler integration (see the two third-party implementation
+  TUs in `engine/CMakeLists.txt`).
 - **PCMs are sensitive to compiler config.** Every target that imports
   roboslop modules — engine, apps, tests — must apply
   `roboslop_apply_language_defaults()` so producer and consumer agree on

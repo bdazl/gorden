@@ -1,28 +1,59 @@
-# Gorden
+# Roboslop
 
-A single-player, top-down 3D game built on **Roboslop**, a custom C++23 game
-engine designed for first-class LLM integration. The central mechanic is a
-robot companion, played by a large language model, that perceives the world
-through structured snapshots, acts via tool-calls, and can be customised by
-the player through modular upgrades and personality tuning.
+Roboslop is an experimental but serious C++23 platform for real-time
+rendering, games and simulation, AI/LLM-integrated interactive systems,
+and the tools and graphical experiments that grow up around them. The
+core can be used as a general game engine, but it is not designed as an
+abstract "universal engine" in a vacuum: engine features are pulled into
+existence by concrete applications.
 
 This repository is a monorepo:
 
-- `engine/` — the Roboslop engine, in library form. Engine-as-library; game-agnostic.
-- `apps/gorden/` — the Gorden game built on top of it.
+- `engine/` — the Roboslop engine, a static library whose public
+  surface is a set of C++23 modules under the `roboslop` namespace.
+- `apps/gorden/` — **Gorden**, a future single-player top-down 3D game
+  with an LLM-controlled robot companion. Today it doubles as the
+  gameplay/AI sandbox and the debug/demo app where new engine features
+  are first exercised.
+
+Further applications (a live shader lab, a level editor) are planned;
+see the [roadmap](docs/roadmap.md). Each is created when work on it
+starts, not before.
 
 ## Status
 
-Hello-world runs. The build system, source skeleton, and tooling are in
-place; engine subsystems land in follow-up passes. The running log of
-design and tooling choices lives in
-[`docs/decisions.md`](docs/decisions.md).
+The engine is past "hello world" but well short of a product. What
+exists today, all driven by the Gorden demo:
+
+- ECS facade over EnTT (`roboslop.ecs`).
+- Semi-fixed timestep loop with a configurable fixed rate.
+- Taskflow-backed system scheduling: systems declare the resources
+  they read and write; the scheduler derives a DAG once and reuses it.
+- Render graph over bgfx view-IDs, with a frontend/backend split: draw
+  items are collected into a per-frame arena, sorted by a packed key,
+  and submitted with no heap allocation in the render loop.
+- Windowing and polled per-frame input via GLFW, with a free-fly debug
+  camera.
+- Jolt physics as three fixed-update systems (spawn, step, sync back to
+  transforms).
+- Asset loading: meshes via Assimp, textures via stb_image, a
+  `Material` component, and an `AssetCache` that owns GPU-side
+  programs, textures, and uniforms.
+- One forward directional light with Lambert shading.
+- Audio foundation via miniaudio: device, 3D listener and source
+  systems.
+- Animation data layer: skeleton, clips, CPU clip sampling, and an
+  animation-state tick system. No GPU skinning yet.
+
+Not yet started: any LLM/agent code, dev UI, serialisation, scene
+files, shader hot-reload. The Gorden executable is a physics/rendering
+demo scene, not a game, which is intentional at this stage.
 
 ## Prerequisites
 
 - **Clang 19+** or **GCC 15+** (C++23 modules through CMake
   `FILE_SET cxx_modules`). MSVC is tracking but not validated.
-- **CMake 3.30+** (3.31 recommended), **Ninja**.
+- **CMake 3.30+**, **Ninja**.
 - **Conan 2.x**, **Python 3.10+**.
 - **Linux X11/Wayland dev libs**: glfw pulls `xorg/system` which probes
   pkg-config for `libxres`, `libxcb`, `libxcursor`, `libxinerama`,
@@ -39,7 +70,7 @@ make configure     # cmake --preset debug
 make build         # cmake --build --preset debug
 make test          # ctest --preset debug
 make run           # ./build/debug/apps/gorden/gorden
-make shaders       # compile sample shaders through bgfx shaderc
+make shaders       # compile registered shaders through bgfx shaderc
 ```
 
 Other presets: `make build PRESET=release|relwithdebinfo|asan-ubsan|tsan`.
@@ -51,12 +82,15 @@ and bifurcates the Conan cache.
 
 ## Documentation
 
-- [Architecture overview](docs/architecture.md)
+- [Architecture](docs/architecture.md) — engine/app split, working
+  principle, subsystem map, AI direction.
+- [Roadmap](docs/roadmap.md) — milestones and open questions.
 - [Build system](docs/build-system.md)
-- [Decisions log](docs/decisions.md)
+- [Decisions log](docs/decisions.md) — append-only history of choices.
 - [Commit conventions](docs/conventions/commits.md)
 - [Code-style conventions](docs/conventions/code-style.md)
-- [Original brief](docs/prompts/initial-repo-skeleton.md)
+- [Original repo-skeleton brief](docs/prompts/initial-repo-skeleton.md)
+  (historical; predates the Roboslop repositioning)
 
 ## Licence
 
