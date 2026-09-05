@@ -11,6 +11,8 @@ find_package(Jolt CONFIG REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 find_package(stb REQUIRED)
 find_package(imgui CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(CURL CONFIG REQUIRED)
 
 roboslop_add_module_library(roboslop
     MODULES
@@ -130,6 +132,8 @@ target_link_libraries(roboslop PUBLIC
     stb::stb
     roboslop::miniaudio
     imgui::imgui
+    nlohmann_json::nlohmann_json
+    CURL::libcurl
 )
 
 if(ROBOSLOP_BUILD_TESTS)

@@ -273,7 +273,8 @@ compiles into the shared `<build>/assets/shaders/<backend>/` tree.
 | Assets — textures | stb_image | in use |
 | Audio | miniaudio (FetchContent) | in use |
 | Logging | spdlog | in use (a handful of call sites) |
-| Serialisation | nlohmann/json | declared in Conan, not yet linked |
+| JSON | nlohmann/json | in use (LLM wire format; scene serialisation later) |
+| HTTP client | libcurl (Conan, OpenSSL) | in use (`roboslop.platform.http`, LLM backends only) |
 | Debug UI | Dear ImGui (docking) | in use (`roboslop.ui`): GLFW backend from the Conan package, bgfx renderer in `engine/src/ui/`; `ROBOSLOP_DEV_UI=OFF` makes `App` ignore `enableDevUi` |
 | LLM / agent runtime | — | not started; direction below |
 

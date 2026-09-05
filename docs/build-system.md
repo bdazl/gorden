@@ -107,6 +107,9 @@ preset takes 10–20 minutes and bifurcates the Conan cache.
 | Custom Conan recipe  | Reserved for cases where FetchContent doesn't suffice; nothing in the tree today. |
 
 bgfx (+ bx, bimg, shaderc) and miniaudio currently come in via FetchContent.
+libcurl comes from Conan with its default options, which on Linux means an
+OpenSSL-backed HTTPS stack; the first `make bootstrap` after adding it
+builds OpenSSL from source (several minutes, once per Conan cache).
 Dear ImGui comes from Conan; its GLFW platform backend is compiled directly
 from the package's `res/bindings/` directory (located through the
 `imgui_PACKAGE_FOLDER_<CONFIG>` variable CMakeDeps generates), and the

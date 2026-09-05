@@ -47,6 +47,11 @@ class Roboslop(ConanFile):
         # Dev UI. Docking branch for multi-viewport / dockable panels.
         self.requires("imgui/1.90.8-docking")
 
+        # HTTP client for LLM backends (roboslop.platform.http). Default
+        # options give OpenSSL-backed HTTPS on Linux; the first bootstrap
+        # builds OpenSSL from source, which takes a few minutes.
+        self.requires("libcurl/8.21.0")
+
     def generate(self):
         deps = CMakeDeps(self)
         deps.generate()
