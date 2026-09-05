@@ -312,6 +312,16 @@ responses, records requests; tests and the no-key fallback) and
 OpenAI, a llama.cpp server, Ollama). The engine has no opinion about
 prompts, tools, or memory — those live in the app.
 
+### Virtual filesystem
+
+`roboslop.vfs` is an in-memory filesystem for developer tooling: plain
+directories and files, **live files** whose contents come from
+callbacks (a log, an observation, a settings document — optionally
+writable), and **host mounts** that map a subtree to a real directory
+on disk so everything under it persists. Paths are normalised before
+any mount is consulted, so `..` cannot escape a mount. Apps mount what
+they want to expose; the shell and terminal below read it.
+
 ### Subsystem map
 
 | Subsystem | Library | State |
