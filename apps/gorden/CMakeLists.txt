@@ -25,6 +25,7 @@ roboslop_compile_shader(
     SHADERS     ${shader_src_dir}/vs_basic.sc
     VARYING     ${shader_src_dir}/varying.def.sc
     OUTPUT_DIR  ${shader_out_dir}
+    TARGET_VAR  gorden_basic_vs_target
 )
 
 roboslop_compile_shader(
@@ -32,6 +33,7 @@ roboslop_compile_shader(
     SHADERS     ${shader_src_dir}/fs_basic.sc
     VARYING     ${shader_src_dir}/varying.def.sc
     OUTPUT_DIR  ${shader_out_dir}
+    TARGET_VAR  gorden_basic_fs_target
 )
 
 roboslop_compile_shader(
@@ -39,6 +41,7 @@ roboslop_compile_shader(
     SHADERS     ${shader_src_dir}/vs_textured.sc
     VARYING     ${shader_src_dir}/varying.def.sc
     OUTPUT_DIR  ${shader_out_dir}
+    TARGET_VAR  gorden_textured_vs_target
 )
 
 roboslop_compile_shader(
@@ -46,4 +49,15 @@ roboslop_compile_shader(
     SHADERS     ${shader_src_dir}/fs_textured.sc
     VARYING     ${shader_src_dir}/varying.def.sc
     OUTPUT_DIR  ${shader_out_dir}
+    TARGET_VAR  gorden_textured_fs_target
+)
+
+# gorden loads these at startup; depending on them makes `make build`
+# alone produce a runnable binary (the aggregate `shaders` target is
+# not part of ALL).
+add_dependencies(gorden
+    ${gorden_basic_vs_target}
+    ${gorden_basic_fs_target}
+    ${gorden_textured_vs_target}
+    ${gorden_textured_fs_target}
 )
