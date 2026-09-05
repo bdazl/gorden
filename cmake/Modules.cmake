@@ -9,18 +9,17 @@ set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
 # Bundle of project-wide language defaults applied to every engine/app
 # target. Kept separate from roboslop_set_warnings() so callers can opt out of
-# warnings without losing the language baseline (no-exceptions, JSON_NOEXCEPTION
-# define, ...) or vice versa.
+# warnings without losing the language baseline, or vice versa.
+#
+# Every target that imports roboslop modules must go through this function:
+# C++23 PCMs are rejected on a "configuration mismatch" if the producer and
+# consumer disagree on language-level flags, so the language baseline has to
+# be applied uniformly rather than per target. Exceptions stay at the
+# compiler default (enabled); expected failures are reported via Result /
+# std::expected by convention, not by compiler flag -- see
+# docs/conventions/code-style.md (Error handling).
 function(roboslop_apply_language_defaults target)
     target_compile_features(${target} PUBLIC cxx_std_23)
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(${target} PRIVATE /EHs-c-)
-    else()
-        target_compile_options(${target} PRIVATE -fno-exceptions)
-    endif()
-
-    target_compile_definitions(${target} PRIVATE JSON_NOEXCEPTION)
 endfunction()
 
 # Add a static library whose interface is a set of C++23 module units.

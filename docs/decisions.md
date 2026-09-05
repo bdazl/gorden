@@ -11,6 +11,40 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-05 — Exceptions are enabled; `Result` stays the API convention
+
+**Decision.** Drop `-fno-exceptions` (and MSVC `/EHs-c-`) from the
+project-wide language defaults, drop `JSON_NOEXCEPTION`, and drop
+`CATCH_CONFIG_DISABLE_EXCEPTIONS` from the test target. Exception
+support is left at the compiler default. The API convention is
+unchanged: engine and public APIs report expected failures (asset not
+found, shader compile failed, window init failed, invalid config) via
+`Result<T>` / `std::expected`; exceptions are not used as control flow
+in our code. `roboslop_apply_language_defaults()` remains mandatory on
+every target that imports roboslop modules so PCM configuration stays
+consistent — the function now only asserts `cxx_std_23`.
+
+Supersedes the 2026-05-17 entry "`-fno-exceptions` is project-wide,
+tests included".
+
+**Why.** `-fno-exceptions` had become project identity rather than a
+tool. The value we wanted — explicit, typed error paths — comes from the
+`Result` convention, not from the compiler flag. The flag was costing
+real integration effort: a special Catch2 configuration, a JSON
+no-exception define for a library we do not link yet, comments in the
+audio and window modules justifying design around it, and the standing
+risk that a third-party header trips on it. Third-party code should not
+need special treatment because we globally disabled a language feature.
+The PCM-consistency argument in the old entry is still true, but it
+argues for a *uniform* configuration, not for a specific one.
+
+**Where.** [`cmake/Modules.cmake`](../cmake/Modules.cmake),
+[`engine/tests/CMakeLists.txt`](../engine/tests/CMakeLists.txt),
+convention in [`docs/conventions/code-style.md`](conventions/code-style.md),
+build note in [`docs/build-system.md`](build-system.md).
+
+---
+
 ## 2026-09-05 — Repository is Roboslop; `engine/` + `apps/` layout
 
 **Decision.** The repository, CMake project, and Conan recipe are named

@@ -96,10 +96,13 @@ lands a minimal local implementation.
   `FILE_SET cxx_modules` together with the language defaults bundle.
 - `import std;` stays off. Use the global module fragment +
   `#include <print>` (etc.) inside a `.cppm`.
-- **PCMs are sensitive to compiler config.** The whole project — engine,
-  game, tests — compiles with `-fno-exceptions` so PCMs are never refused
-  for "configuration mismatch" between producer and consumer. The Catch2
-  test target additionally defines `CATCH_CONFIG_DISABLE_EXCEPTIONS`.
+- **PCMs are sensitive to compiler config.** Every target that imports
+  roboslop modules — engine, apps, tests — must apply
+  `roboslop_apply_language_defaults()` so producer and consumer agree on
+  language-level flags; otherwise a PCM is refused for "configuration
+  mismatch". Exceptions are left at the compiler default (enabled); see
+  [`docs/conventions/code-style.md`](conventions/code-style.md) for the
+  error-handling convention that replaces the old `-fno-exceptions` rule.
 - bgfx.cmake force-downgrades `CMAKE_CXX_STANDARD` to 20 globally when
   added; the top-level `CMakeLists.txt` restores 23 after
   `add_subdirectory(third_party)` so later subdirectories see the C++23

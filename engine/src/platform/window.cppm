@@ -111,8 +111,8 @@ export struct WindowConfig {
 
 // RAII wrapper around a single GLFWwindow. The first Window in a process
 // drives glfwInit(); the last one to die calls glfwTerminate(). Construction
-// is only via Window::make() — the engine has no exceptions, so a factory is
-// the only way to report init failure.
+// is only via Window::make() — the engine reports expected failures through
+// Result rather than throwing, so a factory is how init failure surfaces.
 export class Window {
   public:
     [[nodiscard]] static auto make(const WindowConfig& cfg) -> Result<Window> {

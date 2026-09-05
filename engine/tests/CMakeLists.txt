@@ -16,13 +16,9 @@ add_executable(roboslop_tests
     animation_test.cpp
 )
 
-# Tests must use the same -fno-exceptions code-gen as the engine so the
-# imported PCMs match the compiler config exactly (a configuration mismatch
-# would refuse to load the .pcm). CATCH_CONFIG_DISABLE_EXCEPTIONS makes
-# Catch2's macros expand to a TRY/CATCH abstraction that compiles cleanly
-# under -fno-exceptions.
+# Same language baseline as the engine so the imported PCMs match the
+# compiler config exactly (a mismatch would refuse to load the .pcm).
 roboslop_apply_language_defaults(roboslop_tests)
-target_compile_definitions(roboslop_tests PRIVATE CATCH_CONFIG_DISABLE_EXCEPTIONS)
 
 target_link_libraries(roboslop_tests PRIVATE
     roboslop

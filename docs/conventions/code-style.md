@@ -25,9 +25,11 @@ name, give the accessor a descriptive name (`glfwHandle()`,
 
 ## Language rules
 
-- **No exceptions.** The project compiles with `-fno-exceptions`. Use
-  `std::expected<T, E>` for fallible operations. A shared error type lives in
-  `roboslop.core.error` (or wherever the modules-layout decision places it).
+- **Expected failures are values, not exceptions.** Fallible operations
+  return `std::expected<T, E>` (`roboslop::Result<T>`); the shared error type
+  lives in `roboslop.core.error`. Exceptions are compiled *in* (compiler
+  default) but are not used as control flow in engine or app code; they are
+  tolerated where third-party code throws and where nothing better exists.
 - **Modules-first.** New code lives in C++23 module interface units (`.cppm`).
   Header files are a last resort, reserved for shimming non-module
   dependencies.
@@ -114,8 +116,13 @@ auto loadConfig(std::string_view path) -> roboslop::Result<Config> {
 }
 ```
 
-The project compiles with `-fno-exceptions` end-to-end; throwing constructs
-are not used and `std::expected` is the only fallible-return shape.
+Exception support is left at the compiler default. The policy is a
+convention, not a flag: engine and public APIs express expected failures
+(asset not found, shader compile failed, window init failed, invalid config)
+as `Result`, never by throwing. Third-party code is not special-cased for
+exceptions, and no target adds `-fno-exceptions` or exception-disabling
+defines for dependencies. Any deliberate exception use (e.g. catching a
+throwing third-party API at a boundary) should be local and commented.
 
 ## Formatter and linter
 
