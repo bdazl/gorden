@@ -329,6 +329,10 @@ export history date uptime help`), `|` pipes between builtins, `>` /
 expansion, history, and command/path completion. `tail -f` returns a
 `followPath` that the terminal widget keeps polling. Apps add commands
 with `registerCommand`; nothing here executes on the host.
+`roboslop.ui.terminal` (`TerminalWindow`) is the ImGui front end: a
+scrollback, the prompt, an input with Up/Down history and Tab
+completion, and follow mode for `tail -f` (Ctrl+C stops it; Esc is
+taken by the app for quit). Drawn from a registered dev window.
 
 ### Subsystem map
 
