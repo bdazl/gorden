@@ -49,6 +49,9 @@ roboslop_add_module_library(roboslop
         src/ecs/world.cppm
         src/sched/scheduler.cppm
         src/ui/dev_ui.cppm
+        src/llm/llm.cppm
+        src/llm/backend.cppm
+        src/llm/backend_scripted.cppm
         src/app/app.cppm
     SOURCES
         src/assets/stb_image_impl.cpp
