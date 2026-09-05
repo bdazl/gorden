@@ -153,6 +153,15 @@ engine-owned state (Jolt world, audio device, light uniforms) park a
 pointer in `entt::registry::ctx()` rather than adding typed fields to
 `SystemCtx`, so `roboslop.sched` has no dependency on any subsystem.
 
+### Platform
+
+`roboslop.platform.window` and `roboslop.platform.input` wrap GLFW.
+`roboslop.platform.process` runs a child process to completion and
+captures its merged stdout/stderr (`runProcess`); it exists so tools such
+as `shaderc` can be shelled out to from a worker thread. POSIX only —
+other platforms get a `ProcessError::Unsupported` result rather than a
+build break.
+
 ### Rendering
 
 - `roboslop.render.context` owns bgfx init/shutdown and the frame.

@@ -18,6 +18,7 @@ roboslop_add_module_library(roboslop
         src/time/clock.cppm
         src/platform/window.cppm
         src/platform/input.cppm
+        src/platform/process.cppm
         src/render/context.cppm
         src/render/shader.cppm
         src/render/mesh.cppm
