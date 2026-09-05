@@ -88,7 +88,8 @@ world mainly through structured, semantic observations, acts through
 validated high-level tools, and never drives locomotion or physics
 frame by frame. Today Gorden is the physics + textured-cube demo scene with a free-fly
 camera plus the first agent loop (roadmap M2, first slice): a robot
-entity, three named props, a "Robot" chat panel, and the pipeline below.
+entity, three named props, dev windows ("Robot" chat, "Agent log" with
+filter, "Settings"), and the pipeline below.
 
 The agent code is the `gorden_agent` module library
 (`apps/gorden/src/agent/`, tested by `gorden_tests`):

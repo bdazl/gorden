@@ -43,6 +43,7 @@ import roboslop.ui;
 #include <print>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -365,19 +366,44 @@ auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPane
         ImGui::SetKeyboardFocusHere(-1);
     }
 
+    (void)world;
+}
+
+// The validated action log: every observation delivered, proposal,
+// verdict, and resulting event. Its own window so the chat stays
+// readable; the same lines back /var/log/agent.log in the terminal.
+struct AgentLogState {
+    std::array<char, 64> filter{};
+    bool autoScroll = true;
+    std::size_t hiddenBefore = 0; // "Clear" hides older lines without touching the brain
+};
+
+auto drawAgentLogPanel(gorden::AgentBrain& brain, AgentLogState& st) -> void {
+    ImGui::SetNextItemWidth(220.0F);
+    ImGui::InputTextWithHint("##filter", "filter", st.filter.data(), st.filter.size());
+    ImGui::SameLine();
+    ImGui::Checkbox("Auto-scroll", &st.autoScroll);
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        st.hiddenBefore = brain.actionLog().size();
+    }
+    ImGui::SameLine();
+    ImGui::TextDisabled("%zu lines", brain.actionLog().size());
     ImGui::Separator();
-    ImGui::TextUnformatted("Validated action log");
-    ImGui::BeginChild("log", ImVec2(0.0F, 0.0F), ImGuiChildFlags_Border);
+
+    ImGui::BeginChild("lines", ImVec2(0.0F, 0.0F), ImGuiChildFlags_Border);
+    const std::string_view filter{st.filter.data()};
     const auto& log = brain.actionLog();
-    const std::size_t first = log.size() > 60 ? log.size() - 60 : 0;
-    for (std::size_t i = first; i < log.size(); ++i) {
+    for (std::size_t i = st.hiddenBefore; i < log.size(); ++i) {
+        if (!filter.empty() && !log[i].contains(filter)) {
+            continue;
+        }
         ImGui::TextWrapped("%s", log[i].c_str());
     }
-    if (ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 2.0F) {
+    if (st.autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY() - 2.0F) {
         ImGui::SetScrollHereY(1.0F);
     }
     ImGui::EndChild();
-    (void)world;
 }
 
 auto spawnGround(roboslop::World& world, const roboslop::Mesh& mesh) -> void {
@@ -532,6 +558,7 @@ auto main() -> int {
                 brainCfg.playerName = initial.settings.playerName;
                 ctx.emplace<gorden::AgentBrain>(makeProvider(), brainCfg, robot, cameraEntity);
                 ctx.emplace<RobotPanelState>();
+                ctx.emplace<AgentLogState>();
                 auto& st = ctx.emplace<SettingsState>(initial);
 
                 if (auto* ui = roboslop::devUi(world); ui != nullptr) {
@@ -544,6 +571,20 @@ auto main() -> int {
                                     auto& c = world.registry().ctx();
                                     drawRobotPanel(
                                         world, c.get<gorden::AgentBrain>(), c.get<RobotPanelState>()
+                                    );
+                                },
+                            .visible = true,
+                        }
+                    );
+                    ui->registerWindow(
+                        roboslop::DevWindow{
+                            .id = "agentLog",
+                            .title = "Agent log",
+                            .draw =
+                                [&world]() {
+                                    auto& c = world.registry().ctx();
+                                    drawAgentLogPanel(
+                                        c.get<gorden::AgentBrain>(), c.get<AgentLogState>()
                                     );
                                 },
                             .visible = true,
