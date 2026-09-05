@@ -260,6 +260,21 @@ last render pass so the UI lands on top. `wantCaptureMouse()` /
 the UI. The ImGui shader pair lives under `engine/assets/shaders/` and
 compiles into the shared `<build>/assets/shaders/<backend>/` tree.
 
+### LLM runtime
+
+`roboslop.llm` is the backend-neutral vocabulary (`ChatRequest`,
+`ChatMessage`, `ToolSpec`, `ToolCall`, `ChatResponse`) plus the
+`Provider` interface and `startCompletion`, which runs a provider on a
+worker thread and hands back an `AsyncCompletion` to poll from the frame
+loop. Tool-call arguments stay JSON text: parsing and validating them is
+the application's job. `roboslop.llm.openai_wire` is the pure
+translation to and from the OpenAI chat-completions JSON, and
+`roboslop.llm.backend` exports two partitions: `:scripted` (queued
+responses, records requests; tests and the no-key fallback) and
+`:openai` (any OpenAI-compatible server over `roboslop.platform.http`:
+OpenAI, a llama.cpp server, Ollama). The engine has no opinion about
+prompts, tools, or memory — those live in the app.
+
 ### Subsystem map
 
 | Subsystem | Library | State |
@@ -278,7 +293,7 @@ compiles into the shared `<build>/assets/shaders/<backend>/` tree.
 | JSON | nlohmann/json | in use (LLM wire format; scene serialisation later) |
 | HTTP client | libcurl (Conan, OpenSSL) | in use (`roboslop.platform.http`, LLM backends only) |
 | Debug UI | Dear ImGui (docking) | in use (`roboslop.ui`): GLFW backend from the Conan package, bgfx renderer in `engine/src/ui/`; `ROBOSLOP_DEV_UI=OFF` makes `App` ignore `enableDevUi` |
-| LLM / agent runtime | — | not started; direction below |
+| LLM runtime | `roboslop.llm` + OpenAI-compatible HTTP backend | in use (Gorden M2); local-first remains the target |
 
 ## Accepted direction: AI and agents
 

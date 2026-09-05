@@ -10,6 +10,7 @@ add_executable(roboslop_tests
     process_test.cpp
     http_test.cpp
     llm_test.cpp
+    openai_wire_test.cpp
     shader_compiler_test.cpp
     free_fly_camera_test.cpp
     scheduler_test.cpp

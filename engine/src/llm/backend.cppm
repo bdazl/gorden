@@ -4,3 +4,4 @@
 export module roboslop.llm.backend;
 
 export import :scripted;
+export import :openai;

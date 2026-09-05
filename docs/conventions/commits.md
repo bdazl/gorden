@@ -29,8 +29,8 @@ Use whichever fits best:
 - `shaders` — under `apps/<app>/assets/shaders/`
 - `assets` — non-shader assets
 - `repo` — repo-wide hygiene (editor configs, `.gitignore`, `.gitattributes`)
-- Subsystem scopes as they emerge: `ecs`, `render`, `physics`, `llm`,
-  `input`, `audio`, `ui`, ...
+- Subsystem scopes as they emerge: `ecs`, `render`, `physics`, `llm`
+  (`roboslop.llm` and its backends), `input`, `audio`, `ui`, ...
 
 ## Atomicity
 
