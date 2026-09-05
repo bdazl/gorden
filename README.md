@@ -8,8 +8,8 @@ the player through modular upgrades and personality tuning.
 
 This repository is a monorepo:
 
-- `roboslop/` — the engine, in library form. Engine-as-library; game-agnostic.
-- `gorden/` — the game built on top of it.
+- `engine/` — the Roboslop engine, in library form. Engine-as-library; game-agnostic.
+- `apps/gorden/` — the Gorden game built on top of it.
 
 ## Status
 
@@ -38,7 +38,7 @@ make bootstrap     # conan install for the default preset (debug)
 make configure     # cmake --preset debug
 make build         # cmake --build --preset debug
 make test          # ctest --preset debug
-make run           # ./build/debug/gorden/gorden
+make run           # ./build/debug/apps/gorden/gorden
 make shaders       # compile sample shaders through bgfx shaderc
 ```
 

@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.30 FATAL_ERROR)
 
-project(gorden
+project(roboslop
     VERSION     0.0.1
-    DESCRIPTION "Single-player 3D game on the Roboslop engine"
-    # C enabled for the miniaudio implementation TU (audio_impl.c).
+    DESCRIPTION "Real-time rendering, simulation, and AI-integrated interactive systems"
+    # C enabled for the miniaudio implementation TU (miniaudio_impl.c).
     LANGUAGES   CXX C
 )
 
@@ -35,8 +35,11 @@ add_subdirectory(third_party)
 # bgfx.cmake forces CMAKE_CXX_STANDARD to 20 globally. Our targets opt back
 # into C++23 via target_compile_features(... cxx_std_23) in Modules.cmake,
 # but restore the project-wide default so any later add_subdirectory()
-# (engine, game) starts from the C++23 baseline.
+# (engine, apps) starts from the C++23 baseline.
 set(CMAKE_CXX_STANDARD 23)
 
-add_subdirectory(roboslop)
-add_subdirectory(gorden)
+add_subdirectory(engine)
+
+# Applications built on the engine. One subdirectory per app under apps/;
+# add a line here when a new app starts, not before.
+add_subdirectory(apps/gorden)

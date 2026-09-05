@@ -1,8 +1,8 @@
 ---
-# Linter configuration for roboslop + gorden.
+# Linter configuration for the roboslop engine and its apps.
 #
 # Rules live in docs/conventions/code-style.md.
-# Rationale for each disabled check is in docs/todo/open-questions.md (item 3).
+# Rationale for the disabled checks is in docs/decisions.md (coding-style entry).
 
 Checks: >
   -*,
@@ -33,7 +33,7 @@ Checks: >
   -misc-include-cleaner
 
 WarningsAsErrors: ''
-HeaderFilterRegex: '(roboslop|gorden)/.*\.(cppm|cpp|hpp|h)$'
+HeaderFilterRegex: '(engine|apps)/.*\.(cppm|cpp|hpp|h)$'
 FormatStyle: file
 
 CheckOptions:

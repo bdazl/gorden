@@ -19,12 +19,14 @@ scope: imperative subject line
 
 Use whichever fits best:
 
-- `engine` — anything in `roboslop/`
-- `game` — anything in `gorden/`
+- `engine` — anything in `engine/`
+- `gorden` — anything in `apps/gorden/` (each app is its own scope, named
+  after its directory)
+- `apps` — changes spanning several apps or the `apps/` layout itself
 - `build` — CMake, Conan, presets, scripts
 - `cmake` — CMake-specific helpers under `cmake/`
 - `docs` — anything under `docs/`, plus the top-level README and CLAUDE.md
-- `shaders` — under `gorden/assets/shaders/`
+- `shaders` — under `apps/<app>/assets/shaders/`
 - `assets` — non-shader assets
 - `repo` — repo-wide hygiene (editor configs, `.gitignore`, `.gitattributes`)
 - Subsystem scopes as they emerge: `ecs`, `render`, `physics`, `llm`,

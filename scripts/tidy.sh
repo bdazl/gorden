@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run clang-tidy across roboslop/ and gorden/ via compile_commands.json.
+# Run clang-tidy across engine/ and apps/ via compile_commands.json.
 
 set -euo pipefail
 
@@ -11,7 +11,7 @@ if [[ ! -f compile_commands.json ]]; then
 fi
 
 mapfile -t files < <(
-    find roboslop gorden \
+    find engine apps \
         -type f \( -name '*.cpp' -o -name '*.cppm' \) 2>/dev/null
 )
 

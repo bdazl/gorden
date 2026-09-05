@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run clang-format across roboslop/ and gorden/.
+# Run clang-format across engine/ and apps/.
 # `scripts/format.sh`         applies fixes in place.
 # `scripts/format.sh --check` dry-run; fails on diffs (CI mode).
 
@@ -13,7 +13,7 @@ if [[ "${1:-}" == "--check" ]]; then
 fi
 
 mapfile -t files < <(
-    find roboslop gorden \
+    find engine apps \
         -type f \( -name '*.cppm' -o -name '*.cpp' \
                 -o -name '*.h'    -o -name '*.hpp' \) 2>/dev/null
 )

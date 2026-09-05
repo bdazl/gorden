@@ -5,11 +5,11 @@ the project grows; the goal here is orientation, not detail.
 
 ## Engine / game separation
 
-- **`roboslop/`** is a library. **`gorden/`** links against it. The engine
+- **`engine/`** is a library. **`apps/gorden/`** links against it. The engine
   knows nothing about Gorden specifically.
 - The public surface of the engine is its exported modules.
 - Anything game-specific (player loadouts, robot personalities, level layout,
-  story content) lives in `gorden/`.
+  story content) lives in `apps/gorden/`.
 
 ## Engine entry point
 

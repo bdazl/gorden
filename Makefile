@@ -1,11 +1,11 @@
-# Gorden top-level Makefile. All commands route through CMakePresets.
+# Roboslop top-level Makefile. All commands route through CMakePresets.
 #
 # Usage:
 #   make bootstrap PRESET=debug         conan install for PRESET
 #   make configure                      cmake --preset
 #   make build                          cmake --build --preset
 #   make test                           ctest --preset
-#   make run ARGS="..."                 run the game binary
+#   make run ARGS="..."                 run the gorden binary
 #   make shaders                        compile shaders for PRESET
 #   make format / format-check          clang-format
 #   make tidy                           clang-tidy via compile_commands.json
@@ -37,7 +37,7 @@ test:
 	@ctest --preset $(PRESET)
 
 run:
-	@cd build/$(PRESET) && exec gorden/gorden $(ARGS)
+	@cd build/$(PRESET) && exec apps/gorden/gorden $(ARGS)
 
 shaders:
 	@cmake --build --preset $(PRESET) --target shaders -j$(JOBS)
@@ -63,12 +63,12 @@ distclean:
 all: bootstrap configure build
 
 help:
-	@printf 'Gorden Makefile targets (PRESET=%s):\n' '$(PRESET)'
+	@printf 'Roboslop Makefile targets (PRESET=%s):\n' '$(PRESET)'
 	@printf '  bootstrap       conan install for PRESET (writes toolchain file)\n'
 	@printf '  configure       cmake --preset $(PRESET)\n'
 	@printf '  build           cmake --build --preset $(PRESET) -j$(JOBS)\n'
 	@printf '  test            ctest --preset $(PRESET)\n'
-	@printf '  run [ARGS=...]  run build/$(PRESET)/gorden/gorden\n'
+	@printf '  run [ARGS=...]  run build/$(PRESET)/apps/gorden/gorden\n'
 	@printf '  shaders         compile shaders for $(PRESET)\n'
 	@printf '  format          clang-format -i across the source tree\n'
 	@printf '  format-check    clang-format --dry-run (CI)\n'

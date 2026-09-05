@@ -180,7 +180,7 @@ export [[nodiscard]] auto loadShader(const std::filesystem::path& path)
 
 // Load a vertex+fragment shader pair from assetRoot/shaders/<backend>/<name>.bin
 // and link them into a Program. Shader files are produced by
-// gorden/CMakeLists.txt via roboslop_compile_shader.
+// the app's CMakeLists.txt (e.g. apps/gorden) via roboslop_compile_shader.
 export [[nodiscard]] auto loadProgram(
     const std::filesystem::path& assetRoot, std::string_view vsName, std::string_view fsName
 ) -> Result<Program> {

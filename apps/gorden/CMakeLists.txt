@@ -15,7 +15,7 @@ include(ShaderCompile)
 set(shader_src_dir ${CMAKE_CURRENT_SOURCE_DIR}/assets/shaders/src)
 
 # Outputs land at <build-root>/assets/shaders/<backend>/ so the runtime
-# asset path is stable across subprojects — gorden's main passes
+# asset path is stable across apps — gorden's main passes
 # assetRoot = "assets" and the engine resolves shaders relative to that.
 # `make run` cds into build/<preset>/ so the relative path works.
 set(shader_out_dir ${CMAKE_BINARY_DIR}/assets/shaders)

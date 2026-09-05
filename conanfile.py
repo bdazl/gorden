@@ -1,4 +1,4 @@
-"""Conan recipe for gorden + roboslop.
+"""Conan recipe for roboslop (engine + apps).
 
 Pulls Conan-Center dependencies only. bgfx (+ bx, bimg, shaderc), miniaudio,
 and imgui_impl_bgfx are vendored under third_party/ — see
@@ -17,8 +17,8 @@ from conan import ConanFile
 from conan.tools.cmake import CMakeDeps, CMakeToolchain
 
 
-class Gorden(ConanFile):
-    name = "gorden"
+class Roboslop(ConanFile):
+    name = "roboslop"
     version = "0.0.1"
     settings = "os", "compiler", "build_type", "arch"
 

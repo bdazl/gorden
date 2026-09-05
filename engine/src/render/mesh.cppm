@@ -22,7 +22,7 @@ export struct Mesh {
 };
 
 // Position (vec3 float) + Color0 (uint8 x4, normalised). Matches
-// gorden/assets/shaders/src/varying.def.sc — the layout vs_basic.sc /
+// apps/gorden/assets/shaders/src/varying.def.sc — the layout vs_basic.sc /
 // fs_basic.sc expect.
 export [[nodiscard]] auto vertexLayoutPosColor() -> bgfx::VertexLayout {
     bgfx::VertexLayout layout;

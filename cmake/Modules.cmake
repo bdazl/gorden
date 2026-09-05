@@ -1,4 +1,4 @@
-# C++23-module helpers for roboslop and gorden.
+# C++23-module helpers for the engine and app targets.
 #
 # CMake's FILE_SET cxx_modules requires Ninja and per-target dyndep scanning.
 # import std; intentionally remains off until libc++/libstdc++ ship a usable
@@ -7,7 +7,7 @@
 
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 
-# Bundle of project-wide language defaults applied to every roboslop/gorden
+# Bundle of project-wide language defaults applied to every engine/app
 # target. Kept separate from roboslop_set_warnings() so callers can opt out of
 # warnings without losing the language baseline (no-exceptions, JSON_NOEXCEPTION
 # define, ...) or vice versa.
@@ -25,10 +25,10 @@ endfunction()
 
 # Add a static library whose interface is a set of C++23 module units.
 # Usage:
-#   roboslop_add_module_library(roboslop_core
-#       MODULES roboslop/src/core/version.cppm
-#               roboslop/src/core/error.cppm
-#       SOURCES roboslop/src/core/error.cpp
+#   roboslop_add_module_library(roboslop
+#       MODULES src/core/version.cppm
+#               src/core/error.cppm
+#       SOURCES src/core/error.cpp
 #   )
 function(roboslop_add_module_library target)
     cmake_parse_arguments(ARG "" "" "MODULES;SOURCES" ${ARGN})

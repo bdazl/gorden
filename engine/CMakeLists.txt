@@ -1,5 +1,5 @@
 # The roboslop engine, exposed as a static library whose interface is a set
-# of C++23 modules. Game targets and tests import these modules; no headers
+# of C++23 modules. App targets and tests import these modules; no headers
 # are published.
 
 find_package(glfw3 CONFIG REQUIRED)

@@ -33,7 +33,7 @@ make bootstrap PRESET=debug     # conan install, writes the toolchain file
 make configure                  # cmake --preset
 make build                      # cmake --build --preset
 make test                       # ctest --preset
-make run [ARGS=...]             # ./build/<preset>/gorden/gorden
+make run [ARGS=...]             # ./build/<preset>/apps/gorden/gorden
 make shaders                    # compile every registered shader via shaderc
 ```
 
@@ -91,7 +91,7 @@ lands a minimal local implementation.
 
 ## C++23 module notes
 
-- `CXX_SCAN_FOR_MODULES` is on globally; engine and game targets opt into
+- `CXX_SCAN_FOR_MODULES` is on globally; engine and app targets opt into
   modules through `roboslop_add_module_library()` which wires
   `FILE_SET cxx_modules` together with the language defaults bundle.
 - `import std;` stays off. Use the global module fragment +

@@ -55,10 +55,10 @@ module-name mapping:
 
 | Filesystem path | Module name |
 |---|---|
-| `roboslop/src/core/version.cppm`           | `roboslop.core.version` |
-| `roboslop/src/render/passes/forward.cppm`  | `roboslop.render.passes.forward` |
-| `roboslop/src/llm/backend_null.cppm`       | `roboslop.llm.backend:null` |
-| `gorden/src/world/world.cppm`              | `gorden.world` |
+| `engine/src/core/version.cppm`             | `roboslop.core.version` |
+| `engine/src/render/passes/forward.cppm`    | `roboslop.render.passes.forward` |
+| `engine/src/llm/backend_null.cppm`         | `roboslop.llm.backend:null` |
+| `apps/gorden/src/world/world.cppm`         | `gorden.world` |
 
 Rules:
 
@@ -83,7 +83,7 @@ helper is `roboslop_add_module_library()` in
 
 Fallible operations return `std::expected<T, Error>` via the alias
 `roboslop::Result<T>`. The error type is a lightweight struct defined once in
-[`roboslop.core.error`](../../roboslop/src/core/error.cppm):
+[`roboslop.core.error`](../../engine/src/core/error.cppm):
 
 ```cpp
 struct Error {

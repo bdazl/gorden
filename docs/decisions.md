@@ -1,9 +1,39 @@
 # Decisions
 
-A running log of design and tooling choices for Gorden/Roboslop. Newest
-first. Each entry stays tight: what was decided, why, and where it lives.
-If a choice is later changed, append a new entry that supersedes the old
-one — don't edit in place.
+A running log of design and tooling choices for Roboslop. Newest first.
+Each entry stays tight: what was decided, why, and where it lives. If a
+choice is later changed, append a new entry that supersedes the old one —
+don't edit in place.
+
+Entries dated before 2026-09-05 link to the pre-rename layout
+(`roboslop/` is now `engine/`, `gorden/` is now `apps/gorden/`). Those
+links are left as written; they are history.
+
+---
+
+## 2026-09-05 — Repository is Roboslop; `engine/` + `apps/` layout
+
+**Decision.** The repository, CMake project, and Conan recipe are named
+`roboslop`. The engine library moves from `roboslop/` to `engine/`; the
+game moves from `gorden/` to `apps/gorden/`. The CMake target and the
+C++ module namespace stay `roboslop`. The `gorden` executable now lands
+at `build/<preset>/apps/gorden/gorden`; compiled shaders still land at
+`build/<preset>/assets/shaders/` so the runtime asset path is unchanged.
+New apps get a directory under `apps/` when implementation starts, not
+as empty placeholders. Commit scopes: `engine`, `<app-name>` (e.g.
+`gorden`), `apps` for cross-app layout changes.
+
+**Why.** Roboslop is now the umbrella project and Gorden one application
+within it. A repo named `roboslop` with a `roboslop/` subdirectory would read as
+`roboslop/roboslop/...`; `engine/` says what the directory is. Putting
+apps under `apps/` makes the multi-app structure visible without
+committing to any particular future app.
+
+**Where.** [`CMakeLists.txt`](../CMakeLists.txt), [`Makefile`](../Makefile),
+[`conanfile.py`](../conanfile.py), [`scripts/`](../scripts/),
+[`.clang-tidy`](../.clang-tidy), [`.clang-format`](../.clang-format),
+[`engine/`](../engine/), [`apps/gorden/`](../apps/gorden/). The GitHub
+remote rename is a manual step outside the tree.
 
 ---
 
