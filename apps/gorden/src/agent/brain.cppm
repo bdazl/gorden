@@ -70,13 +70,29 @@ export struct BrainConfig {
     int maxChainedThinks = 4;    // per player message
     float observeRadius = 25.0F;
     Rules rules;
+    std::string robotName = "Gorden";
+    std::string playerName = "Player";
+    // `{robot}` and `{player}` are replaced with the names above.
     std::string systemPrompt =
-        "You are the robot companion of the player in a small yard. You perceive the "
-        "world only through the JSON observation in each user message. Act through the "
-        "tools; use say to talk to the player in one or two short sentences. Coordinates "
-        "are metres, y is up. When a move completes or a tool is rejected you get a new "
-        "observation; do not repeat a rejected action.";
+        "You are {robot}, the robot companion of {player} in a small yard. You perceive "
+        "the world only through the JSON observation in each user message. Act through "
+        "the tools; use say to talk to {player} in one or two short sentences. "
+        "Coordinates are metres, y is up. When a move completes or a tool is rejected you "
+        "get a new observation; do not repeat a rejected action.";
 };
+
+export [[nodiscard]] auto renderSystemPrompt(const BrainConfig& cfg) -> std::string {
+    std::string out = cfg.systemPrompt;
+    for (const auto& [key, value] :
+         {std::pair{std::string{"{robot}"}, cfg.robotName},
+          std::pair{std::string{"{player}"}, cfg.playerName}}) {
+        for (auto pos = out.find(key); pos != std::string::npos; pos = out.find(key, pos)) {
+            out.replace(pos, key.size(), value);
+            pos += value.size();
+        }
+    }
+    return out;
+}
 
 // The agent loop for one robot:
 //
@@ -133,6 +149,26 @@ export class AgentBrain {
             }
             startThink(world);
         }
+    }
+
+    // Live rename (Settings window). Takes effect from the next think;
+    // the transcript keeps role keys ("player"/"robot"), the UI maps
+    // them to names.
+    auto setNames(std::string robotName, std::string playerName) -> void {
+        cfg.robotName = std::move(robotName);
+        cfg.playerName = std::move(playerName);
+    }
+
+    [[nodiscard]] auto config() const noexcept -> const BrainConfig& {
+        return cfg;
+    }
+
+    [[nodiscard]] auto robotEntity() const noexcept -> roboslop::Entity {
+        return robot;
+    }
+
+    [[nodiscard]] auto playerEntity() const noexcept -> roboslop::Entity {
+        return player;
     }
 
     [[nodiscard]] auto thinking() const noexcept -> bool {
@@ -195,7 +231,9 @@ export class AgentBrain {
 
         roboslop::ChatRequest req{.model = cfg.model, .tools = toolSpecs()};
         req.messages.reserve(history.size() + 1);
-        req.messages.push_back({.role = roboslop::Role::System, .content = cfg.systemPrompt});
+        req.messages.push_back(
+            {.role = roboslop::Role::System, .content = renderSystemPrompt(cfg)}
+        );
         req.messages.insert(req.messages.end(), history.begin(), history.end());
 
         ++thinks;

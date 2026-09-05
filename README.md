@@ -59,7 +59,8 @@ exists today, all driven by the Gorden demo:
   observation, proposes `moveTo` / `inspect` / `say` tool calls, the
   app validates them, and the simulation executes them. Talk to it in
   the "Robot" panel; set `OPENAI_API_KEY` for a real model, otherwise a
-  scripted provider runs the same chain.
+  scripted provider runs the same chain. Player and robot names live in
+  `~/.config/roboslop/gorden.json` (Settings window).
 
 Not yet started: agent memory and replay (M3), serialisation, scene
 files. The Gorden executable is a physics/rendering

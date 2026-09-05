@@ -111,6 +111,14 @@ The agent code is the `gorden_agent` module library
 The provider is chosen at startup: `OPENAI_API_KEY` set → the
 OpenAI-compatible backend, otherwise the scripted demo.
 
+`gorden.settings` holds what the player can change — player name, robot
+name (default "Gorden"), which dev windows are open — as JSON at
+`configDir()/gorden.json`. Names feed the `Named` components and the
+brain's system prompt (`{robot}` / `{player}` placeholders); the
+Settings window applies them live and saves them. Window visibility is
+saved whenever it changes; the ImGui layout lives in
+`configDir()/gorden.imgui.ini`.
+
 ### Shader Lab (M1, first slice done)
 
 A Shadertoy-like live shader environment that is not limited to a

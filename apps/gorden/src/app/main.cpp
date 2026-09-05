@@ -1,9 +1,11 @@
 import gorden.agent.brain;
 import gorden.agent.observation;
 import gorden.agent.robot;
+import gorden.settings;
 import roboslop.app;
 import roboslop.audio;
 import roboslop.core.error;
+import roboslop.core.paths;
 import roboslop.ecs;
 import roboslop.llm;
 import roboslop.llm.backend;
@@ -32,8 +34,11 @@ import roboslop.ui;
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <expected>
+#include <filesystem>
 #include <format>
+#include <map>
 #include <memory>
 #include <print>
 #include <span>
@@ -203,6 +208,69 @@ struct RobotPanelState {
     bool scrollTranscript = false;
 };
 
+// Settings as loaded/edited, plus the edit buffers for the Settings
+// window and the last window-visibility snapshot (saved on change).
+struct SettingsState {
+    gorden::GordenSettings settings;
+    std::filesystem::path path;
+    std::array<char, 64> playerBuf{};
+    std::array<char, 64> robotBuf{};
+    std::map<std::string, bool> lastVisibility;
+    std::string status;
+};
+
+auto copyToBuffer(std::array<char, 64>& buf, const std::string& text) -> void {
+    buf.fill('\0');
+    std::strncpy(buf.data(), text.c_str(), buf.size() - 1);
+}
+
+// Pushes the names in `st.settings` into the world: Named components
+// and the brain's prompt.
+auto applyNames(roboslop::World& world, SettingsState& st, gorden::AgentBrain& brain) -> void {
+    world.get<gorden::Named>(brain.robotEntity()).name = st.settings.robotName;
+    world.get<gorden::Named>(brain.playerEntity()).name = st.settings.playerName;
+    brain.setNames(st.settings.robotName, st.settings.playerName);
+}
+
+auto saveSettingsNow(SettingsState& st) -> void {
+    if (auto r = gorden::saveSettings(st.path, st.settings); !r) {
+        st.status = std::format("save failed: {} ({})", r.error().message, r.error().context);
+        spdlog::warn("gorden: {}", st.status);
+    } else {
+        st.status = "saved to " + st.path.string();
+    }
+}
+
+auto readNameBuffers(SettingsState& st) -> void {
+    if (st.playerBuf[0] != '\0') {
+        st.settings.playerName = st.playerBuf.data();
+    }
+    if (st.robotBuf[0] != '\0') {
+        st.settings.robotName = st.robotBuf.data();
+    }
+}
+
+auto drawSettingsPanel(roboslop::World& world, SettingsState& st, gorden::AgentBrain& brain)
+    -> void {
+    ImGui::InputText("Player name", st.playerBuf.data(), st.playerBuf.size());
+    ImGui::InputText("Robot name", st.robotBuf.data(), st.robotBuf.size());
+    if (ImGui::Button("Apply")) {
+        readNameBuffers(st);
+        applyNames(world, st, brain);
+        st.status = "applied";
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Save")) {
+        readNameBuffers(st);
+        applyNames(world, st, brain);
+        saveSettingsNow(st);
+    }
+    ImGui::TextDisabled("%s", st.path.string().c_str());
+    if (!st.status.empty()) {
+        ImGui::TextUnformatted(st.status.c_str());
+    }
+}
+
 // OPENAI_API_KEY present → the OpenAI-compatible backend (model and
 // base URL overridable via GORDEN_MODEL / OPENAI_BASE_URL, so the same
 // code targets a llama.cpp server). Otherwise a scripted demo so the
@@ -267,12 +335,15 @@ auto drawRobotPanel(roboslop::World& world, gorden::AgentBrain& brain, RobotPane
     ImGui::Separator();
 
     ImGui::BeginChild("transcript", ImVec2(0.0F, 180.0F), ImGuiChildFlags_Border);
+    const auto& names = brain.config();
     for (const auto& line : brain.transcript()) {
         const bool robot = line.who == "robot";
         ImGui::PushStyleColor(
             ImGuiCol_Text, robot ? ImVec4(0.6F, 0.9F, 1.0F, 1.0F) : ImVec4(0.9F, 0.9F, 0.9F, 1.0F)
         );
-        ImGui::TextWrapped("%s: %s", line.who.c_str(), line.text.c_str());
+        ImGui::TextWrapped(
+            "%s: %s", (robot ? names.robotName : names.playerName).c_str(), line.text.c_str()
+        );
         ImGui::PopStyleColor();
     }
     if (st.scrollTranscript) {
@@ -331,14 +402,26 @@ auto spawnGround(roboslop::World& world, const roboslop::Mesh& mesh) -> void {
 } // namespace
 
 auto main() -> int {
+    // Settings first: names are needed while the scene is built.
+    SettingsState initial;
+    initial.path = gorden::settingsPath();
+    if (auto loaded = gorden::loadSettings(initial.path); loaded) {
+        initial.settings = std::move(*loaded);
+    } else {
+        spdlog::warn("gorden: settings unreadable ({}); using defaults", loaded.error().context);
+    }
+    copyToBuffer(initial.playerBuf, initial.settings.playerName);
+    copyToBuffer(initial.robotBuf, initial.settings.robotName);
+
     auto app = roboslop::App::make(
         roboslop::AppConfig{
             .window = roboslop::WindowConfig{.title = "gorden", .width = 1280, .height = 720},
             .tickRateHz = 60.0,
             .assetRoot = "assets",
             .enableDevUi = true,
-            .onSetup = [](roboslop::World& world,
-                          roboslop::AssetCache& assets) -> roboslop::Result<void> {
+            .devUiIniPath = roboslop::configDir() / "gorden.imgui.ini",
+            .onSetup = [initial](roboslop::World& world, roboslop::AssetCache& assets)
+                -> roboslop::Result<void> {
                 auto prog = assets.program("vs_basic", "fs_basic");
                 if (!prog) {
                     return std::unexpected(prog.error());
@@ -356,7 +439,9 @@ auto main() -> int {
                 // The camera doubles as the audio listener so 3D
                 // attenuation tracks the viewer.
                 world.emplace<roboslop::AudioListener>(cameraEntity);
-                world.emplace<gorden::Named>(cameraEntity, gorden::Named{.name = "player"});
+                world.emplace<gorden::Named>(
+                    cameraEntity, gorden::Named{.name = initial.settings.playerName}
+                );
 
                 const auto layout = roboslop::vertexLayoutPosColor();
                 auto cube = roboslop::makeStaticMesh(
@@ -435,15 +520,19 @@ auto main() -> int {
                 );
                 world.emplace<roboslop::Mesh>(robot, texMesh);
                 world.emplace<roboslop::Material>(robot, material);
-                world.emplace<gorden::Named>(robot, gorden::Named{.name = "robot"});
+                world.emplace<gorden::Named>(
+                    robot, gorden::Named{.name = initial.settings.robotName}
+                );
                 world.emplace<gorden::Robot>(robot);
                 world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 2.5F});
 
                 auto& ctx = world.registry().ctx();
-                ctx.emplace<gorden::AgentBrain>(
-                    makeProvider(), gorden::BrainConfig{}, robot, cameraEntity
-                );
+                gorden::BrainConfig brainCfg;
+                brainCfg.robotName = initial.settings.robotName;
+                brainCfg.playerName = initial.settings.playerName;
+                ctx.emplace<gorden::AgentBrain>(makeProvider(), brainCfg, robot, cameraEntity);
                 ctx.emplace<RobotPanelState>();
+                auto& st = ctx.emplace<SettingsState>(initial);
 
                 if (auto* ui = roboslop::devUi(world); ui != nullptr) {
                     ui->registerWindow(
@@ -460,6 +549,28 @@ auto main() -> int {
                             .visible = true,
                         }
                     );
+                    ui->registerWindow(
+                        roboslop::DevWindow{
+                            .id = "settings",
+                            .title = "Settings",
+                            .draw =
+                                [&world]() {
+                                    auto& c = world.registry().ctx();
+                                    drawSettingsPanel(
+                                        world, c.get<SettingsState>(), c.get<gorden::AgentBrain>()
+                                    );
+                                },
+                            .visible = false,
+                        }
+                    );
+                    std::vector<roboslop::WindowVisibility> saved;
+                    for (const auto& [id, visible] : st.settings.windows) {
+                        saved.push_back({.id = id, .visible = visible});
+                    }
+                    ui->applyVisibility(saved);
+                    for (const auto& v : ui->visibility()) {
+                        st.lastVisibility[v.id] = v.visible;
+                    }
                 }
 
                 // One directional light shading the textured cube. The
@@ -549,11 +660,25 @@ auto main() -> int {
                             if (ui == nullptr) {
                                 return;
                             }
-                            auto& st = c.world->registry().ctx().get<RobotPanelState>();
+                            auto& ctx = c.world->registry().ctx();
+                            auto& st = ctx.get<RobotPanelState>();
                             ui->beginFrame();
                             ui->drawWindows();
                             st.uiWantsMouse = ui->wantCaptureMouse();
                             ui->endFrame(c.viewId);
+
+                            // Persist window visibility when it changes
+                            // (menu or close button; F1 does not count).
+                            auto& settings = ctx.get<SettingsState>();
+                            std::map<std::string, bool> now;
+                            for (const auto& v : ui->visibility()) {
+                                now[v.id] = v.visible;
+                            }
+                            if (now != settings.lastVisibility) {
+                                settings.lastVisibility = now;
+                                settings.settings.windows = now;
+                                saveSettingsNow(settings);
+                            }
                         },
                     });
                 },

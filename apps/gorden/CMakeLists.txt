@@ -7,6 +7,7 @@ roboslop_add_module_library(gorden_agent
         src/agent/tools.cppm
         src/agent/robot.cppm
         src/agent/brain.cppm
+        src/agent/settings.cppm
 )
 
 target_link_libraries(gorden_agent PUBLIC
