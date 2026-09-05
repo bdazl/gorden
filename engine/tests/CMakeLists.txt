@@ -8,6 +8,7 @@ add_executable(roboslop_tests
     render_camera_test.cpp
     input_test.cpp
     process_test.cpp
+    shader_compiler_test.cpp
     free_fly_camera_test.cpp
     scheduler_test.cpp
     render_graph_test.cpp

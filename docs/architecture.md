@@ -185,8 +185,13 @@ build break.
 
 ### Assets
 
-`roboslop.assets.mesh` wraps Assimp (`loadMeshFile`), and
-`roboslop.assets.texture` wraps stb_image (`loadTexture2D`).
+`roboslop.assets.mesh` wraps Assimp (`loadMeshFile`),
+`roboslop.assets.texture` wraps stb_image (`loadTexture2D`), and
+`roboslop.assets.shader_compiler` wraps the `shaderc` executable
+(`ShaderCompiler::compile`) for runtime recompilation — it spawns the
+binary through `roboslop.platform.process` and returns the compiled blob
+or shaderc's diagnostics text. `roboslop.core.file` holds the shared
+whole-file reader.
 `roboslop.render.asset_cache` caches programs, textures, samplers, and
 uniforms and destroys them before bgfx shutdown. There is no asset
 identity beyond file paths and no invalidation; Shader Lab is expected
@@ -220,7 +225,7 @@ extraction from Assimp are not implemented.
 | ECS | EnTT | in use (`roboslop.ecs` facade) |
 | System scheduling | Taskflow | in use |
 | Rendering | bgfx (FetchContent) | in use |
-| Shader pipeline | bgfx `shaderc` via CMake | in use (build-time only) |
+| Shader pipeline | bgfx `shaderc` | build-time via CMake; runtime via `roboslop.assets.shader_compiler`, which shells out to the same binary |
 | Windowing & input | GLFW | in use |
 | Physics | Jolt | in use |
 | Math | glm | in use |

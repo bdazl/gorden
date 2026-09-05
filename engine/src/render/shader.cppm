@@ -5,8 +5,6 @@ module;
 #include <cstdint>
 #include <expected>
 #include <filesystem>
-#include <fstream>
-#include <ios>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -15,15 +13,14 @@ module;
 export module roboslop.render.shader;
 
 import roboslop.core.error;
+import roboslop.core.file;
 
 namespace roboslop {
 
 export enum class ShaderError : int {
     UnsupportedRenderer = 1,
-    FileMissing = 2,
-    FileReadFailed = 3,
-    ShaderCreateFailed = 4,
-    ProgramCreateFailed = 5,
+    ShaderCreateFailed = 2,
+    ProgramCreateFailed = 3,
 };
 
 export [[nodiscard]] auto toError(ShaderError e, std::string ctx = {}) -> Error {
@@ -33,20 +30,6 @@ export [[nodiscard]] auto toError(ShaderError e, std::string ctx = {}) -> Error 
             .category = "roboslop.render.shader",
             .code = static_cast<int>(e),
             .message = "no shader directory for active bgfx renderer",
-            .context = std::move(ctx)
-        };
-    case ShaderError::FileMissing:
-        return {
-            .category = "roboslop.render.shader",
-            .code = static_cast<int>(e),
-            .message = "shader file not found",
-            .context = std::move(ctx)
-        };
-    case ShaderError::FileReadFailed:
-        return {
-            .category = "roboslop.render.shader",
-            .code = static_cast<int>(e),
-            .message = "failed to read shader file",
             .context = std::move(ctx)
         };
     case ShaderError::ShaderCreateFailed:
@@ -92,25 +75,31 @@ namespace {
     }
 }
 
-[[nodiscard]] auto readBinaryFile(const std::filesystem::path& path) -> Result<std::vector<char>> {
-    std::error_code ec;
-    if (!std::filesystem::exists(path, ec)) {
-        return std::unexpected(toError(ShaderError::FileMissing, path.string()));
-    }
-    std::ifstream in(path, std::ios::binary | std::ios::ate);
-    if (!in) {
-        return std::unexpected(toError(ShaderError::FileMissing, path.string()));
-    }
-    const auto size = static_cast<std::size_t>(in.tellg());
-    in.seekg(0, std::ios::beg);
-    std::vector<char> buf(size);
-    if (size > 0 && !in.read(buf.data(), static_cast<std::streamsize>(size))) {
-        return std::unexpected(toError(ShaderError::FileReadFailed, path.string()));
-    }
-    return buf;
-}
-
 } // namespace
+
+// The shaderc --profile that produces binaries loadable by the active
+// bgfx renderer. Mirrors the desktop profile list bgfxToolUtils uses at
+// build time (spirv + 430 on Linux, metal on macOS, s_5_0 on Windows),
+// so a runtime compile lands in the same format the build-time path
+// produces. Empty for renderers without a known profile.
+export [[nodiscard]] auto shaderProfileFor(bgfx::RendererType::Enum type) noexcept
+    -> std::string_view {
+    switch (type) {
+    case bgfx::RendererType::Vulkan:
+        return "spirv";
+    case bgfx::RendererType::OpenGL:
+        return "430";
+    case bgfx::RendererType::OpenGLES:
+        return "300_es";
+    case bgfx::RendererType::Direct3D11:
+    case bgfx::RendererType::Direct3D12:
+        return "s_5_0";
+    case bgfx::RendererType::Metal:
+        return "metal";
+    default:
+        return {};
+    }
+}
 
 // RAII handle to a bgfx::ProgramHandle. createProgram destroys its shader
 // inputs internally (we pass destroyShaders=true), so Program only manages
@@ -165,7 +154,7 @@ export class Program {
 // Caller owns the returned handle until passed into createProgram.
 export [[nodiscard]] auto loadShader(const std::filesystem::path& path)
     -> Result<bgfx::ShaderHandle> {
-    auto bytes = readBinaryFile(path);
+    auto bytes = readFileBytes(path);
     if (!bytes) {
         return std::unexpected(bytes.error());
     }

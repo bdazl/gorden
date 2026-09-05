@@ -15,6 +15,7 @@ roboslop_add_module_library(roboslop
     MODULES
         src/core/version.cppm
         src/core/error.cppm
+        src/core/file.cppm
         src/time/clock.cppm
         src/platform/window.cppm
         src/platform/input.cppm
@@ -33,6 +34,7 @@ roboslop_add_module_library(roboslop
         src/physics/jolt_world.cppm
         src/assets/mesh_loader.cppm
         src/assets/texture_loader.cppm
+        src/assets/shader_compiler.cppm
         src/audio/audio.cppm
         src/audio/audio_device.cppm
         src/animation/clip.cppm
