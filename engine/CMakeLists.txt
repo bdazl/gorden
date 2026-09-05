@@ -19,6 +19,8 @@ roboslop_add_module_library(roboslop
         src/core/version.cppm
         src/core/error.cppm
         src/core/file.cppm
+        src/core/paths.cppm
+        src/core/json_file.cppm
         src/time/clock.cppm
         src/platform/window.cppm
         src/platform/input.cppm

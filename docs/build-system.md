@@ -124,6 +124,14 @@ related is fetched or vendored.
 | `ROBOSLOP_BUILD_TESTS` | `ON` | Build the Catch2 test executable. |
 | `ROBOSLOP_SANITIZERS` | empty | See "Sanitisers". |
 
+## Per-user files
+
+`roboslop.core.paths` resolves the XDG base directories, always with a
+`roboslop/` subdirectory: config under `$XDG_CONFIG_HOME/roboslop`
+(default `~/.config/roboslop`), data under `$XDG_DATA_HOME/roboslop`
+(default `~/.local/share/roboslop`). Apps keep their settings JSON and
+ImGui layout ini in the former and persistent user data in the latter.
+
 ## Runtime environment variables
 
 Read by the applications, never by the build:

@@ -2,6 +2,8 @@ find_package(Catch2 3 CONFIG REQUIRED)
 
 add_executable(roboslop_tests
     version_test.cpp
+    paths_test.cpp
+    json_file_test.cpp
     time_clock_test.cpp
     ecs_world_test.cpp
     transform_test.cpp
