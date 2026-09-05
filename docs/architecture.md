@@ -233,7 +233,11 @@ failures are `Error`s, HTTP status codes are data.
   perspective/orthographic variant, `ActiveCamera` tag, view/projection
   pushed through bgfx's per-view transforms.
 - `roboslop.render.free_fly_camera`: debug camera as a component plus a
-  pure tick function.
+  pure tick function. The system captures the cursor as a *level* of
+  the right mouse button (held = captured, up = free) so a frame with
+  zero fixed steps cannot lose a release; `allowCapture=false` (passed
+  while a dev-UI window wants the mouse) stops a hold that started on a
+  panel from becoming a fly.
 - `roboslop.render.lighting`: one `DirectionalLight` and a Lambert term
   in the textured fragment shader.
 - `roboslop.render.shader`, `roboslop.render.mesh`,

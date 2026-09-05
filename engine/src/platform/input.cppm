@@ -232,13 +232,23 @@ export class Input {
     // Drives the cursor through GLFW directly rather than via Window, so
     // Input doesn't need to hold a Window pointer (which would be a
     // dangling pointer after an App move). resetDeltaNextFrame stops
-    // the OS-driven cursor jump from showing up as motion.
+    // the OS-driven cursor jump from showing up as motion. Idempotent:
+    // asking for the current state changes nothing (and keeps the
+    // delta), so callers can express capture as a level, not an edge.
     auto setCursorCaptured(bool captured) -> void {
+        if (captured == cursorCapturedFlag) {
+            return;
+        }
+        cursorCapturedFlag = captured;
         glfwSetInputMode(handle, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
         if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
             glfwSetInputMode(handle, GLFW_RAW_MOUSE_MOTION, captured ? GLFW_TRUE : GLFW_FALSE);
         }
         resetDeltaNextFrame = true;
+    }
+
+    [[nodiscard]] auto cursorCaptured() const noexcept -> bool {
+        return cursorCapturedFlag;
     }
 
   private:
@@ -247,6 +257,7 @@ export class Input {
     InputSnapshot curr;
     glm::vec2 cachedDelta{0.0F, 0.0F};
     bool resetDeltaNextFrame = false;
+    bool cursorCapturedFlag = false;
 };
 
 } // namespace roboslop

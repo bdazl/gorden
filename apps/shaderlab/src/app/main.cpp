@@ -47,7 +47,6 @@ struct LabScene {
     // Written by the dev-UI pass on the render thread, read by the
     // camera system on the next frame's fixed step.
     bool uiWantsMouse = false;
-    bool cameraActive = false;
     std::string diagBuffer; // mutable copy for ImGui's read-only text box
 };
 
@@ -204,20 +203,12 @@ auto buildGraphs(
         .reads = {"input"},
         .writes = {"transforms"},
         .run = [](roboslop::SystemCtx& c) {
-            auto& scene = c.world->registry().ctx().get<LabScene>();
-            // Start a fly only when the press lands outside the UI;
-            // once started, keep it until release even if the
-            // captured cursor drifts over a panel.
-            if (c.input->mouseButtonPressed(roboslop::MouseButton::Right)) {
-                scene.cameraActive = !scene.uiWantsMouse;
-            }
-            if (!scene.cameraActive) {
-                return;
-            }
-            roboslop::updateFreeFlyCameras(*c.world, *c.input, c.dt);
-            if (c.input->mouseButtonReleased(roboslop::MouseButton::Right)) {
-                scene.cameraActive = false;
-            }
+            // A fly may only start while no dev-UI window wants the
+            // mouse; the engine handles capture and release.
+            const auto& scene = c.world->registry().ctx().get<LabScene>();
+            roboslop::updateFreeFlyCameras(
+                *c.world, *c.input, c.dt, /*allowCapture=*/!scene.uiWantsMouse
+            );
         },
     });
 

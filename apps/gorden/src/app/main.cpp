@@ -209,7 +209,6 @@ auto spawnProp(
 struct RobotPanelState {
     std::array<char, 256> input{};
     bool uiWantsMouse = false;
-    bool cameraActive = false;
     bool scrollTranscript = false;
 };
 
@@ -795,19 +794,12 @@ auto main() -> int {
                         .reads = {"input"},
                         .writes = {"transforms"},
                         .run = [](roboslop::SystemCtx& c) {
-                            auto& st = c.world->registry().ctx().get<RobotPanelState>();
-                            // Same gating as shaderlab: a fly starts only
-                            // when the press lands outside the UI.
-                            if (c.input->mouseButtonPressed(roboslop::MouseButton::Right)) {
-                                st.cameraActive = !st.uiWantsMouse;
-                            }
-                            if (!st.cameraActive) {
-                                return;
-                            }
-                            roboslop::updateFreeFlyCameras(*c.world, *c.input, c.dt);
-                            if (c.input->mouseButtonReleased(roboslop::MouseButton::Right)) {
-                                st.cameraActive = false;
-                            }
+                            // A fly may only start while no dev-UI window
+                            // wants the mouse; the engine handles the rest.
+                            const auto& st = c.world->registry().ctx().get<RobotPanelState>();
+                            roboslop::updateFreeFlyCameras(
+                                *c.world, *c.input, c.dt, /*allowCapture=*/!st.uiWantsMouse
+                            );
                         },
                     });
                     fixed.add({

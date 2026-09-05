@@ -106,18 +106,42 @@ export auto tickFreeFlyCamera(
     }
 }
 
+// Cursor-capture bookkeeping for the system below, parked in the
+// world context. `pressBlocked` remembers that the current right-button
+// hold started somewhere capture was not allowed (over a dev-UI
+// window), so moving off the window mid-hold does not start a fly.
+export struct FreeFlyCursorState {
+    bool pressBlocked = false;
+};
+
 // ECS system. Reads the current Input snapshot, packs a FreeFlyTickInput,
-// and applies it to every (FreeFlyCamera, Transform) entity. The right
-// mouse button drives cursor capture: pressing toggles the cursor to
-// captured + activates the controller; releasing restores the cursor
-// and parks the controller. Mouse-delta accumulation is disabled when
-// inactive so the camera doesn't drift while the cursor is free.
-export auto updateFreeFlyCameras(World& world, Input& input, double dt) -> void {
-    if (input.mouseButtonPressed(MouseButton::Right)) {
-        input.setCursorCaptured(true);
-    } else if (input.mouseButtonReleased(MouseButton::Right)) {
+// and applies it to every (FreeFlyCamera, Transform) entity.
+//
+// The right mouse button drives cursor capture as a *level*, not an
+// edge: while it is held the cursor is captured and the controller
+// active, when it is up the cursor is free. Levels survive frames in
+// which no fixed step runs (a 60 Hz tick under a 60 Hz vsync regularly
+// produces 0 or 2 steps per frame), which is what edge-based capture
+// got wrong — a missed release edge left the cursor hidden and locked.
+//
+// `allowCapture` is the app's veto for the frame the hold starts:
+// pass false while a dev-UI window wants the mouse, so a right-click
+// on a panel is a UI click rather than the start of a fly.
+export auto updateFreeFlyCameras(World& world, Input& input, double dt, bool allowCapture = true)
+    -> void {
+    auto& state = world.registry().ctx().emplace<FreeFlyCursorState>();
+    const bool held = input.mouseButton(MouseButton::Right);
+    if (!held) {
         input.setCursorCaptured(false);
+        state.pressBlocked = false;
+    } else if (!input.cursorCaptured()) {
+        if (state.pressBlocked || !allowCapture) {
+            state.pressBlocked = true;
+        } else {
+            input.setCursorCaptured(true);
+        }
     }
+    const bool active = held && input.cursorCaptured();
 
     const FreeFlyTickInput tick{
         .mouseDelta = input.mouseDelta(),
@@ -128,7 +152,7 @@ export auto updateFreeFlyCameras(World& world, Input& input, double dt) -> void 
         .up = input.keyDown(Key::Space),
         .down = input.keyDown(Key::LeftCtrl),
         .boost = input.keyDown(Key::LeftShift),
-        .active = input.mouseButton(MouseButton::Right),
+        .active = active,
     };
 
     world.forEach<FreeFlyCamera, Transform>([&](auto& ctrl, auto& xf) {
