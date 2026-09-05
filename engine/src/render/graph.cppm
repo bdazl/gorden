@@ -14,20 +14,24 @@ module;
 export module roboslop.render.graph;
 
 import roboslop.ecs;
+import roboslop.render.asset_cache;
 import roboslop.render.context;
 
 namespace roboslop {
 
 // Per-pass context handed to a pass's record callback. Pointers (not
 // references) so unit tests can drive RenderGraph::execute with stubs
-// (nullptr world, nullptr render context); production code always
-// passes non-null pointers.
+// (nullptr world, render context, and asset cache); production code
+// always passes non-null pointers. `assets` is the App-owned AssetCache,
+// exposed so a pass can swap GPU resources on the render thread (shader
+// hot reload) without stashing a pointer in the world context.
 export struct PassCtx {
     std::uint16_t viewId = 0;
     int viewportW = 0;
     int viewportH = 0;
     World* world = nullptr;
     RenderContext* rc = nullptr;
+    AssetCache* assets = nullptr;
 };
 
 // Declarative render pass. Resource ids are opaque strings (e.g.
@@ -92,9 +96,9 @@ export class RenderGraph {
 
     // Walks passes in add-order (the natural topological order under
     // forward-only edges), assigning dense view-IDs from 0. Caller
-    // supplies the world and render context; viewport size is read
-    // from the render context per execute().
-    auto execute(World& world, RenderContext& rc) -> void {
+    // supplies the world, render context, and asset cache; viewport
+    // size is read from the render context per execute().
+    auto execute(World& world, RenderContext& rc, AssetCache& assets) -> void {
         const int w = rc.framebufferWidth();
         const int h = rc.framebufferHeight();
         for (std::size_t i = 0; i < passes.size(); ++i) {
@@ -104,6 +108,7 @@ export class RenderGraph {
                 .viewportH = h,
                 .world = &world,
                 .rc = &rc,
+                .assets = &assets,
             };
             bgfx::setViewRect(
                 ctx.viewId, 0, 0, static_cast<std::uint16_t>(w), static_cast<std::uint16_t>(h)
@@ -117,7 +122,7 @@ export class RenderGraph {
     // Test-only overload: lets unit tests drive execute() without a
     // live bgfx device. The bgfx::setViewRect call is skipped; record
     // callbacks run with the supplied viewport size and nullptr
-    // world/rc.
+    // world/rc/assets.
     auto executeStub(int viewportW, int viewportH) -> void {
         for (std::size_t i = 0; i < passes.size(); ++i) {
             PassCtx ctx{
@@ -126,6 +131,7 @@ export class RenderGraph {
                 .viewportH = viewportH,
                 .world = nullptr,
                 .rc = nullptr,
+                .assets = nullptr,
             };
             if (passes[i].record) {
                 passes[i].record(ctx);

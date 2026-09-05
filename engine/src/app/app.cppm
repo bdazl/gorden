@@ -152,7 +152,7 @@ export class App {
             }
 
             render.beginFrame();
-            renderGraph.execute(world, render);
+            renderGraph.execute(world, render, assets);
             render.endFrame();
         }
 

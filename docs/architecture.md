@@ -134,7 +134,9 @@ render; there is no per-frame callback. Every frame the engine:
 3. runs the fixed `SystemGraph` N times at the configured rate via the
    Taskflow executor;
 4. runs `RenderGraph::execute` between `RenderContext::beginFrame()` and
-   `endFrame()`, sequentially on the bgfx API thread.
+   `endFrame()`, sequentially on the bgfx API thread. Each pass receives
+   a `PassCtx` with its view id, the viewport, the `World`, the
+   `RenderContext`, and the App-owned `AssetCache`.
 
 ### Frame loop
 
