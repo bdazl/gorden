@@ -303,11 +303,16 @@ widgets of its own, but it owns the **window registry**: an app calls
 `onSetup`, where `devUi(world)` is already installed) and, in its last
 render pass, `beginFrame()` → `drawWindows()` → `endFrame(viewId)`.
 `drawWindows()` draws the main menu bar with a View menu (one checkbox
-per window, Show all / Hide all, Hide overlay) and `Begin`/`End` around
-every visible window's `draw` callback. F1 toggles the whole overlay
-(`App` calls `toggleEnabled()`); `visibility()` / `applyVisibility()`
-let an app persist which windows are open. `AppConfig::devUiIniPath`
-gives ImGui an ini file so docking layouts survive restarts.
+per window, Show / Hide / Collapse / Expand all, Hide overlay) and the
+visible windows as a **stack** anchored to the top-right corner: one
+shared width (drag any window's left edge), a height per window (drag
+its bottom edge), and collapse to the title bar via the arrow or a
+double-click. Positions are imposed every frame from the registry's
+state and the user's drags are read back, so the column never drifts.
+F1 toggles the whole overlay (`App` calls `toggleEnabled()`);
+`layout()` / `applyLayout()` let an app persist width, visibility,
+heights and collapsed state. `AppConfig::devUiIniPath` still gives ImGui
+an ini file, but stack windows opt out of it (`NoSavedSettings`).
 `wantCaptureMouse()` / `wantCaptureKeyboard()` let gameplay or camera
 systems yield input to the UI. The ImGui shader pair lives under
 `engine/assets/shaders/` and compiles into the shared

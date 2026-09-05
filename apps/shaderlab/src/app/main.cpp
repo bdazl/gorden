@@ -55,9 +55,6 @@ constexpr std::string_view FsName = "fs_lab";
 
 auto drawLabPanel(roboslop::World& world, LabScene& scene, shaderlab::ShaderReloader& reloader)
     -> void {
-    ImGui::SetNextWindowPos(ImVec2(16.0F, 16.0F), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(560.0F, 380.0F), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Shader Lab");
 
     const auto status = reloader.currentStatus();
     ImVec4 colour{0.7F, 0.7F, 0.7F, 1.0F};
@@ -121,7 +118,6 @@ auto drawLabPanel(roboslop::World& world, LabScene& scene, shaderlab::ShaderRelo
         ImGuiInputTextFlags_ReadOnly
     );
     ImGui::TextUnformatted("RMB + WASD / Space / Ctrl: fly.  Shift: boost.  Esc: quit.");
-    ImGui::End();
 }
 
 auto setupScene(roboslop::World& world, roboslop::AssetCache& assets) -> roboslop::Result<void> {
@@ -192,6 +188,23 @@ auto setupScene(roboslop::World& world, roboslop::AssetCache& assets) -> roboslo
     ctx.emplace<shaderlab::ShaderWatcher>(
         std::vector<std::filesystem::path>{s.vsSource, s.fsSource, s.varyingDef}
     );
+
+    if (auto* ui = roboslop::devUi(world); ui != nullptr) {
+        ui->registerWindow(
+            roboslop::DevWindow{
+                .id = "shaderlab",
+                .title = "Shader Lab",
+                .draw =
+                    [&world]() {
+                        auto& c = world.registry().ctx();
+                        drawLabPanel(world, c.get<LabScene>(), c.get<shaderlab::ShaderReloader>());
+                    },
+                .visible = true,
+                .height = 380.0F,
+                .collapsed = false,
+            }
+        );
+    }
     return {};
 }
 
@@ -253,7 +266,7 @@ auto buildGraphs(
             reloader.pump(*c.world, *c.assets);
 
             ui->beginFrame();
-            drawLabPanel(*c.world, scene, reloader);
+            ui->drawWindows();
             scene.uiWantsMouse = ui->wantCaptureMouse();
             ui->endFrame(c.viewId);
         },

@@ -9,14 +9,24 @@ TEST_CASE("settings round-trip through JSON", "[gorden][settings]") {
     gorden::GordenSettings s;
     s.playerName = "Anna";
     s.robotName = "Gorden";
-    s.windows["robot"] = false;
-    s.windows["terminal"] = true;
+    s.stackWidth = 512.0F;
+    s.windows["robot"] = {.visible = false, .height = 200.0F, .collapsed = true};
+    s.windows["terminal"] = {.visible = true, .height = 420.0F, .collapsed = false};
 
     const auto back = gorden::fromJson(gorden::toJson(s));
     REQUIRE(back.playerName == "Anna");
     REQUIRE(back.robotName == "Gorden");
-    REQUIRE(back.windows.at("robot") == false);
-    REQUIRE(back.windows.at("terminal") == true);
+    REQUIRE(back.stackWidth == 512.0F);
+    REQUIRE(back.windows.at("robot") == gorden::WindowLayout{false, 200.0F, true});
+    REQUIRE(back.windows.at("terminal") == gorden::WindowLayout{true, 420.0F, false});
+}
+
+TEST_CASE("fromJson accepts the pre-stack visibility-only window format", "[gorden][settings]") {
+    const auto s =
+        gorden::fromJson(nlohmann::json::parse(R"({"windows": {"robot": false, "x": 1}})"));
+    REQUIRE(s.windows.at("robot").visible == false);
+    REQUIRE(s.windows.at("robot").height == 300.0F);
+    REQUIRE_FALSE(s.windows.contains("x"));
 }
 
 TEST_CASE("fromJson keeps defaults for missing or malformed keys", "[gorden][settings]") {
