@@ -9,10 +9,10 @@ module;
 #include <string>
 #include <utility>
 
-// The Conan glfw recipe ships an X11-only build, so we only enable X11
-// native handles here. The on-Wayland path runs through XWayland, which is
-// also bgfx's safest Linux target until we vendor a Wayland-capable glfw
-// and validate bgfx's Wayland renderer end-to-end.
+// The Conan glfw package is built with both Linux backends, but only X11
+// native handles are exposed here and the platform is pinned to X11 below.
+// On a Wayland session that means XWayland, which is bgfx's safest Linux
+// target until the native Wayland path is validated end-to-end.
 #if defined(__linux__)
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
@@ -30,6 +30,11 @@ std::atomic<int> g_glfwRefcount{0};
 
 auto retainGlfw() -> bool {
     if (g_glfwRefcount.fetch_add(1) == 0) {
+#if defined(__linux__)
+        // GLFW would otherwise prefer Wayland whenever WAYLAND_DISPLAY is
+        // set; keep the X11 (XWayland) path until Wayland is wired up.
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+#endif
         if (glfwInit() == GLFW_FALSE) {
             g_glfwRefcount.fetch_sub(1);
             return false;

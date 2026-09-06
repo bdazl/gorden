@@ -107,6 +107,10 @@ preset takes 10–20 minutes and bifurcates the Conan cache.
 | Custom Conan recipe  | Reserved for cases where FetchContent doesn't suffice; nothing in the tree today. |
 
 bgfx (+ bx, bimg, shaderc) and miniaudio currently come in via FetchContent.
+glfw is built with both Linux backends (`glfw/*:with_wayland=True`, set
+from `configure()` in `conanfile.py`); the recipe then builds libwayland,
+xkbcommon and wayland-protocols from source, and GLFW chooses the platform
+at runtime.
 libcurl comes from Conan with its default options, which on Linux means an
 OpenSSL-backed HTTPS stack; the first `make bootstrap` after adding it
 builds OpenSSL from source (several minutes, once per Conan cache).

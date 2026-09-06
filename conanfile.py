@@ -22,6 +22,15 @@ class Roboslop(ConanFile):
     version = "0.0.1"
     settings = "os", "compiler", "build_type", "arch"
 
+    def configure(self):
+        # Build glfw with both Linux backends. The recipe defaults to X11
+        # only; with_wayland pulls in wayland (shared), xkbcommon with its
+        # Wayland support, and wayland-protocols as a tool requirement.
+        # GLFW picks the platform at runtime (Wayland when WAYLAND_DISPLAY
+        # is set, X11 otherwise), so one package serves both sessions.
+        if self.settings.os == "Linux":
+            self.options["glfw"].with_wayland = True
+
     def requirements(self):
         # Windowing, ECS, math, logging, formatting, serialisation.
         self.requires("glfw/3.4")

@@ -78,10 +78,12 @@ demo scene, not a game, which is intentional at this stage.
   `FILE_SET cxx_modules`). MSVC is tracking but not validated.
 - **CMake 3.30+**, **Ninja**.
 - **Conan 2.x**, **Python 3.10+**.
-- **Linux X11/Wayland dev libs**: glfw pulls `xorg/system` which probes
-  pkg-config for `libxres`, `libxcb`, `libxcursor`, `libxinerama`,
-  `libxrandr`, `libxi`, `libxkbcommon`. On Arch:
-  `sudo pacman -S libxres libxcb libxcursor libxinerama libxrandr libxi libxkbcommon`.
+- **Linux X11/Wayland dev libs**: glfw is built with both backends. The
+  X11 side pulls `xorg/system`, which probes pkg-config for `libxres`,
+  `libxcb`, `libxcursor`, `libxinerama`, `libxrandr`, `libxi`,
+  `libxkbcommon`; the Wayland side builds libwayland and xkbcommon from
+  source but needs the system `xkeyboard-config` data. On Arch:
+  `sudo pacman -S libxres libxcb libxcursor libxinerama libxrandr libxi libxkbcommon xkeyboard-config`.
   Conan profiles ship with `tools.system.package_manager:mode=report` so
   Conan never runs `pacman`/`apt` itself — install the libs manually.
 
