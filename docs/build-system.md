@@ -110,7 +110,12 @@ bgfx (+ bx, bimg, shaderc) and miniaudio currently come in via FetchContent.
 glfw is built with both Linux backends (`glfw/*:with_wayland=True`, set
 from `configure()` in `conanfile.py`); the recipe then builds libwayland,
 xkbcommon and wayland-protocols from source, and GLFW chooses the platform
-at runtime.
+at runtime. Those Conan-built libraries are build-time only: GLFW
+`dlopen()`s libwayland-client, libwayland-cursor, libwayland-egl and
+libxkbcommon by soname, so `engine/CMakeLists.txt` strips them from the
+glfw link interface and keeps just the Conan wayland header (needed by
+`glfw3native.h`). At runtime the session's own copies are used; a Wayland
+desktop always ships them.
 libcurl comes from Conan with its default options, which on Linux means an
 OpenSSL-backed HTTPS stack; the first `make bootstrap` after adding it
 builds OpenSSL from source (several minutes, once per Conan cache).

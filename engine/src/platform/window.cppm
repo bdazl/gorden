@@ -9,12 +9,13 @@ module;
 #include <string>
 #include <utility>
 
-// The Conan glfw package is built with both Linux backends, but only X11
-// native handles are exposed here and the platform is pinned to X11 below.
-// On a Wayland session that means XWayland, which is bgfx's safest Linux
-// target until the native Wayland path is validated end-to-end.
+// The Conan glfw package is built with both Linux backends and picks one
+// at runtime (Wayland when WAYLAND_DISPLAY is set, X11 otherwise), so both
+// sets of native handles are exposed and nativeHandles() asks GLFW which
+// platform it ended up on.
 #if defined(__linux__)
 #define GLFW_EXPOSE_NATIVE_X11
+#define GLFW_EXPOSE_NATIVE_WAYLAND
 #include <GLFW/glfw3native.h>
 #endif
 
@@ -30,11 +31,6 @@ std::atomic<int> g_glfwRefcount{0};
 
 auto retainGlfw() -> bool {
     if (g_glfwRefcount.fetch_add(1) == 0) {
-#if defined(__linux__)
-        // GLFW would otherwise prefer Wayland whenever WAYLAND_DISPLAY is
-        // set; keep the X11 (XWayland) path until Wayland is wired up.
-        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-#endif
         if (glfwInit() == GLFW_FALSE) {
             g_glfwRefcount.fetch_sub(1);
             return false;
@@ -126,6 +122,11 @@ export class Window {
         }
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+#if defined(__linux__)
+        // X11 derives the WM_CLASS from the title; Wayland's app_id has no
+        // default, and compositor window rules key on it.
+        glfwWindowHintString(GLFW_WAYLAND_APP_ID, cfg.title.c_str());
+#endif
         auto* handle = glfwCreateWindow(cfg.width, cfg.height, cfg.title.c_str(), nullptr, nullptr);
         if (handle == nullptr) {
             releaseGlfw();
@@ -216,12 +217,27 @@ export class Window {
         }
     }
 
+    // Handles for the platform GLFW actually initialised on. On Wayland the
+    // window handle is the wl_surface*; bgfx creates its own wl_egl_window
+    // or VkSurfaceKHR from it.
     [[nodiscard]] auto nativeHandles() const -> NativeHandles {
         NativeHandles out;
 #if defined(__linux__)
-        out.platform = NativePlatform::X11;
-        out.display = glfwGetX11Display();
-        out.window = reinterpret_cast<void*>(static_cast<std::uintptr_t>(glfwGetX11Window(handle)));
+        switch (glfwGetPlatform()) {
+        case GLFW_PLATFORM_WAYLAND:
+            out.platform = NativePlatform::Wayland;
+            out.display = glfwGetWaylandDisplay();
+            out.window = glfwGetWaylandWindow(handle);
+            break;
+        case GLFW_PLATFORM_X11:
+            out.platform = NativePlatform::X11;
+            out.display = glfwGetX11Display();
+            out.window =
+                reinterpret_cast<void*>(static_cast<std::uintptr_t>(glfwGetX11Window(handle)));
+            break;
+        default:
+            break;
+        }
 #endif
         return out;
     }

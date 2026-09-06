@@ -11,6 +11,33 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-06 — Native Wayland through GLFW's runtime platform selection
+
+**Decision.** The Conan glfw package is built with both Linux backends
+and GLFW picks one at init (Wayland when `WAYLAND_DISPLAY` is set, X11
+otherwise). `Window::nativeHandles()` asks `glfwGetPlatform()` and hands
+bgfx a `wl_display`/`wl_surface` pair or an X11 display/window
+accordingly; `RenderContext` already tagged the Wayland handle type.
+The Wayland `app_id` is set from the window title so compositor rules
+see the same identity X11's `WM_CLASS` gave. The Conan-built libwayland
+and xkbcommon are not linked: GLFW loads them with `dlopen()` by soname,
+so the session's own libraries are what run.
+
+**Why.** Running through XWayland meant the app saw XWayland's keymap,
+not the compositor's, and anything that rewrites the X keymap (fcitx5's
+xcb module, for one) changed the app's layout under it. Native Wayland
+reads the keymap the compositor sends. Linking the Conan copies would
+have loaded a second libwayland-client next to the one libdecor pulls
+from the system, and the Conan xkbcommon looks for Compose tables inside
+the Conan cache, which silently disables dead keys. bgfx's Vulkan path
+creates the surface with `VK_KHR_wayland_surface`; the OpenGL path
+`dlopen()`s libwayland-egl itself, so no bgfx build flag is needed.
+
+**Where.** `conanfile.py` (`configure()`), `engine/CMakeLists.txt`
+("GLFW on Linux"), `engine/src/platform/window.cppm`.
+
+---
+
 ## 2026-09-06 — The API key lives in its own file, not in the settings document
 
 **Decision.** `gorden.llm_config` reads `configDir()/llm.json`

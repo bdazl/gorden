@@ -129,6 +129,25 @@ roboslop_compile_shader(
 )
 add_dependencies(roboslop ${ui_vs_target} ${ui_fs_target})
 
+# --- GLFW on Linux --------------------------------------------------------
+# GLFW's Wayland backend dlopen()s libwayland-client, libwayland-cursor,
+# libwayland-egl and libxkbcommon by soname and never references their
+# symbols directly, so the session's own copies are the ones to run against
+# (the Conan-built xkbcommon, for one, looks for Compose tables inside the
+# Conan cache and finds none, which kills dead keys). The Conan target
+# would DT_NEEDED the Conan-built copies and put their directories on the
+# RUNPATH; drop them from the link interface and keep only the header,
+# which glfw3native.h needs for the wl_* types.
+if(LINUX)
+    get_target_property(_glfw_deps glfw_DEPS_TARGET INTERFACE_LINK_LIBRARIES)
+    string(REGEX REPLACE "xkbcommon::xkbcommon;?" "" _glfw_deps "${_glfw_deps}")
+    string(REGEX REPLACE ";?wayland::wayland" "" _glfw_deps "${_glfw_deps}")
+    set_property(TARGET glfw_DEPS_TARGET PROPERTY INTERFACE_LINK_LIBRARIES "${_glfw_deps}")
+    target_include_directories(roboslop PRIVATE
+        "${wayland_PACKAGE_FOLDER_${roboslop_cfg_upper}}/include"
+    )
+endif()
+
 target_link_libraries(roboslop PUBLIC
     glfw
     glm::glm
