@@ -1,6 +1,7 @@
 module;
 
 #include <GLFW/glfw3.h>
+#include <spdlog/spdlog.h>
 
 #include <atomic>
 #include <cstdint>
@@ -29,8 +30,16 @@ namespace {
 
 std::atomic<int> g_glfwRefcount{0};
 
+// GLFW reports errors only through this callback; without it a failing
+// platform call (a Wayland protocol error, an unsupported feature) is
+// silent. Set before glfwInit so init failures are reported too.
+auto glfwErrorCallback(int code, const char* description) -> void {
+    spdlog::error("glfw: {} (error {:#x})", description, code);
+}
+
 auto retainGlfw() -> bool {
     if (g_glfwRefcount.fetch_add(1) == 0) {
+        glfwSetErrorCallback(&glfwErrorCallback);
         if (glfwInit() == GLFW_FALSE) {
             g_glfwRefcount.fetch_sub(1);
             return false;
