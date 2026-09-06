@@ -26,11 +26,19 @@ set(BGFX_BUILD_EXAMPLES OFF CACHE BOOL "")
 set(BGFX_BUILD_TESTS    OFF CACHE BOOL "")
 set(BGFX_INSTALL        OFF CACHE BOOL "")
 
+# Local patches live under patches/ and are applied to the bgfx submodule
+# after checkout; see patches/apply.cmake. Each one should be on its way
+# upstream, and gets dropped once the pinned commit contains it.
+set(bgfx_patch_dir "${CMAKE_CURRENT_SOURCE_DIR}/patches")
 FetchContent_Declare(
     bgfx_cmake
     GIT_REPOSITORY https://github.com/bkaradzic/bgfx.cmake.git
     GIT_TAG        ${BGFX_CMAKE_GIT_TAG}
     GIT_SUBMODULES_RECURSE TRUE
+    PATCH_COMMAND  ${CMAKE_COMMAND}
+        -DSOURCE_DIR=<SOURCE_DIR>/bgfx
+        -DPATCH=${bgfx_patch_dir}/bgfx-vk-surface-lost-on-swapchain-create.patch
+        -P ${bgfx_patch_dir}/apply.cmake
 )
 FetchContent_MakeAvailable(bgfx_cmake)
 

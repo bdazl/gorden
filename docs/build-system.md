@@ -105,6 +105,7 @@ preset takes 10–20 minutes and bifurcates the Conan cache.
 | On Conan Center      | `self.requires("name/version")` in [`conanfile.py`](../conanfile.py); `find_package(Name CONFIG REQUIRED)` from CMake. |
 | Not on Conan Center  | `FetchContent_Declare` in [`third_party/CMakeLists.txt`](../third_party/CMakeLists.txt) with a pinned SHA or tag. Fetched sources land under `build/<preset>/_deps/` (gitignored). |
 | Custom Conan recipe  | Reserved for cases where FetchContent doesn't suffice; nothing in the tree today. |
+| Local patch to a FetchContent dependency | A git-format patch under [`third_party/patches/`](../third_party/patches/), applied by `patches/apply.cmake` through `PATCH_COMMAND`. Idempotent, so reconfigures and updates don't double-apply. Each patch should be heading upstream; drop it when the pinned commit contains it. |
 
 bgfx (+ bx, bimg, shaderc) and miniaudio currently come in via FetchContent.
 glfw is built with both Linux backends (`glfw/*:with_wayland=True`, set

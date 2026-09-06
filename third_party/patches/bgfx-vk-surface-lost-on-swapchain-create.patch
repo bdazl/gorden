@@ -1,0 +1,29 @@
+diff --git a/src/renderer_vk.cpp b/src/renderer_vk.cpp
+index e4c1b7c68..4b5d55ced 100644
+--- a/src/renderer_vk.cpp
++++ b/src/renderer_vk.cpp
+@@ -7473,7 +7473,23 @@ retry:
+ 					return;
+ 				}
+ 
+-				VK_CHECK(createSwapChain() );
++				result = createSwapChain();
++
++				// Some WSI implementations (NVIDIA on Wayland, for one) report a
++				// lost surface from vkCreateSwapchainKHR rather than from
++				// acquire/present. Treat it the same way: drop the surface and
++				// rebuild both on the next frame instead of failing hard.
++				if (VK_ERROR_SURFACE_LOST_KHR == result)
++				{
++					BX_TRACE("Surface lost while creating the swapchain; recreating the surface.");
++					m_needToRecreateSurface   = true;
++					m_needToRecreateSwapchain = true;
++					m_sci.oldSwapchain = VK_NULL_HANDLE;
++					s_renderVK->kick(true);
++					return;
++				}
++
++				VK_CHECK(result);
+ 			}
+ 
+ 			VK_CHECK(createAttachments(_commandBuffer) );

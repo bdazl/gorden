@@ -11,6 +11,28 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-06 — bgfx is patched to survive a lost surface during swapchain creation
+
+**Decision.** `third_party/patches/` holds git patches applied to the
+bgfx checkout by `FetchContent`'s `PATCH_COMMAND`. The first one makes
+`SwapChainVK::update()` treat `VK_ERROR_SURFACE_LOST_KHR` from
+`vkCreateSwapchainKHR` like the same error from acquire/present: flag
+the surface and swapchain for recreation and return, instead of
+tripping the fatal `VK_CHECK`.
+
+**Why.** Gorden died after a while on Hyprland with the NVIDIA driver:
+a resolution update recreated the swapchain and the WSI answered
+`SURFACE_LOST`, which bgfx only handles when it comes from acquire or
+present. The trigger has not been reproduced; the patch removes the
+hard crash so the next occurrence leaves a trace line and a recovered
+window rather than a core dump. Patching beats forking: the change is
+one hunk, bgfx.cmake stays pinned, and the patch is dropped once it
+lands upstream.
+
+**Where.** `third_party/patches/`, `third_party/CMakeLists.txt`.
+
+---
+
 ## 2026-09-06 — Native Wayland through GLFW's runtime platform selection
 
 **Decision.** The Conan glfw package is built with both Linux backends
