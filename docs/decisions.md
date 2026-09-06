@@ -11,6 +11,25 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-06 — The API key lives in its own file, not in the settings document
+
+**Decision.** `gorden.llm_config` reads `configDir()/llm.json`
+(`apiKey`, optional `model`, `baseUrl`) at startup; `OPENAI_API_KEY`,
+`GORDEN_MODEL` and `OPENAI_BASE_URL` override it. The app never writes
+the file and warns if it is group- or world-readable.
+
+**Why.** Typing the key on every launch was the friction. It cannot go
+into `gorden.json`: that document is mounted as
+`/etc/gorden/settings.json` in the robot's sandbox, so the model could
+read and echo its own key. A separate, read-only, unmounted file keeps
+the secret out of the agent's reach and out of anything the app
+serialises. Environment first so one-off runs and CI need no file.
+
+**Where.** `apps/gorden/src/agent/llm_config.cppm`,
+`makeProvider()` in `apps/gorden/src/app/main.cpp`.
+
+---
+
 ## 2026-09-05 — Dev windows are registered with the engine; the app only draws contents
 
 **Decision.** `DevUi` owns a window registry: apps call

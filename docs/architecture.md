@@ -109,8 +109,12 @@ The agent code is the `gorden_agent` module library
   per player message; provider errors are logged and never retried on
   their own.
 
-The provider is chosen at startup: `OPENAI_API_KEY` set → the
-OpenAI-compatible backend, otherwise the scripted demo.
+The provider is chosen at startup from `gorden.llm_config`: an API key
+in `configDir()/llm.json` (`apiKey`, optional `model` / `baseUrl`) or in
+`OPENAI_API_KEY` → the OpenAI-compatible backend, otherwise the scripted
+demo. Environment variables (`OPENAI_API_KEY`, `GORDEN_MODEL`,
+`OPENAI_BASE_URL`) override the file. The file is read once, never
+written by the app, and never mounted into the robot's filesystem.
 
 `gorden.settings` holds what the player can change — player name, robot
 name (default "Gorden"), which dev windows are open — as JSON at

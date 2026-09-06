@@ -2,6 +2,7 @@ import gorden.agent.brain;
 import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.settings;
+import gorden.llm_config;
 import roboslop.app;
 import roboslop.audio;
 import roboslop.core.error;
@@ -38,7 +39,6 @@ import roboslop.vfs;
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <cstring>
 #include <expected>
 #include <filesystem>
@@ -49,6 +49,7 @@ import roboslop.vfs;
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 namespace {
@@ -277,27 +278,54 @@ auto drawSettingsPanel(roboslop::World& world, SettingsState& st, gorden::AgentB
     }
 }
 
-// OPENAI_API_KEY present → the OpenAI-compatible backend (model and
-// base URL overridable via GORDEN_MODEL / OPENAI_BASE_URL, so the same
+// The key file should be private to the user (chmod 600). Only a
+// warning: the app never changes permissions on files it does not own.
+auto warnIfKeyFileIsShared(const std::filesystem::path& path) -> void {
+    std::error_code ec;
+    const auto perms = std::filesystem::status(path, ec).permissions();
+    constexpr auto Shared =
+        std::filesystem::perms::group_read | std::filesystem::perms::others_read;
+    if (!ec && (perms & Shared) != std::filesystem::perms::none) {
+        spdlog::warn("gorden: {} is readable by other users; consider chmod 600", path.string());
+    }
+}
+
+// A key in configDir()/llm.json or OPENAI_API_KEY → the OpenAI-compatible
+// backend (model and base URL from the same two places, so the same
 // code targets a llama.cpp server). Otherwise a scripted demo so the
 // whole chain still runs. The key is read once and never logged.
 auto makeProvider() -> std::unique_ptr<roboslop::Provider> {
-    const char* key = std::getenv("OPENAI_API_KEY");
-    if (key != nullptr && key[0] != '\0') {
+    const auto path = gorden::llmConfigPath();
+    gorden::LlmConfig llm;
+    if (auto loaded = gorden::loadLlmConfig(path); loaded) {
+        llm = std::move(*loaded);
+    } else {
+        spdlog::warn(
+            "gorden: {} unreadable ({}); ignoring it", path.string(), loaded.error().context
+        );
+    }
+    if (!llm.apiKey.empty()) {
+        warnIfKeyFileIsShared(path);
+    }
+    gorden::applyEnvOverrides(llm);
+    if (!llm.apiKey.empty()) {
         roboslop::OpenAiConfig cfg;
-        cfg.apiKey = key;
-        if (const char* model = std::getenv("GORDEN_MODEL"); model != nullptr && model[0] != '\0') {
-            cfg.model = model;
+        cfg.apiKey = std::move(llm.apiKey);
+        if (!llm.model.empty()) {
+            cfg.model = llm.model;
         }
-        if (const char* base = std::getenv("OPENAI_BASE_URL"); base != nullptr && base[0] != '\0') {
-            cfg.baseUrl = base;
+        if (!llm.baseUrl.empty()) {
+            cfg.baseUrl = llm.baseUrl;
         }
         spdlog::info(
             "gorden: LLM backend openai-compatible, model={}, base={}", cfg.model, cfg.baseUrl
         );
         return std::make_unique<roboslop::OpenAiProvider>(std::move(cfg));
     }
-    spdlog::warn("gorden: OPENAI_API_KEY not set; using the scripted demo provider");
+    spdlog::warn(
+        "gorden: no API key in {} or OPENAI_API_KEY; using the scripted demo provider",
+        path.string()
+    );
     auto say = [](std::string text, std::string id) {
         return roboslop::ToolCall{
             .id = std::move(id),
@@ -313,7 +341,8 @@ auto makeProvider() -> std::unique_ptr<roboslop::Provider> {
             .finishReason = "tool_calls",
         },
         roboslop::ChatResponse{
-            .toolCalls = {say("I am at the generator. Set OPENAI_API_KEY for a real brain.", "s3")},
+            .toolCalls =
+                {say("I am at the generator. Put a key in llm.json for a real brain.", "s3")},
             .finishReason = "tool_calls",
         },
     };

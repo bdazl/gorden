@@ -58,8 +58,9 @@ exists today, all driven by the Gorden demo:
 - In Gorden: the first agent loop. The robot receives a structured
   observation, proposes `moveTo` / `inspect` / `say` tool calls, the
   app validates them, and the simulation executes them. Talk to it in
-  the "Robot" panel; set `OPENAI_API_KEY` for a real model, otherwise a
-  scripted provider runs the same chain. Player and robot names live in
+  the "Robot" panel; put an API key in `~/.config/roboslop/llm.json`
+  (or set `OPENAI_API_KEY`) for a real model, otherwise a scripted
+  provider runs the same chain. Player and robot names live in
   `~/.config/roboslop/gorden.json` (Settings window).
 - Developer tooling: a window registry with a View menu (F1 toggles the
   overlay), an in-memory virtual filesystem with live and host mounts,
@@ -98,6 +99,16 @@ make shaderlab     # build only shaderlab, then run it
 make run-<app>     # run without building (make run APP=<app> also works)
 OPENAI_API_KEY=sk-... make gorden   # robot with a real LLM (gpt-4.1-mini by default)
 ```
+
+To avoid passing the key every time, keep it in `~/.config/roboslop/llm.json`
+(`chmod 600` it; the app only reads this file and never shows it to the robot):
+
+```json
+{ "apiKey": "sk-...", "model": "gpt-4.1-mini", "baseUrl": "https://api.openai.com/v1" }
+```
+
+`model` and `baseUrl` are optional. `OPENAI_API_KEY`, `GORDEN_MODEL` and
+`OPENAI_BASE_URL` override the file when set.
 
 Other presets: `make build PRESET=release|relwithdebinfo|asan-ubsan|tsan`.
 The `tsan` preset uses a dedicated Conan profile that rebuilds the entire
