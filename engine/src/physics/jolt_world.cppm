@@ -259,7 +259,7 @@ export auto installJoltWorld(World& world, JoltWorld& jw) -> void {
 
 namespace detail {
 
-[[nodiscard]] inline auto joltWorldFrom(World& world) -> JoltWorld& {
+[[nodiscard]] static inline auto joltWorldFrom(World& world) -> JoltWorld& {
     return *world.registry().ctx().get<JoltWorld*>();
 }
 

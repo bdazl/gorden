@@ -70,7 +70,7 @@ export [[nodiscard]] auto buildObservation(
     return obs;
 }
 
-[[nodiscard]] auto vec3Json(const glm::vec3& v) -> nlohmann::json {
+[[nodiscard]] static auto vec3Json(const glm::vec3& v) -> nlohmann::json {
     // Two decimals: enough for a 10 m yard, fewer tokens for the model.
     auto r = [](float f) { return static_cast<double>(static_cast<int>(f * 100.0F)) / 100.0; };
     return {{"x", r(v.x)}, {"y", r(v.y)}, {"z", r(v.z)}};

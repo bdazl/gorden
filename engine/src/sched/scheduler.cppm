@@ -56,7 +56,7 @@ export struct SystemDesc {
 
 namespace detail {
 
-[[nodiscard]] inline auto
+[[nodiscard]] static inline auto
 anyIntersect(std::span<const std::string_view> a, std::span<const std::string_view> b) noexcept
     -> bool {
     for (const auto& x : a) {
@@ -69,7 +69,8 @@ anyIntersect(std::span<const std::string_view> a, std::span<const std::string_vi
     return false;
 }
 
-[[nodiscard]] inline auto conflicts(const SystemDesc& a, const SystemDesc& b) noexcept -> bool {
+[[nodiscard]] static inline auto conflicts(const SystemDesc& a, const SystemDesc& b) noexcept
+    -> bool {
     return anyIntersect(a.writes, b.writes) || anyIntersect(a.writes, b.reads) ||
            anyIntersect(a.reads, b.writes);
 }

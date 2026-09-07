@@ -120,7 +120,7 @@ export [[nodiscard]] auto makeSortKey(
     const std::uint64_t vc = static_cast<std::uint64_t>(viewClass & 0x3U) << 62U;
     const std::uint64_t vi = static_cast<std::uint64_t>(viewId) << 46U;
     const std::uint64_t pg = static_cast<std::uint64_t>(programIdx & 0xFFFFFFU) << 22U;
-    const std::uint64_t dp = static_cast<std::uint64_t>(depth22 & 0x3FFFFFU);
+    const auto dp = static_cast<std::uint64_t>(depth22 & 0x3FFFFFU);
     return vc | vi | pg | dp;
 }
 
@@ -231,7 +231,7 @@ export auto rebindProgram(World& world, bgfx::ProgramHandle from, bgfx::ProgramH
 
 // In-place sort. std::sort on a contiguous span is heap-free.
 export auto sortDraws(std::span<DrawItem> items) -> void {
-    std::sort(items.begin(), items.end(), [](const DrawItem& a, const DrawItem& b) noexcept {
+    std::ranges::sort(items, [](const DrawItem& a, const DrawItem& b) noexcept {
         return a.sortKey < b.sortKey;
     });
 }

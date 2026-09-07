@@ -117,7 +117,7 @@ namespace detail {
 
 // Shared tail of both loaders: validate, copy into bgfx memory, free the
 // stbi buffer, create the texture. `context` names the source in errors.
-auto uploadPixels(stbi_uc* pixels, int width, int height, const std::string& context)
+static auto uploadPixels(stbi_uc* pixels, int width, int height, const std::string& context)
     -> Result<bgfx::TextureHandle> {
     if (pixels == nullptr) {
         std::string ctx = context;

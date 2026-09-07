@@ -69,14 +69,15 @@ export struct HttpResponse {
 
 namespace detail {
 
-auto ensureCurlGlobalInit() -> bool {
+static auto ensureCurlGlobalInit() -> bool {
     static std::once_flag once;
     static bool ok = false;
     std::call_once(once, [] { ok = curl_global_init(CURL_GLOBAL_DEFAULT) == CURLE_OK; });
     return ok;
 }
 
-auto writeToString(char* ptr, std::size_t size, std::size_t nmemb, void* userdata) -> std::size_t {
+static auto writeToString(char* ptr, std::size_t size, std::size_t nmemb, void* userdata)
+    -> std::size_t {
     auto* out = static_cast<std::string*>(userdata);
     out->append(ptr, size * nmemb);
     return size * nmemb;

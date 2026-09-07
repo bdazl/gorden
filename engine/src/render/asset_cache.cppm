@@ -166,7 +166,7 @@ export class AssetCache {
         }
     };
 
-    auto destroyUniformMap(std::unordered_map<std::string, bgfx::UniformHandle>& m) noexcept
+    static auto destroyUniformMap(std::unordered_map<std::string, bgfx::UniformHandle>& m) noexcept
         -> void {
         for (auto& [_, handle] : m) {
             if (bgfx::isValid(handle)) {

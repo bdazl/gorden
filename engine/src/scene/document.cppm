@@ -58,7 +58,7 @@ export [[nodiscard]] auto sceneError(std::string context) -> Error {
 namespace detail {
 // Relative, inside the asset root: no root name, no leading separator,
 // no `..` component.
-auto modelPathValid(const std::string& model) -> bool {
+static auto modelPathValid(const std::string& model) -> bool {
     if (model.empty()) {
         return false;
     }
@@ -123,11 +123,11 @@ export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<vo
 }
 
 namespace detail {
-auto vectorJson(const glm::vec3& v) -> nlohmann::json {
+static auto vectorJson(const glm::vec3& v) -> nlohmann::json {
     return {v.x, v.y, v.z};
 }
 
-auto transformJson(const Transform& t) -> nlohmann::json {
+static auto transformJson(const Transform& t) -> nlohmann::json {
     return {
         {"position", vectorJson(t.position)},
         {"scale", vectorJson(t.scale)},
@@ -135,14 +135,14 @@ auto transformJson(const Transform& t) -> nlohmann::json {
     };
 }
 
-auto readVector(const nlohmann::json& j) -> glm::vec3 {
+static auto readVector(const nlohmann::json& j) -> glm::vec3 {
     if (!j.is_array() || j.size() != 3) {
         return {NAN, NAN, NAN};
     }
     return {j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()};
 }
 
-auto readTransform(const nlohmann::json& j) -> Transform {
+static auto readTransform(const nlohmann::json& j) -> Transform {
     const auto& q = j.at("rotation");
     Transform t{.position = readVector(j.at("position")), .scale = readVector(j.at("scale"))};
     if (!q.is_array() || q.size() != 4) {

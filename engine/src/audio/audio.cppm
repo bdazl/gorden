@@ -37,7 +37,7 @@ export auto installAudioDevice(World& world, AudioDevice& device) -> void {
 
 namespace detail {
 
-[[nodiscard]] inline auto audioDeviceFrom(World& world) -> AudioDevice& {
+[[nodiscard]] static inline auto audioDeviceFrom(World& world) -> AudioDevice& {
     return *world.registry().ctx().get<AudioDevice*>();
 }
 

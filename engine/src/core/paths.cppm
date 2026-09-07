@@ -15,12 +15,12 @@ namespace roboslop {
 
 namespace detail {
 
-[[nodiscard]] auto envPath(const char* name) -> std::filesystem::path {
+[[nodiscard]] static auto envPath(const char* name) -> std::filesystem::path {
     const char* v = std::getenv(name);
     return (v != nullptr && v[0] != '\0') ? std::filesystem::path{v} : std::filesystem::path{};
 }
 
-[[nodiscard]] auto homeDir() -> std::filesystem::path {
+[[nodiscard]] static auto homeDir() -> std::filesystem::path {
     auto home = envPath("HOME");
     if (home.empty()) {
         home = envPath("USERPROFILE");

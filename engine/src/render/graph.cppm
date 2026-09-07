@@ -49,7 +49,8 @@ export struct PassDesc {
 
 namespace detail {
 
-[[nodiscard]] inline auto passesConflict(const PassDesc& a, const PassDesc& b) noexcept -> bool {
+[[nodiscard]] static inline auto passesConflict(const PassDesc& a, const PassDesc& b) noexcept
+    -> bool {
     auto any = [](std::span<const std::string_view> xs,
                   std::span<const std::string_view> ys) noexcept -> bool {
         for (const auto& x : xs) {

@@ -151,7 +151,7 @@ export [[nodiscard]] auto modelBounds(const ModelAsset& model) -> Aabb {
 namespace detail {
 
 // Assimp matrices are row-major; glm's are column-major.
-auto toGlm(const aiMatrix4x4& m) -> glm::mat4 {
+static auto toGlm(const aiMatrix4x4& m) -> glm::mat4 {
     return glm::mat4{
         m.a1,
         m.b1,
@@ -172,7 +172,7 @@ auto toGlm(const aiMatrix4x4& m) -> glm::mat4 {
     };
 }
 
-auto convertMesh(const aiMesh& mesh, const std::string& context) -> Result<MeshAsset> {
+static auto convertMesh(const aiMesh& mesh, const std::string& context) -> Result<MeshAsset> {
     if (mesh.mNumVertices == 0U || mesh.mNumFaces == 0U) {
         return std::unexpected(toError(MeshLoaderError::EmptyMesh, context));
     }
@@ -215,7 +215,8 @@ auto convertMesh(const aiMesh& mesh, const std::string& context) -> Result<MeshA
     return out;
 }
 
-auto convertMaterial(const aiScene& scene, const aiMaterial& material, const std::string& context)
+static auto
+convertMaterial(const aiScene& scene, const aiMaterial& material, const std::string& context)
     -> Result<ModelMaterial> {
     ModelMaterial out;
     aiString name;
@@ -247,7 +248,7 @@ auto convertMaterial(const aiScene& scene, const aiMaterial& material, const std
     return out;
 }
 
-auto collectParts(
+static auto collectParts(
     const aiScene& scene,
     const aiNode& node,
     const aiMatrix4x4& parent,

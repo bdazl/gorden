@@ -220,7 +220,7 @@ export using CommandFn = std::function<ShellResult(CommandContext&)>;
 
 namespace detail {
 
-[[nodiscard]] auto errorResult(std::string_view cmd, const Error& e) -> ShellResult {
+[[nodiscard]] static auto errorResult(std::string_view cmd, const Error& e) -> ShellResult {
     std::string text = std::format("{}: {}", cmd, e.message);
     if (!e.context.empty()) {
         text += std::format(": {}", e.context);
@@ -228,11 +228,11 @@ namespace detail {
     return {.output = text + "\n", .status = 1};
 }
 
-[[nodiscard]] auto usage(std::string_view text) -> ShellResult {
+[[nodiscard]] static auto usage(std::string_view text) -> ShellResult {
     return {.output = std::format("usage: {}\n", text), .status = 2};
 }
 
-[[nodiscard]] auto splitLines(std::string_view text) -> std::vector<std::string> {
+[[nodiscard]] static auto splitLines(std::string_view text) -> std::vector<std::string> {
     std::vector<std::string> lines;
     std::size_t i = 0;
     while (i < text.size()) {
@@ -254,8 +254,8 @@ struct Parsed {
     std::map<char, std::string> flags; // value for flags that take one, "" otherwise
 };
 
-[[nodiscard]] auto parseArgs(const std::vector<std::string>& args, std::string_view withValue)
-    -> Parsed {
+[[nodiscard]] static auto
+parseArgs(const std::vector<std::string>& args, std::string_view withValue) -> Parsed {
     Parsed p;
     for (std::size_t i = 1; i < args.size(); ++i) {
         const auto& a = args[i];

@@ -38,7 +38,7 @@ namespace detail {
 // the index of the lower frame and the local interpolation parameter
 // in [0, 1]. Clamps at the ends.
 template <typename T>
-[[nodiscard]] auto findKeyframe(std::span<const double> times, double t) noexcept
+[[nodiscard]] static auto findKeyframe(std::span<const double> times, double t) noexcept
     -> std::pair<std::size_t, double> {
     if (times.empty() || t <= times.front()) {
         return {0, 0.0};

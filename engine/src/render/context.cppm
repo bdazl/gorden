@@ -93,13 +93,13 @@ export class RenderContext {
         shutdown();
     }
 
-    auto beginFrame() noexcept -> void {
+    static auto beginFrame() noexcept -> void {
         // touch ensures view 0 is submitted even when nothing draws, so the
         // clear actually paints the backbuffer.
         bgfx::touch(0);
     }
 
-    auto endFrame() noexcept -> void {
+    static auto endFrame() noexcept -> void {
         bgfx::frame();
     }
 
