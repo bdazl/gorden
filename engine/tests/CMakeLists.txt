@@ -25,7 +25,13 @@ add_executable(roboslop_tests
     lighting_test.cpp
     primitives_test.cpp
     scene_test.cpp
+    model_loader_test.cpp
     animation_test.cpp
+)
+
+# Checked-in fixtures (engine/tests/assets/) are read from the source tree.
+target_compile_definitions(roboslop_tests PRIVATE
+    ROBOSLOP_TEST_ASSETS="${CMAKE_CURRENT_SOURCE_DIR}/assets"
 )
 
 # Same language baseline as the engine so the imported PCMs match the

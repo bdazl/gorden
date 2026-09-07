@@ -18,3 +18,5 @@
 *.ogg binary
 *.flac binary
 *.mp3 binary
+*.glb binary
+*.blend binary

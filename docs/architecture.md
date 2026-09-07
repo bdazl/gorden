@@ -264,7 +264,9 @@ failures are `Error`s, HTTP status codes are data.
 
 ### Assets
 
-`roboslop.assets.mesh` wraps Assimp (`loadMeshFile`),
+`roboslop.assets.mesh` wraps Assimp (`loadModelFile`: every mesh in a
+glTF file as parts with node transforms, plus materials with base colour
+and packed textures — see [models](models.md)),
 `roboslop.assets.texture` wraps stb_image (`loadTexture2D`), and
 `roboslop.assets.shader_compiler` wraps the `shaderc` executable
 (`ShaderCompiler::compile`) for runtime recompilation — it spawns the

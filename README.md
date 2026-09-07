@@ -127,6 +127,7 @@ and bifurcates the Conan cache.
   principle, subsystem map, AI direction.
 - [Roadmap](docs/roadmap.md) — milestones and open questions.
 - [Build system](docs/build-system.md)
+- [Models from Blender](docs/models.md) — export checklist and loader contract.
 - [Decisions log](docs/decisions.md) — append-only history of choices.
 - [Commit conventions](docs/conventions/commits.md)
 - [Code-style conventions](docs/conventions/code-style.md)

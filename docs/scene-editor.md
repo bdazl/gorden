@@ -64,8 +64,9 @@ over the destination. A failed load keeps the editor's current document intact.
 
 This slice uses a flat object list and solid Lambert materials. Imported model
 scenes, hierarchy, prefabs, terrain brushes, textures in the scene format,
-collision visualization and snapping are future work. Existing Assimp loading
-still reads only a model's first mesh and is not exposed as scene import.
+collision visualization and snapping are future work. Model files load
+through `loadModelFile` (see [models](models.md)) but are not exposed as
+scene import yet.
 Gorden's robot still moves directly toward targets; walls do not add pathfinding.
 The known native-Wayland surface-loss issue remains separate from scene editing.
 

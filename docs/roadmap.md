@@ -203,7 +203,9 @@ preview of a running scene.
 **Open questions.**
 
 - The editor is a separate executable; JSON version 1 is the first scene format.
-- Hierarchy, imported models, prefabs and richer asset identity remain open.
+- Imported models have a format and loader (glTF via Assimp, see
+  [models](models.md)); referencing them from the scene format, hierarchy,
+  prefabs and richer asset identity remain open.
 - How much of the editor's UI is shared with Shader Lab's dev UI?
 
 ---
