@@ -51,6 +51,8 @@ triangulated on load.
   `glm::mat4`), `material` (index into `materials`), and a `MeshAsset`
   with position/normal/uv vertices and 32-bit indices; upload with the
   `std::uint32_t` overload of `makeStaticMesh`.
+- `modelBounds(model)`: an `Aabb` in model space over every transformed
+  part, the basis for picking and bounds-derived colliders.
 
 Assimp inserts a `DefaultMaterial` at index 0, so authored materials start
 at 1. Coordinates are right-handed, +Y up, metres. UVs keep glTF's

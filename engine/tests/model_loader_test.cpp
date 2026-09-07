@@ -15,6 +15,7 @@ import roboslop.assets.mesh;
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <ranges>
 #include <string>
 #include <vector>
@@ -169,6 +170,30 @@ TEST_CASE(
     REQUIRE(corner != sign[0]->mesh.vertices.end());
     CHECK(corner->uv[0] == Catch::Approx(0.0F));
     CHECK(corner->uv[1] == Catch::Approx(1.0F));
+}
+
+TEST_CASE("Model bounds cover every transformed part", "[assets][model]") {
+    REQUIRE(roboslop::modelBounds({}).max == glm::vec3{0.0F});
+
+    const auto model = roboslop::loadModelFile(kAssets / "crate.glb");
+    REQUIRE(model);
+    const auto bounds = roboslop::modelBounds(*model);
+    glm::vec3 lo{std::numeric_limits<float>::max()};
+    glm::vec3 hi{std::numeric_limits<float>::lowest()};
+    for (const auto& part : model->parts) {
+        for (const auto& v : part.mesh.vertices) {
+            lo = glm::min(lo, modelSpace(part, v));
+            hi = glm::max(hi, modelSpace(part, v));
+        }
+    }
+    REQUIRE(bounds.min == lo);
+    REQUIRE(bounds.max == hi);
+    // The ball sits at x = 3 and the crate rests on y = 0, so the box is
+    // neither centred nor symmetric.
+    REQUIRE(bounds.min.x == Catch::Approx(-1.0F));
+    REQUIRE(bounds.max.x > 3.0F);
+    REQUIRE(bounds.min.y == Catch::Approx(0.0F));
+    REQUIRE(bounds.max.y > 2.0F);
 }
 
 TEST_CASE("Models with more than 65535 vertices keep 32-bit indices", "[assets][model]") {

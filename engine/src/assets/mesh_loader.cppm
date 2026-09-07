@@ -3,8 +3,10 @@ module;
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <glm/common.hpp>
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -117,6 +119,34 @@ export struct ModelAsset {
     std::vector<ModelMaterial> materials;
     std::vector<ModelPart> parts;
 };
+
+export struct Aabb {
+    glm::vec3 min{0.0F};
+    glm::vec3 max{0.0F};
+};
+
+// Model-space bounds over every part with its transform applied. An
+// empty model yields a zero box at the origin. Scene picking and
+// bounds-derived colliders both start from this.
+export [[nodiscard]] auto modelBounds(const ModelAsset& model) -> Aabb {
+    Aabb box;
+    bool first = true;
+    for (const auto& part : model.parts) {
+        for (const auto& v : part.mesh.vertices) {
+            const auto p = glm::vec3(
+                part.transform * glm::vec4(v.position[0], v.position[1], v.position[2], 1)
+            );
+            if (first) {
+                box.min = box.max = p;
+                first = false;
+            } else {
+                box.min = glm::min(box.min, p);
+                box.max = glm::max(box.max, p);
+            }
+        }
+    }
+    return box;
+}
 
 namespace detail {
 
