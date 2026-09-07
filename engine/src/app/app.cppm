@@ -27,6 +27,7 @@ import roboslop.sched;
 import roboslop.time.clock;
 import roboslop.time.frame_stats;
 import roboslop.ui;
+import roboslop.ui.perf_window;
 
 namespace roboslop {
 
@@ -143,6 +144,13 @@ export class App {
         installAudioDevice(world, audio);
         if (ui) {
             installDevUi(world, *ui);
+        }
+
+        if (ui) {
+            ui->registerWindow(makePerfWindow(
+                stats,
+                RenderContext::multiThreaded() ? "bgfx multi-threaded" : "bgfx single-threaded"
+            ));
         }
 
         if (cfg.onSetup) {

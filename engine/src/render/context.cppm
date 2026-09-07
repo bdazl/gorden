@@ -128,6 +128,14 @@ export class RenderContext {
         bgfx::frame();
     }
 
+    // Whether bgfx runs its own render thread. Fixed for the life of the
+    // context; reported in the performance overlay so a measurement can
+    // be attributed to a threading model.
+    [[nodiscard]] static auto multiThreaded() noexcept -> bool {
+        const bgfx::Caps* caps = bgfx::getCaps();
+        return caps != nullptr && (caps->supported & BGFX_CAPS_RENDERER_MULTITHREADED) != 0;
+    }
+
     // Call after endFrame(). Converts bgfx's raw timer ticks to
     // milliseconds; a zero timer frequency (no GPU timer support) yields
     // zero rather than a division by zero.
