@@ -36,6 +36,20 @@ export [[nodiscard]] auto toError(RenderError e) -> Error {
     };
 }
 
+// What bgfx reports about the last frame it finished. That frame trails
+// the CPU frame the caller just submitted, so these are comparable to
+// each other rather than to the caller's own wall-clock timings.
+// waitSubmit/waitRender are how long each side of bgfx's submit/render
+// split waited for the other — zero on both when bgfx is single-threaded.
+export struct GpuFrameStats {
+    double gpuMs = 0.0;
+    double waitSubmitMs = 0.0;
+    double waitRenderMs = 0.0;
+    std::uint32_t drawCalls = 0;
+    std::uint16_t backbufferWidth = 0;
+    std::uint16_t backbufferHeight = 0;
+};
+
 export struct RenderConfig {
     std::uint32_t clearColor = 0x303060ffU;
     std::uint32_t resetFlags = BGFX_RESET_VSYNC;
@@ -112,6 +126,28 @@ export class RenderContext {
 
     static auto endFrame() noexcept -> void {
         bgfx::frame();
+    }
+
+    // Call after endFrame(). Converts bgfx's raw timer ticks to
+    // milliseconds; a zero timer frequency (no GPU timer support) yields
+    // zero rather than a division by zero.
+    [[nodiscard]] static auto gpuStats() noexcept -> GpuFrameStats {
+        const bgfx::Stats* s = bgfx::getStats();
+        if (s == nullptr) {
+            return {};
+        }
+        const auto toMs = [](std::int64_t ticks, std::int64_t freq) {
+            return freq == 0 ? 0.0
+                             : (static_cast<double>(ticks) * 1000.0) / static_cast<double>(freq);
+        };
+        return {
+            .gpuMs = toMs(s->gpuTimeEnd - s->gpuTimeBegin, s->gpuTimerFreq),
+            .waitSubmitMs = toMs(s->waitSubmit, s->cpuTimerFreq),
+            .waitRenderMs = toMs(s->waitRender, s->cpuTimerFreq),
+            .drawCalls = s->numDraw,
+            .backbufferWidth = s->width,
+            .backbufferHeight = s->height,
+        };
     }
 
     [[nodiscard]] auto framebufferWidth() const noexcept -> int {

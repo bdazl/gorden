@@ -2,6 +2,7 @@ module;
 
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <cstddef>
 #include <expected>
 #include <filesystem>
@@ -24,6 +25,7 @@ import roboslop.render.frontend;
 import roboslop.render.graph;
 import roboslop.sched;
 import roboslop.time.clock;
+import roboslop.time.frame_stats;
 import roboslop.ui;
 
 namespace roboslop {
@@ -164,6 +166,7 @@ export class App {
         clock.reset();
 
         while (true) {
+            const auto frameStart = std::chrono::steady_clock::now();
             arena.reset();
             pollWindowEvents();
             input.beginFrame();
@@ -187,6 +190,7 @@ export class App {
 
             const double dt = clock.tickFrame();
             const int steps = ticker.advance(dt);
+            const auto fixedStart = std::chrono::steady_clock::now();
             for (int i = 0; i < steps; ++i) {
                 SystemCtx ctx{
                     .world = &world,
@@ -198,16 +202,43 @@ export class App {
                 scheduler.run(fixedGraph, ctx);
             }
 
+            const auto renderStart = std::chrono::steady_clock::now();
             RenderContext::beginFrame();
             renderGraph.execute(world, render, assets);
             RenderContext::endFrame();
+            const auto frameEnd = std::chrono::steady_clock::now();
+
+            const auto gpu = RenderContext::gpuStats();
+            stats.push({
+                .cpuFrameMs = millis(frameStart, frameEnd),
+                .fixedMs = millis(fixedStart, renderStart),
+                .renderMs = millis(renderStart, frameEnd),
+                .gpuMs = gpu.gpuMs,
+                .waitSubmitMs = gpu.waitSubmitMs,
+                .waitRenderMs = gpu.waitRenderMs,
+                .drawCalls = gpu.drawCalls,
+                .backbufferWidth = gpu.backbufferWidth,
+                .backbufferHeight = gpu.backbufferHeight,
+            });
         }
 
         spdlog::info("roboslop: main loop exited");
         return {};
     }
 
+    // Recent frame timings, for the dev-UI overlay and the benchmark
+    // summary. Written once per frame by run().
+    [[nodiscard]] auto frameStats() const noexcept -> const FrameStats& {
+        return stats;
+    }
+
   private:
+    using SteadyPoint = std::chrono::steady_clock::time_point;
+
+    [[nodiscard]] static auto millis(SteadyPoint from, SteadyPoint to) noexcept -> double {
+        return std::chrono::duration<double, std::milli>(to - from).count();
+    }
+
     App(Window window,
         RenderContext render,
         AssetCache assets,
@@ -250,6 +281,7 @@ export class App {
     FrameArena arena;
     SystemGraph fixedGraph;
     RenderGraph renderGraph;
+    FrameStats stats;
     AppConfig cfg;
 };
 

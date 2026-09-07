@@ -7,6 +7,7 @@ add_executable(roboslop_tests
     vfs_test.cpp
     shell_test.cpp
     time_clock_test.cpp
+    frame_stats_test.cpp
     ecs_world_test.cpp
     transform_test.cpp
     render_camera_test.cpp
