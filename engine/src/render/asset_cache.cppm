@@ -65,6 +65,11 @@ export class AssetCache {
         destroySamplers();
     }
 
+    // Directory every relative asset path resolves against.
+    [[nodiscard]] auto root() const noexcept -> const std::filesystem::path& {
+        return assetRoot;
+    }
+
     [[nodiscard]] auto program(std::string_view vsName, std::string_view fsName)
         -> Result<ProgramHandle> {
         Key key{std::string{vsName}, std::string{fsName}};

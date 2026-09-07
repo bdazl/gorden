@@ -66,11 +66,13 @@ Positive scale is limited to 0.01..1000. Limits: 2000 objects, 1000 physics bodi
 256 materials. Saves validate first, close the temporary output, then rename it
 over the destination. A failed load keeps the editor's current document intact.
 
-This slice uses a flat object list and solid Lambert materials. Imported model
-scenes, hierarchy, prefabs, terrain brushes, textures in the scene format,
-collision visualization and snapping are future work. Model files load
-through `loadModelFile` (see [models](models.md)) but are not exposed as
-scene import yet.
+This slice uses a flat object list; document materials are solid Lambert
+colours, and textures come only from model files. `SceneRuntime` uploads each
+referenced model once (one static mesh per part, one texture per material)
+and gives the object a single entity with a `ModelInstance`, so a model moves,
+falls and is picked as one unit; its collider is a box around the model's
+bounds scaled by the object. Hierarchy, prefabs, terrain brushes, textures on
+document materials, collision visualization and snapping are future work.
 Gorden's robot still moves directly toward targets; walls do not add pathfinding.
 The known native-Wayland surface-loss issue remains separate from scene editing.
 

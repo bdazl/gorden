@@ -67,4 +67,6 @@ top-left origin, which is what bgfx and stb_image expect; the loader's
   asset id yet; the path is the identity.
 - No rig extraction: the animation modules exist without glTF import.
 - Only base colour is read; other PBR channels wait for a shader that uses
-  them.
+  them. A material with a texture draws the texture alone (`fs_scene`
+  samples the albedo only), so the base colour matters just for untextured
+  materials.
