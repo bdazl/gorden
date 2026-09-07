@@ -6,6 +6,7 @@ add_executable(gorden_tests
     observation_test.cpp
     robot_test.cpp
     brain_test.cpp
+    save_test.cpp
     settings_test.cpp
     llm_config_test.cpp
 )

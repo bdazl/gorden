@@ -11,6 +11,44 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — Agent memory in the app, a save game in the engine
+
+**Decision.** M3's memory slice splits in two. `gorden.agent.memory` (in the
+app) owns episodes, beliefs with provenance and goals; `roboslop.scene.savegame`
+(in the engine) owns a versioned save container that refers to a scene, stores
+the transforms of its objects, and hands the application an opaque `app` JSON
+object for everything else.
+
+**Why.** The memory model is one application's guess at what an agent needs;
+nothing else consumes it yet, so it stays where the application-driven principle
+puts it. Persistence, on the other hand, is not agent-specific — any app will
+want to store a run — and the user asked for a general save state rather than a
+memory file. The `app` payload is what keeps the engine format from growing a
+key per application: Gorden versions `{robot, player, sim_time, memory}` itself.
+
+**Consequences.**
+
+- Writes to memory only happen through validated tools (`remember`, `recall`,
+  `believe`, `setGoal`, `closeGoal`), so the robot chooses what to keep while
+  the rules still decide what is allowed. The simulation never writes behind the
+  model's back.
+- Active goals and beliefs are rendered into every observation; episodes reach
+  the model only through `recall`. Retrieval is word matching with a recency
+  tie-break — no embeddings until a concrete failure asks for them.
+- Saves live under a new `stateDir()` (`$XDG_STATE_HOME/roboslop`), not
+  `dataDir()`, which is already the robot's `/persist` mount.
+- Saving and loading are explicit (Settings buttons, `save` / `load` in the
+  terminal) and are carried out in the render pass, the only place with an
+  `AssetCache`. Loading rebuilds the scene through `SceneRuntime::replace` with
+  the saved transforms applied to the authored document, so physics bodies end
+  up where the objects are; scene objects the save no longer matches are
+  ignored rather than treated as an error.
+- `apps/gorden/tests/save_smoke.cpp` covers the load path, which needs a render
+  context, the way the editor's runtime smoke test does. `gorden.settings` grew
+  `settingsFromJsonText` so `main.cpp` no longer includes `nlohmann/json.hpp`:
+  including it next to modules that export `nlohmann::json` types breaks the
+  build with ODR errors in libstdc++ headers.
+
 ## 2026-09-07 — Trim the clang-tidy check set to what this codebase can honour
 
 **Decision.** `make tidy` is now warning-free. Getting there fixed ~700

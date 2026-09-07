@@ -32,7 +32,8 @@ Version 1 is:
   scene no longer has is ignored on load, so a save survives a deleted object.
 - `app` is an opaque JSON object the engine never inspects. Applications put
   their own state there and version it themselves; that is what keeps this
-  format from growing a key per app.
+  format from growing a key per app. Gorden stores `{version, robot, player,
+  sim_time, memory}` — see [agent memory](agent-memory.md).
 
 ## API
 
@@ -51,3 +52,15 @@ Saves are per-user state, not documents the user authored and not the shared
 (`$XDG_STATE_HOME/roboslop`, else `~/.local/state/roboslop`). Nothing else in
 the engine dictates a file name below
 `stateDir()`, so an application picks a subdirectory and a slot name under it.
+Gorden uses `stateDir()/gorden/saves/<slot>.json`, with `default` as the slot.
+
+Saving and loading is explicit: the **Save game** / **Load game** buttons in
+Gorden's Settings window, or `save [slot]` / `load [slot]` in its terminal.
+There is no autosave — a run is kept only when someone asks for it. Both paths
+raise a request that the render pass carries out, because rebuilding the scene
+needs the `AssetCache`, which only a pass has.
+
+Loading rebuilds the scene through `SceneRuntime::replace` with the saved
+transforms written over the authored document, rather than writing transforms
+into the live entities: that is what keeps the physics bodies where the objects
+are.

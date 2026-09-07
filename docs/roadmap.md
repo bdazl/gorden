@@ -171,14 +171,35 @@ machinery described in [`architecture.md`](architecture.md).
 
 Keep the implementation small enough to observe and debug by hand.
 
+**Status.** Memory slice done (2026-09-07): `gorden.agent.memory` holds
+episodes, beliefs with provenance and goals; five validated tools
+(`remember`, `recall`, `believe`, `setGoal`, `closeGoal`) are the only
+way to write them; active goals and beliefs ride along in every
+observation while episodes come back through `recall`. Memory survives
+a session through a new engine save format (`roboslop.scene.savegame`,
+see [the save format](save-format.md)) with explicit Save/Load in the
+Settings window and `save` / `load` in the terminal. Details in
+[agent memory](agent-memory.md). Reflection opportunities beyond the
+existing event triggers, and replay, are not done.
+
+**Resolved questions** (details in [`decisions.md`](decisions.md)).
+
+- Storage is plain structs in vectors with keyword retrieval; no
+  embeddings, no embedded store.
+- The memory model lives in Gorden, not the engine. The engine got only
+  the save container, which is app-agnostic.
+- Persistence is a general save game under `stateDir()`, not a memory
+  file, and it is written only when asked for.
+
 **Open questions.**
 
-- Storage for episodic/semantic memory: plain structs in a vector, a
-  small embedded store, or embeddings? Start without embeddings.
-- How much of the memory model is engine (reusable by any agent-driven
-  app) versus Gorden-specific? Unknown until a second consumer exists.
+- Reflection opportunities: today the memory tools are used during a
+  normal think; there is no separate "voluntary internal activity"
+  trigger yet.
 - What is the unit of replay — one log per session, per agent, or per
   world?
+- Retrieval quality: word matching is enough to observe, but we have not
+  yet seen it fail in a way that tells us what to build next.
 
 ---
 

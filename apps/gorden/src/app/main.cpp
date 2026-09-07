@@ -1,6 +1,8 @@
 import gorden.agent.brain;
+import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.robot;
+import gorden.save;
 import gorden.settings;
 import gorden.llm_config;
 import roboslop.app;
@@ -26,6 +28,7 @@ import roboslop.render.mesh;
 import roboslop.scene.transform;
 import roboslop.scene.document;
 import roboslop.scene.runtime;
+import roboslop.scene.savegame;
 import roboslop.render.primitives;
 import roboslop.sched;
 import roboslop.shell;
@@ -37,7 +40,6 @@ import roboslop.vfs;
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 #include <imgui.h>
-#include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
 
 #include <array>
@@ -54,6 +56,7 @@ import roboslop.vfs;
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -95,6 +98,24 @@ struct SettingsState {
     std::string status;
 };
 
+// Saving and loading are explicit, and both need the AssetCache, which
+// only a render pass gets. The UI and the shell therefore record a
+// request here and the "robotChat" pass carries it out.
+struct SaveState {
+    enum class Request : std::uint8_t {
+        None,
+        Save,
+        Load,
+    };
+
+    std::string scenePath{};            // as loaded at startup
+    roboslop::SceneDocument document{}; // the authored scene to rebuild from
+    std::string slot = "default";
+    std::array<char, 64> slotBuf{};
+    Request request = Request::None;
+    std::string status{};
+};
+
 auto copyToBuffer(std::array<char, 64>& buf, const std::string& text) -> void {
     buf.fill('\0');
     std::strncpy(buf.data(), text.c_str(), buf.size() - 1);
@@ -115,6 +136,36 @@ auto saveSettingsNow(SettingsState& st) -> void {
     } else {
         st.status = "saved to " + st.path.string();
     }
+}
+
+// Runs where the AssetCache is available. Returns a one-line result
+// for the UI, the terminal and the log to share.
+auto performSaveRequest(
+    roboslop::World& world, roboslop::AssetCache& assets, SaveState& st, SaveState::Request request
+) -> std::string {
+    auto& brain = world.registry().ctx().get<gorden::AgentBrain>();
+    const auto path = gorden::savePath(st.slot);
+    if (request == SaveState::Request::Save) {
+        const auto save = gorden::captureSave(world, brain, st.scenePath);
+        if (auto written = roboslop::saveSaveGame(path, save); !written) {
+            return std::format(
+                "save failed: {} ({})", written.error().message, written.error().context
+            );
+        }
+        return "saved to " + path.string();
+    }
+    auto loaded = roboslop::loadSaveGame(path);
+    if (!loaded) {
+        return std::format("load failed: {} ({})", loaded.error().message, loaded.error().context);
+    }
+    auto& runtime = world.registry().ctx().get<roboslop::SceneRuntime>();
+    if (auto applied = gorden::applySave(world, assets, runtime, st.document, brain, *loaded);
+        !applied) {
+        return std::format(
+            "load failed: {} ({})", applied.error().message, applied.error().context
+        );
+    }
+    return "loaded " + path.string();
 }
 
 auto readNameBuffers(SettingsState& st) -> void {
@@ -144,6 +195,24 @@ auto drawSettingsPanel(roboslop::World& world, SettingsState& st, gorden::AgentB
     ImGui::TextDisabled("%s", st.path.string().c_str());
     if (!st.status.empty()) {
         ImGui::TextUnformatted(st.status.c_str());
+    }
+
+    ImGui::SeparatorText("Save game");
+    auto& save = world.registry().ctx().get<SaveState>();
+    if (ImGui::InputText("Slot", save.slotBuf.data(), save.slotBuf.size()) &&
+        save.slotBuf[0] != '\0') {
+        save.slot = save.slotBuf.data();
+    }
+    if (ImGui::Button("Save game")) {
+        save.request = SaveState::Request::Save;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load game")) {
+        save.request = SaveState::Request::Load;
+    }
+    ImGui::TextDisabled("%s", gorden::savePath(save.slot).string().c_str());
+    if (!save.status.empty()) {
+        ImGui::TextUnformatted(save.status.c_str());
     }
 }
 
@@ -413,27 +482,30 @@ auto mountGordenFiles(roboslop::World& world, roboslop::Vfs& fs) -> void {
                            "\n";
                 },
             .write = [w](std::string_view text) -> roboslop::Result<void> {
-                const auto doc = nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
-                if (doc.is_discarded() || !doc.is_object()) {
-                    return std::unexpected(
-                        roboslop::toError(roboslop::VfsError::InvalidPath, "not a JSON object")
-                    );
-                }
                 auto& c = w->registry().ctx();
                 auto& state = c.get<SettingsState>();
-                const auto parsed = gorden::fromJson(doc);
-                if (doc.contains("playerName")) {
-                    state.settings.playerName = parsed.playerName;
+                auto parsed = gorden::settingsFromJsonText(text, state.settings);
+                if (!parsed) {
+                    return std::unexpected(parsed.error());
                 }
-                if (doc.contains("robotName")) {
-                    state.settings.robotName = parsed.robotName;
-                }
+                state.settings = std::move(*parsed);
                 copyToBuffer(state.playerBuf, state.settings.playerName);
                 copyToBuffer(state.robotBuf, state.settings.robotName);
                 applyNames(*w, state, c.get<gorden::AgentBrain>());
                 saveSettingsNow(state);
                 return {};
             },
+        }
+    );
+    (void)fs.mountLive(
+        "/proc/gorden/memory",
+        roboslop::LiveFile{
+            .read =
+                [w] {
+                    const auto& brain = w->registry().ctx().get<gorden::AgentBrain>();
+                    return gorden::toJson(brain.memory()).dump(2) + "\n";
+                },
+            .write = {},
         }
     );
     (void)fs.mountHost("/persist", roboslop::dataDir() / "gorden");
@@ -474,7 +546,7 @@ auto main(int argc, char** argv) -> int {
             .assetRoot = "assets",
             .enableDevUi = true,
             .devUiIniPath = roboslop::configDir() / "gorden.imgui.ini",
-            .onSetup = [initial, document = *scene](
+            .onSetup = [initial, document = *scene, scenePathText = scenePath.string()](
                            roboslop::World& world, roboslop::AssetCache& assets
                        ) -> roboslop::Result<void> {
                 const auto cameraEntity = world.create();
@@ -551,6 +623,10 @@ auto main(int argc, char** argv) -> int {
                 ctx.emplace<gorden::AgentBrain>(makeProvider(), brainCfg, robot, cameraEntity);
                 ctx.emplace<RobotPanelState>();
                 ctx.emplace<AgentLogState>();
+                auto& saveState = ctx.emplace<SaveState>(
+                    SaveState{.scenePath = scenePathText, .document = document}
+                );
+                copyToBuffer(saveState.slotBuf, saveState.slot);
                 auto& st = ctx.emplace<SettingsState>(initial);
 
                 if (auto* ui = roboslop::devUi(world); ui != nullptr) {
@@ -606,6 +682,38 @@ auto main(int argc, char** argv) -> int {
                             .home = "/home/" + st.settings.playerName,
                         }
                     );
+                    // The robot's own shell can save and load: `save`,
+                    // `load` and an optional slot name, the same two
+                    // requests the Settings buttons raise.
+                    for (const auto& [name, request] :
+                         {std::pair{"save", SaveState::Request::Save},
+                          std::pair{"load", SaveState::Request::Load}}) {
+                        shell.registerCommand(
+                            name,
+                            std::string{name} + " [slot] - " +
+                                (request == SaveState::Request::Save ? "write" : "read") +
+                                " a save game",
+                            [&world,
+                             request](roboslop::CommandContext& c) -> roboslop::ShellResult {
+                                auto& st = world.registry().ctx().get<SaveState>();
+                                if (c.args.size() > 2) {
+                                    return {
+                                        .output = "usage: " + c.args[0] + " [slot]\n", .status = 1
+                                    };
+                                }
+                                if (c.args.size() == 2) {
+                                    st.slot = c.args[1];
+                                    copyToBuffer(st.slotBuf, st.slot);
+                                }
+                                st.request = request;
+                                // The work happens in the render pass, so
+                                // the result shows up in the next output.
+                                return {
+                                    .output = "requested; see the Settings window\n", .status = 0
+                                };
+                            }
+                        );
+                    }
                     ctx.emplace<roboslop::TerminalWindow>(shell);
                     ui->registerWindow(
                         roboslop::DevWindow{
@@ -700,6 +808,14 @@ auto main(int argc, char** argv) -> int {
                                 return;
                             }
                             auto& ctx = c.world->registry().ctx();
+                            auto& save = ctx.get<SaveState>();
+                            if (save.request != SaveState::Request::None) {
+                                const auto request =
+                                    std::exchange(save.request, SaveState::Request::None);
+                                save.status =
+                                    performSaveRequest(*c.world, *c.assets, save, request);
+                                spdlog::info("gorden: {}", save.status);
+                            }
                             auto& st = ctx.get<RobotPanelState>();
                             ui->beginFrame();
                             ui->drawWindows();

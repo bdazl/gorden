@@ -101,7 +101,11 @@ The agent code is the `gorden_agent` module library
   `buildObservation`.
 - `gorden.agent.memory` — the long-term memory: episodes, beliefs with
   provenance, goals, keyword retrieval and JSON serialisation. Only the
-  validated tools write to it.
+  validated tools write to it. See [agent memory](agent-memory.md).
+- `gorden.save` — capture and restore: the scene objects' transforms go
+  in the engine's save game, the robot, the player and the memory in its
+  `app` payload. Loading rebuilds the scene through `SceneRuntime` so
+  the physics bodies follow.
 - `gorden.agent.tools` — the tool schemas, `parseToolCall` (JSON →
   `MoveTo` / `Inspect` / `Say` / `Remember` / `Recall` / `Believe` /
   `SetGoal` / `CloseGoal`), and `validate`, the boundary that turns a
@@ -139,6 +143,7 @@ app's `Vfs`, which mounts:
 | `/var/log/agent.log` | live, read-only: the validated action log |
 | `/proc/gorden/observation` | live: `observationToJson` of a fresh observation |
 | `/proc/gorden/transcript`, `/proc/gorden/status` | live: chat lines; provider/state/thinks |
+| `/proc/gorden/memory` | live, read-only: episodes, beliefs and goals as JSON |
 | `/etc/gorden/settings.json` | live, writable: reads the settings, a write applies and saves them |
 | `/home/<player>`, `/tmp` | in-memory, writable |
 | `/persist` | host mount → `dataDir()/gorden/`, survives restarts |
@@ -489,9 +494,13 @@ makes memory both AI infrastructure and potential gameplay: future robot
 upgrades can be larger episodic memory, better retrieval, better
 perception, more tools, or more reflection opportunities.
 
-The exact data model and any embedding/vector-store technology are
-*open questions*. Provenance for beliefs is an accepted direction,
-roughly:
+Gorden implements episodic memory, beliefs and goals in
+`gorden.agent.memory` (M3, first slice) — plain vectors with keyword
+retrieval, written only through validated tools and stored in the save
+game's `app` payload; see [agent memory](agent-memory.md). Whether any
+of it belongs in the engine, and whether retrieval eventually needs
+embeddings or a vector store, are still *open questions*. Provenance
+for beliefs is an accepted direction, roughly:
 
 ```text
 belief:

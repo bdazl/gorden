@@ -8,6 +8,7 @@ roboslop_add_module_library(gorden_agent
         src/agent/tools.cppm
         src/agent/robot.cppm
         src/agent/brain.cppm
+        src/agent/save.cppm
         src/agent/settings.cppm
         src/agent/llm_config.cppm
 )
@@ -38,6 +39,13 @@ target_link_libraries(gorden PRIVATE
 
 if(ROBOSLOP_BUILD_TESTS)
     add_subdirectory(tests)
+    # Needs a render context, so it stays out of CTest (as the editor's
+    # runtime smoke test does).
+    add_executable(gorden_save_smoke tests/save_smoke.cpp)
+    target_link_libraries(gorden_save_smoke PRIVATE gorden_agent roboslop)
+    roboslop_apply_language_defaults(gorden_save_smoke)
+    roboslop_set_warnings(gorden_save_smoke)
+    roboslop_apply_sanitizers(gorden_save_smoke)
 endif()
 
 roboslop_apply_language_defaults(gorden)

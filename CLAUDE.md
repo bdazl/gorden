@@ -17,6 +17,8 @@ file minimal — new rules go in `docs/`.
   sanitisers, dependency policy, C++23 module notes.
 - [`docs/save-format.md`](docs/save-format.md) — the save game format and
   where saves live.
+- [`docs/agent-memory.md`](docs/agent-memory.md) — the robot's episodic
+  memory, beliefs and goals, and what reaches the model.
 - [`docs/decisions.md`](docs/decisions.md) — running log of design and tooling
   choices, newest first. Append new entries here; don't edit in place.
 

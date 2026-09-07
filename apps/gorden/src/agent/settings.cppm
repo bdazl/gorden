@@ -6,6 +6,7 @@ module;
 #include <filesystem>
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 
 export module gorden.settings;
@@ -54,6 +55,37 @@ export [[nodiscard]] auto fromJson(const nlohmann::json& j) -> GordenSettings {
         }
     }
     return s;
+}
+
+export [[nodiscard]] auto settingsError(std::string context) -> roboslop::Error {
+    return {
+        .category = "gorden.settings",
+        .code = 1,
+        .message = "invalid settings",
+        .context = std::move(context)
+    };
+}
+
+// Applies the keys present in `text` onto `base`, so a partial write
+// through the VFS changes only what it mentions. Keeping the parse here
+// is what lets the app avoid naming nlohmann types itself.
+export [[nodiscard]] auto settingsFromJsonText(std::string_view text, GordenSettings base)
+    -> roboslop::Result<GordenSettings> {
+    const auto doc = nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
+    if (doc.is_discarded() || !doc.is_object()) {
+        return std::unexpected(settingsError("not a JSON object"));
+    }
+    const auto parsed = fromJson(doc);
+    if (doc.contains("playerName")) {
+        base.playerName = parsed.playerName;
+    }
+    if (doc.contains("robotName")) {
+        base.robotName = parsed.robotName;
+    }
+    // Window visibility is deliberately not applied here: the dev UI
+    // owns it, and a write through the VFS has no way to reopen a
+    // window that is already closed.
+    return base;
 }
 
 export [[nodiscard]] auto settingsPath() -> std::filesystem::path {
