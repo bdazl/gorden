@@ -13,6 +13,34 @@ import roboslop.sched;
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
 
+TEST_CASE(
+    "Repeated preview bodies are released before restoring authored transforms", "[physics][scene]"
+) {
+    auto physics = roboslop::JoltWorld::make();
+    roboslop::World world;
+    roboslop::installJoltWorld(world, physics);
+    for (int iteration = 0; iteration < 10; ++iteration) {
+        const auto entity = world.create();
+        world.emplace<roboslop::Transform>(entity, roboslop::Transform{.position = {0, 5, 0}});
+        world.emplace<roboslop::BodyDesc>(
+            entity,
+            roboslop::BodyDesc{.shape = roboslop::BoxShape{.halfExtents = {0.005F, 0.005F, 0.005F}}}
+        );
+        roboslop::SystemCtx context{.world = &world, .dt = 1.0 / 60.0};
+        roboslop::physicsSpawn(context);
+        REQUIRE(physics.physicsSystem().GetNumBodies() == 1);
+        for (int step = 0; step < 10; ++step) {
+            roboslop::physicsStep(context);
+        }
+        roboslop::syncPhysicsToTransform(context);
+        REQUIRE(world.get<roboslop::Transform>(entity).position.y < 5);
+        roboslop::releasePhysicsBody(world, entity);
+        REQUIRE_FALSE(world.has<roboslop::RigidBody>(entity));
+        REQUIRE(physics.physicsSystem().GetNumBodies() == 0);
+        world.destroy(entity);
+    }
+}
+
 TEST_CASE("JoltWorld constructs and destructs cleanly", "[physics][world]") {
     {
         auto world = roboslop::JoltWorld::make();

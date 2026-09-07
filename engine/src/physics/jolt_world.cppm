@@ -233,7 +233,8 @@ export [[nodiscard]] auto makeJoltShape(const BodyShape& shape) -> JPH::Ref<JPH:
                 return new JPH::SphereShape(s.radius);
             } else if constexpr (std::is_same_v<T, BoxShape>) {
                 return new JPH::BoxShape(
-                    JPH::Vec3(s.halfExtents.x, s.halfExtents.y, s.halfExtents.z)
+                    JPH::Vec3(s.halfExtents.x, s.halfExtents.y, s.halfExtents.z),
+                    0.1F * std::min({s.halfExtents.x, s.halfExtents.y, s.halfExtents.z})
                 );
             } else {
                 return nullptr;
@@ -257,6 +258,18 @@ namespace detail {
 }
 
 } // namespace detail
+
+// Called between fixed steps, before deleting/replacing a scene entity.
+export auto releasePhysicsBody(World& world, Entity entity) -> void {
+    if (const auto* body = world.tryGet<RigidBody>(entity)) {
+        auto& bi = detail::joltWorldFrom(world).bodyInterface();
+        bi.RemoveBody(body->id);
+        bi.DestroyBody(body->id);
+        world.remove<RigidBody>(entity);
+        world.remove<PrevTransform>(entity);
+    }
+    world.remove<BodyDesc>(entity);
+}
 
 // physicsSpawn: walk every entity that carries a BodyDesc + Transform
 // but no RigidBody yet, create the Jolt body, attach RigidBody +
