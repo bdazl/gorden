@@ -113,9 +113,20 @@ export [[nodiscard]] auto listModels(const std::filesystem::path& assetRoot)
 }
 
 namespace detail {
+// The renderer's shared unit primitives, rebuilt on the CPU for picking.
+static auto primitiveGeometry(const std::string& name) -> roboslop::Geometry {
+    if (name == "cube") {
+        return roboslop::cubeGeometry();
+    }
+    if (name == "sphere") {
+        return roboslop::sphereGeometry(24, 32, 0.5F);
+    }
+    return roboslop::planeGeometry(1, 1);
+}
+
 // Slab test in object space with an unnormalised ray; returns the entry
 // distance in world units, or nothing on a miss.
-auto rayBox(glm::vec3 ro, glm::vec3 rd, const roboslop::Aabb& box) -> std::optional<float> {
+static auto rayBox(glm::vec3 ro, glm::vec3 rd, const roboslop::Aabb& box) -> std::optional<float> {
     float enter = 0;
     float exit = std::numeric_limits<float>::max();
     for (int axis = 0; axis < 3; ++axis) {
@@ -166,9 +177,7 @@ export [[nodiscard]] auto pickObject(
             }
             continue;
         }
-        const auto geometry = o.geometry == "cube"     ? roboslop::cubeGeometry()
-                              : o.geometry == "sphere" ? roboslop::sphereGeometry(24, 32, 0.5F)
-                                                       : roboslop::planeGeometry(1, 1);
+        const auto geometry = detail::primitiveGeometry(o.geometry);
         const auto point = [&](std::uint16_t index) {
             const auto& p = geometry.vertices[index].position;
             return glm::vec3{p[0], p[1], p[2]};

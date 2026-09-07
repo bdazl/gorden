@@ -35,7 +35,7 @@ namespace roboslop {
 export class FrameArena {
   public:
     explicit FrameArena(std::size_t capacityBytes)
-        : buf(std::make_unique<std::byte[]>(capacityBytes)), cap(capacityBytes), cursor(0) {}
+        : buf(std::make_unique<std::byte[]>(capacityBytes)), cap(capacityBytes) {}
 
     FrameArena(const FrameArena&) = delete;
     auto operator=(const FrameArena&) -> FrameArena& = delete;
@@ -80,7 +80,7 @@ export class FrameArena {
   private:
     std::unique_ptr<std::byte[]> buf;
     std::size_t cap;
-    std::size_t cursor;
+    std::size_t cursor = 0;
 };
 
 // Flat, sortable draw record. Built once per frame by the renderer

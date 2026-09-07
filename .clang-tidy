@@ -29,6 +29,21 @@ Checks: >
   -cppcoreguidelines-avoid-do-while,
   -bugprone-easily-swappable-parameters,
   -bugprone-unchecked-optional-access,
+  -cppcoreguidelines-pro-bounds-avoid-unchecked-container-access,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-pro-type-vararg,
+  -concurrency-mt-unsafe,
+  -readability-redundant-member-init,
+  -readability-redundant-declaration,
+  -misc-static-assert,
+  -misc-use-anonymous-namespace,
+  -modernize-avoid-c-arrays,
+  -cppcoreguidelines-avoid-c-arrays,
+  -modernize-redundant-void-arg,
+  -performance-enum-size,
+  -performance-no-int-to-ptr,
+  -bugprone-exception-escape,
+  -cppcoreguidelines-avoid-const-or-ref-data-members,
   -misc-non-private-member-variables-in-classes,
   -misc-no-recursion,
   -misc-include-cleaner
@@ -38,6 +53,10 @@ HeaderFilterRegex: '(engine|apps)/.*\.(cppm|cpp|hpp|h)$'
 FormatStyle: file
 
 CheckOptions:
+  # A deliberate (void) cast is how this codebase says "failure is fine here".
+  - key: bugprone-unused-return-value.AllowCastToVoid
+    value: true
+
   # Types
   - key: readability-identifier-naming.ClassCase
     value: CamelCase

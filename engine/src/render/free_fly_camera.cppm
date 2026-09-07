@@ -55,7 +55,7 @@ export struct FreeFlyTickInput {
 
 // Pitch clamp: just inside ±90° so the forward vector never aligns with
 // world-up (which would gimbal-lock yaw input).
-inline constexpr float kFreeFlyPitchLimit = 1.55334F; // ~89° in radians
+inline constexpr float FreeFlyPitchLimit = 1.55334F; // ~89° in radians
 
 // Applies one tick of input to (controller, transform). Pure: no World,
 // no Input, no globals. Returns void; mutates ctrl.yaw/pitch and
@@ -70,7 +70,7 @@ export auto tickFreeFlyCamera(
 
     ctrl.yawRadians -= in.mouseDelta.x * ctrl.lookSensitivity;
     ctrl.pitchRadians -= in.mouseDelta.y * ctrl.lookSensitivity;
-    ctrl.pitchRadians = std::clamp(ctrl.pitchRadians, -kFreeFlyPitchLimit, kFreeFlyPitchLimit);
+    ctrl.pitchRadians = std::clamp(ctrl.pitchRadians, -FreeFlyPitchLimit, FreeFlyPitchLimit);
 
     const glm::quat yaw = glm::angleAxis(ctrl.yawRadians, glm::vec3(0.0F, 1.0F, 0.0F));
     const glm::quat pitch = glm::angleAxis(ctrl.pitchRadians, glm::vec3(1.0F, 0.0F, 0.0F));
@@ -78,7 +78,7 @@ export auto tickFreeFlyCamera(
 
     const glm::vec3 forward = xf.rotation * glm::vec3(0.0F, 0.0F, -1.0F);
     const glm::vec3 right = xf.rotation * glm::vec3(1.0F, 0.0F, 0.0F);
-    constexpr glm::vec3 worldUp{0.0F, 1.0F, 0.0F};
+    constexpr glm::vec3 WorldUp{0.0F, 1.0F, 0.0F};
 
     glm::vec3 move{0.0F};
     if (in.forward) {
@@ -94,10 +94,10 @@ export auto tickFreeFlyCamera(
         move -= right;
     }
     if (in.up) {
-        move += worldUp;
+        move += WorldUp;
     }
     if (in.down) {
-        move -= worldUp;
+        move -= WorldUp;
     }
 
     if (glm::dot(move, move) > 0.0F) {

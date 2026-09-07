@@ -249,10 +249,12 @@ namespace detail {
 }
 
 // Flags and positional args, POSIX-short style (-l, -la, -n 5).
+namespace {
 struct Parsed {
     std::vector<std::string> positional;
     std::map<char, std::string> flags; // value for flags that take one, "" otherwise
 };
+} // namespace
 
 [[nodiscard]] static auto
 parseArgs(const std::vector<std::string>& args, std::string_view withValue) -> Parsed {

@@ -10,7 +10,7 @@ import roboslop.scene.transform;
 
 namespace {
 
-constexpr float kEps = 1e-5F;
+constexpr float Eps = 1e-5F;
 
 [[nodiscard]] auto applyAndDivide(const glm::mat4& m, const glm::vec4& v) -> glm::vec4 {
     const glm::vec4 clip = m * v;
@@ -25,7 +25,7 @@ TEST_CASE("Perspective ZO depth maps near plane to z=0", "[render][camera]") {
     };
     const glm::mat4 p = roboslop::projectionMatrix(cam, 16.0F / 9.0F, /*homogeneousNdc=*/false);
     const glm::vec4 ndc = applyAndDivide(p, glm::vec4(0.0F, 0.0F, -1.0F, 1.0F));
-    REQUIRE(ndc.z == Catch::Approx(0.0F).margin(kEps));
+    REQUIRE(ndc.z == Catch::Approx(0.0F).margin(Eps));
 }
 
 TEST_CASE("Perspective NO depth maps near plane to z=-1", "[render][camera]") {
@@ -34,7 +34,7 @@ TEST_CASE("Perspective NO depth maps near plane to z=-1", "[render][camera]") {
     };
     const glm::mat4 p = roboslop::projectionMatrix(cam, 16.0F / 9.0F, /*homogeneousNdc=*/true);
     const glm::vec4 ndc = applyAndDivide(p, glm::vec4(0.0F, 0.0F, -1.0F, 1.0F));
-    REQUIRE(ndc.z == Catch::Approx(-1.0F).margin(kEps));
+    REQUIRE(ndc.z == Catch::Approx(-1.0F).margin(Eps));
 }
 
 TEST_CASE("Perspective maps far plane to z=1 (both depth conventions)", "[render][camera]") {
@@ -44,8 +44,8 @@ TEST_CASE("Perspective maps far plane to z=1 (both depth conventions)", "[render
     const glm::vec4 farPoint(0.0F, 0.0F, -100.0F, 1.0F);
     const glm::mat4 zo = roboslop::projectionMatrix(cam, 1.0F, /*homogeneousNdc=*/false);
     const glm::mat4 no = roboslop::projectionMatrix(cam, 1.0F, /*homogeneousNdc=*/true);
-    REQUIRE(applyAndDivide(zo, farPoint).z == Catch::Approx(1.0F).margin(kEps));
-    REQUIRE(applyAndDivide(no, farPoint).z == Catch::Approx(1.0F).margin(kEps));
+    REQUIRE(applyAndDivide(zo, farPoint).z == Catch::Approx(1.0F).margin(Eps));
+    REQUIRE(applyAndDivide(no, farPoint).z == Catch::Approx(1.0F).margin(Eps));
 }
 
 TEST_CASE("Perspective aspect ratio scales X", "[render][camera]") {
@@ -58,7 +58,7 @@ TEST_CASE("Perspective aspect ratio scales X", "[render][camera]") {
     const glm::mat4 a2 = roboslop::projectionMatrix(cam, 2.0F, /*homogeneousNdc=*/false);
     const float ndc1 = applyAndDivide(a1, p).x;
     const float ndc2 = applyAndDivide(a2, p).x;
-    REQUIRE(ndc2 == Catch::Approx(ndc1 * 0.5F).margin(kEps));
+    REQUIRE(ndc2 == Catch::Approx(ndc1 * 0.5F).margin(Eps));
 }
 
 TEST_CASE("Orthographic respects halfHeight", "[render][camera]") {
@@ -67,7 +67,7 @@ TEST_CASE("Orthographic respects halfHeight", "[render][camera]") {
     };
     const glm::mat4 p = roboslop::projectionMatrix(cam, 1.0F, /*homogeneousNdc=*/false);
     const glm::vec4 ndc = applyAndDivide(p, glm::vec4(0.0F, 5.0F, 0.0F, 1.0F));
-    REQUIRE(ndc.y == Catch::Approx(1.0F).margin(kEps));
+    REQUIRE(ndc.y == Catch::Approx(1.0F).margin(Eps));
 }
 
 TEST_CASE("Orthographic respects aspect for X extent", "[render][camera]") {
@@ -76,7 +76,7 @@ TEST_CASE("Orthographic respects aspect for X extent", "[render][camera]") {
     };
     const glm::mat4 p = roboslop::projectionMatrix(cam, 2.0F, /*homogeneousNdc=*/false);
     const glm::vec4 ndc = applyAndDivide(p, glm::vec4(2.0F, 0.0F, 0.0F, 1.0F));
-    REQUIRE(ndc.x == Catch::Approx(1.0F).margin(kEps));
+    REQUIRE(ndc.x == Catch::Approx(1.0F).margin(Eps));
 }
 
 TEST_CASE("viewMatrix is inverse of camera-transform matrix", "[render][camera]") {
@@ -86,7 +86,7 @@ TEST_CASE("viewMatrix is inverse of camera-transform matrix", "[render][camera]"
     const glm::mat4 identity(1.0F);
     for (int col = 0; col < 4; ++col) {
         for (int row = 0; row < 4; ++row) {
-            REQUIRE(product[col][row] == Catch::Approx(identity[col][row]).margin(kEps));
+            REQUIRE(product[col][row] == Catch::Approx(identity[col][row]).margin(Eps));
         }
     }
 }

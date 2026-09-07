@@ -10,7 +10,7 @@ import roboslop.scene.transform;
 
 namespace {
 
-constexpr float kEps = 1e-4F;
+constexpr float Eps = 1e-4F;
 
 } // namespace
 
@@ -44,9 +44,9 @@ TEST_CASE("forward translates -Z by moveSpeed * dt", "[render][free_fly]") {
 
     roboslop::tickFreeFlyCamera(ctrl, xf, in, /*dt=*/1.0);
 
-    REQUIRE(xf.position.x == Catch::Approx(0.0F).margin(kEps));
-    REQUIRE(xf.position.y == Catch::Approx(0.0F).margin(kEps));
-    REQUIRE(xf.position.z == Catch::Approx(-5.0F).margin(kEps));
+    REQUIRE(xf.position.x == Catch::Approx(0.0F).margin(Eps));
+    REQUIRE(xf.position.y == Catch::Approx(0.0F).margin(Eps));
+    REQUIRE(xf.position.z == Catch::Approx(-5.0F).margin(Eps));
 }
 
 TEST_CASE("boost multiplies move speed", "[render][free_fly]") {
@@ -62,7 +62,7 @@ TEST_CASE("boost multiplies move speed", "[render][free_fly]") {
 
     roboslop::tickFreeFlyCamera(ctrl, xf, in, /*dt=*/1.0);
 
-    REQUIRE(xf.position.z == Catch::Approx(-20.0F).margin(kEps));
+    REQUIRE(xf.position.z == Catch::Approx(-20.0F).margin(Eps));
 }
 
 TEST_CASE("Space and LeftCtrl move along world up regardless of pitch", "[render][free_fly]") {
@@ -76,9 +76,9 @@ TEST_CASE("Space and LeftCtrl move along world up regardless of pitch", "[render
 
     roboslop::tickFreeFlyCamera(ctrl, xf, in, /*dt=*/1.0);
 
-    REQUIRE(xf.position.x == Catch::Approx(0.0F).margin(kEps));
-    REQUIRE(xf.position.y == Catch::Approx(ctrl.moveSpeed).margin(kEps));
-    REQUIRE(xf.position.z == Catch::Approx(0.0F).margin(kEps));
+    REQUIRE(xf.position.x == Catch::Approx(0.0F).margin(Eps));
+    REQUIRE(xf.position.y == Catch::Approx(ctrl.moveSpeed).margin(Eps));
+    REQUIRE(xf.position.z == Catch::Approx(0.0F).margin(Eps));
 }
 
 TEST_CASE("mouseDelta.x rightward yields negative yaw", "[render][free_fly]") {
@@ -92,7 +92,7 @@ TEST_CASE("mouseDelta.x rightward yields negative yaw", "[render][free_fly]") {
 
     roboslop::tickFreeFlyCamera(ctrl, xf, in, /*dt=*/0.016);
 
-    REQUIRE(ctrl.yawRadians == Catch::Approx(-1.0F).margin(kEps));
+    REQUIRE(ctrl.yawRadians == Catch::Approx(-1.0F).margin(Eps));
 
     // After a right-look, forward should have rotated toward +X (the
     // camera now faces partly to the world-right).
@@ -134,5 +134,5 @@ TEST_CASE("diagonal motion is normalized (no speed boost)", "[render][free_fly]"
     roboslop::tickFreeFlyCamera(ctrl, xf, in, /*dt=*/1.0);
 
     const float length = glm::length(xf.position);
-    REQUIRE(length == Catch::Approx(1.0F).margin(kEps));
+    REQUIRE(length == Catch::Approx(1.0F).margin(Eps));
 }

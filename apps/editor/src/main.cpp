@@ -143,11 +143,13 @@ auto drawToolbar(roboslop::World& world, EditorState& state) -> void {
     ImGui::SetNextWindowPos({8, 8}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({570, 0}, ImGuiCond_Always);
     ImGui::Begin("Scene", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::TextUnformatted(
-        state.playing   ? "PLAY — Stop restores the authored scene"
-        : state.dirty() ? "EDIT — unsaved changes"
-                        : "EDIT"
-    );
+    const char* mode = "EDIT";
+    if (state.playing) {
+        mode = "PLAY — Stop restores the authored scene";
+    } else if (state.dirty()) {
+        mode = "EDIT — unsaved changes";
+    }
+    ImGui::TextUnformatted(mode);
     if (ImGui::Button(state.playing ? "Stop" : "Play")) {
         state.finishEdit();
         state.playing = !state.playing;
@@ -490,7 +492,7 @@ auto drawGizmo(EditorState& state, const glm::mat4& vp) -> bool {
         const ImVec2 handle{origin->x + (unit.x * 85), origin->y + (unit.y * 85)};
         draw->AddLine(*origin, handle, Colors[static_cast<std::size_t>(axis)], 3);
         draw->AddCircleFilled(handle, 7, Colors[static_cast<std::size_t>(axis)]);
-        const char* label = axis == 0 ? "X" : axis == 1 ? "Y" : "Z";
+        const auto* label = std::array{"X", "Y", "Z"}[static_cast<std::size_t>(axis)];
         draw->AddText({handle.x + 9, handle.y}, Colors[static_cast<std::size_t>(axis)], label);
         const float dx = io.MousePos.x - handle.x;
         const float dy = io.MousePos.y - handle.y;
@@ -554,8 +556,8 @@ auto drawEditor(roboslop::PassCtx& pass) -> void {
     if (!state.playing && !gizmo && state.pending.empty() && !ui->wantCaptureMouse() &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Left) && size.x > 0 && size.y > 0) {
         const auto mouse = ImGui::GetIO().MousePos;
-        const float x = mouse.x / size.x * 2 - 1;
-        const float y = 1 - mouse.y / size.y * 2;
+        const float x = (mouse.x / size.x * 2) - 1;
+        const float y = 1 - (mouse.y / size.y * 2);
         const auto inverse = glm::inverse(vp);
         const auto nearPoint = inverse * glm::vec4(x, y, homogeneous ? -1 : 0, 1);
         const auto farPoint = inverse * glm::vec4(x, y, 1, 1);

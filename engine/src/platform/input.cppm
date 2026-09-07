@@ -13,7 +13,7 @@ import roboslop.platform.window;
 namespace roboslop {
 
 // Enumerates only the keys consumers actually wire today. Adding a new key
-// is one entry here plus one case in translateKey() and bumping kKeyCount.
+// is one entry here plus one case in translateKey() and bumping KeyCount.
 // The integer values are dense from zero so they index directly into the
 // snapshot arrays — don't assign explicit numbers.
 export enum class Key : int {
@@ -40,8 +40,8 @@ export enum class MouseButton : int {
 };
 
 namespace detail {
-inline constexpr std::size_t kKeyCount = 14;
-inline constexpr std::size_t kMouseButtonCount = 3;
+inline constexpr std::size_t KeyCount = 14;
+inline constexpr std::size_t MouseButtonCount = 3;
 } // namespace detail
 
 // Pure value-type snapshot of one frame's input. No GLFW calls happen
@@ -52,8 +52,8 @@ inline constexpr std::size_t kMouseButtonCount = 3;
 // prior pose to diff against) and after a cursor-mode transition (the
 // OS-driven cursor jump must not register as motion).
 export struct InputSnapshot {
-    std::array<bool, detail::kKeyCount> keys{};
-    std::array<bool, detail::kMouseButtonCount> mouseButtons{};
+    std::array<bool, detail::KeyCount> keys{};
+    std::array<bool, detail::MouseButtonCount> mouseButtons{};
     glm::dvec2 cursorPos{0.0, 0.0};
     bool cursorPosValid = false;
 };
@@ -177,11 +177,11 @@ export class Input {
     auto beginFrame() -> void {
         prev = curr;
 
-        for (std::size_t i = 0; i < detail::kKeyCount; ++i) {
+        for (std::size_t i = 0; i < detail::KeyCount; ++i) {
             const auto k = static_cast<Key>(i);
             curr.keys[i] = glfwGetKey(handle, translateKey(k)) == GLFW_PRESS;
         }
-        for (std::size_t i = 0; i < detail::kMouseButtonCount; ++i) {
+        for (std::size_t i = 0; i < detail::MouseButtonCount; ++i) {
             const auto b = static_cast<MouseButton>(i);
             curr.mouseButtons[i] =
                 glfwGetMouseButton(handle, translateMouseButton(b)) == GLFW_PRESS;

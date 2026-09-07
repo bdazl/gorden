@@ -114,6 +114,7 @@ export class SystemGraph {
         // guarantees it's non-null while taskflow runs.
         // Capture the index, not a reference into `descs`: a later add()
         // reallocates the vector.
+        // NOLINTNEXTLINE(modernize-loop-convert) the lambda needs the index.
         for (std::size_t i = 0; i < descs.size(); ++i) {
             tasks.push_back(taskflow.emplace(
                                         [this, i] { descs[i].run(*currentCtx); }

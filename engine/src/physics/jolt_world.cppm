@@ -59,6 +59,7 @@ namespace detail {
 // Inheriting from a third-party interface is the unavoidable case
 // where inheritance is the right tool — engine-facing surface stays
 // free-function-shaped above this layer.
+namespace {
 class BroadPhaseLayerImpl final : public JPH::BroadPhaseLayerInterface {
   public:
     BroadPhaseLayerImpl() {
@@ -66,16 +67,18 @@ class BroadPhaseLayerImpl final : public JPH::BroadPhaseLayerInterface {
         objectToBroadPhase[ObjectLayerMoving] = bp::Moving;
     }
 
-    auto GetNumBroadPhaseLayers() const -> JPH::uint override {
+    [[nodiscard]] auto GetNumBroadPhaseLayers() const -> JPH::uint override {
         return bp::NumLayers;
     }
 
-    auto GetBroadPhaseLayer(JPH::ObjectLayer inLayer) const -> JPH::BroadPhaseLayer override {
+    [[nodiscard]] auto GetBroadPhaseLayer(JPH::ObjectLayer inLayer) const
+        -> JPH::BroadPhaseLayer override {
         return objectToBroadPhase[inLayer];
     }
 
 #if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
-    auto GetBroadPhaseLayerName(JPH::BroadPhaseLayer inLayer) const -> const char* override {
+    [[nodiscard]] auto GetBroadPhaseLayerName(JPH::BroadPhaseLayer inLayer) const -> const
+        char* override {
         if (inLayer == bp::NonMoving) {
             return "NonMoving";
         }
@@ -92,7 +95,8 @@ class BroadPhaseLayerImpl final : public JPH::BroadPhaseLayerInterface {
 
 class ObjectVsBroadPhaseFilterImpl final : public JPH::ObjectVsBroadPhaseLayerFilter {
   public:
-    auto ShouldCollide(JPH::ObjectLayer a, JPH::BroadPhaseLayer b) const -> bool override {
+    [[nodiscard]] auto ShouldCollide(JPH::ObjectLayer a, JPH::BroadPhaseLayer b) const
+        -> bool override {
         switch (a) {
         case ObjectLayerNonMoving:
             return b == bp::Moving;
@@ -106,7 +110,8 @@ class ObjectVsBroadPhaseFilterImpl final : public JPH::ObjectVsBroadPhaseLayerFi
 
 class ObjectLayerPairFilterImpl final : public JPH::ObjectLayerPairFilter {
   public:
-    auto ShouldCollide(JPH::ObjectLayer a, JPH::ObjectLayer b) const -> bool override {
+    [[nodiscard]] auto ShouldCollide(JPH::ObjectLayer a, JPH::ObjectLayer b) const
+        -> bool override {
         switch (a) {
         case ObjectLayerNonMoving:
             return b == ObjectLayerMoving;
@@ -117,6 +122,7 @@ class ObjectLayerPairFilterImpl final : public JPH::ObjectLayerPairFilter {
         }
     }
 };
+} // namespace
 
 } // namespace detail
 

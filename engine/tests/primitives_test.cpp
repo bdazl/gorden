@@ -41,8 +41,8 @@ auto length(std::span<const float, 3> v) -> float {
 
 TEST_CASE("sphereGeometry has the expected vertex and index counts", "[render][primitives]") {
     const auto g = roboslop::sphereGeometry(8, 16, 0.5F);
-    REQUIRE(g.vertices.size() == std::size_t{(8 + 1) * (16 + 1)});
-    REQUIRE(g.indices.size() == std::size_t{8 * 16 * 6});
+    REQUIRE(g.vertices.size() == std::size_t{8 + 1} * (16 + 1));
+    REQUIRE(g.indices.size() == std::size_t{8} * 16 * 6);
 }
 
 TEST_CASE("sphereGeometry indices stay in range", "[render][primitives]") {
@@ -67,14 +67,14 @@ TEST_CASE("sphereGeometry vertices lie on the sphere with unit normals", "[rende
 
 TEST_CASE("sphereGeometry clamps degenerate resolutions", "[render][primitives]") {
     const auto g = roboslop::sphereGeometry(0, 0, 1.0F);
-    REQUIRE(g.vertices.size() == std::size_t{(2 + 1) * (3 + 1)});
-    REQUIRE(g.indices.size() == std::size_t{2 * 3 * 6});
+    REQUIRE(g.vertices.size() == std::size_t{2 + 1} * (3 + 1));
+    REQUIRE(g.indices.size() == std::size_t{2} * 3 * 6);
 }
 
 TEST_CASE("planeGeometry spans the requested size with +Y normals", "[render][primitives]") {
     const auto g = roboslop::planeGeometry(4.0F, 2);
     REQUIRE(g.vertices.size() == 9);
-    REQUIRE(g.indices.size() == std::size_t{2 * 2 * 6});
+    REQUIRE(g.indices.size() == std::size_t{2} * 2 * 6);
 
     float minX = 1e9F;
     float maxX = -1e9F;

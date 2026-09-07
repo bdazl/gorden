@@ -61,7 +61,7 @@ namespace {
 // 4×4 RGBA checkerboard so the cube's UV mapping is obvious at a
 // glance. Stored row-major top-to-bottom (stbi's convention, mirrored
 // by aiProcess_FlipUVs for Assimp loads).
-constexpr std::array<std::uint8_t, 4 * 4 * 4> kCheckerPixels = [] {
+constexpr std::array<std::uint8_t, std::size_t{4} * 4 * 4> CheckerPixels = [] {
     std::array<std::uint8_t, 64> p{};
     for (std::size_t y = 0; y < 4; ++y) {
         for (std::size_t x = 0; x < 4; ++x) {
@@ -511,7 +511,7 @@ auto main(int argc, char** argv) -> int {
                 texMesh.program = texProg->value;
 
                 const bgfx::Memory* texelMem = bgfx::copy(
-                    kCheckerPixels.data(), static_cast<std::uint32_t>(kCheckerPixels.size())
+                    CheckerPixels.data(), static_cast<std::uint32_t>(CheckerPixels.size())
                 );
                 const bgfx::TextureHandle albedo = bgfx::createTexture2D(
                     /*width=*/4,

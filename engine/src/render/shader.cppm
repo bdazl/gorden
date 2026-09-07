@@ -112,12 +112,12 @@ export class Program {
     Program(const Program&) = delete;
     auto operator=(const Program&) -> Program& = delete;
 
-    Program(Program&& other) noexcept : handle(std::exchange(other.handle, kInvalid)) {}
+    Program(Program&& other) noexcept : handle(std::exchange(other.handle, Invalid)) {}
 
     auto operator=(Program&& other) noexcept -> Program& {
         if (this != &other) {
             destroy();
-            handle = std::exchange(other.handle, kInvalid);
+            handle = std::exchange(other.handle, Invalid);
         }
         return *this;
     }
@@ -143,11 +143,11 @@ export class Program {
     auto destroy() noexcept -> void {
         if (bgfx::isValid(handle)) {
             bgfx::destroy(handle);
-            handle = kInvalid;
+            handle = Invalid;
         }
     }
 
-    static constexpr bgfx::ProgramHandle kInvalid{bgfx::kInvalidHandle};
+    static constexpr bgfx::ProgramHandle Invalid{bgfx::kInvalidHandle};
     bgfx::ProgramHandle handle{bgfx::kInvalidHandle};
 };
 

@@ -22,7 +22,9 @@ import roboslop.assets.mesh;
 
 namespace {
 
-const std::filesystem::path kAssets{ROBOSLOP_TEST_ASSETS};
+auto assets() -> std::filesystem::path {
+    return std::filesystem::path{ROBOSLOP_TEST_ASSETS};
+}
 
 auto partsNamed(const roboslop::ModelAsset& model, std::string_view name)
     -> std::vector<const roboslop::ModelPart*> {
@@ -36,7 +38,7 @@ auto partsNamed(const roboslop::ModelAsset& model, std::string_view name)
 }
 
 auto modelSpace(const roboslop::ModelPart& part, const roboslop::MeshVertex& v) -> glm::vec3 {
-    return glm::vec3(part.transform * glm::vec4(v.position[0], v.position[1], v.position[2], 1));
+    return {part.transform * glm::vec4(v.position[0], v.position[1], v.position[2], 1)};
 }
 
 // Writes a .glb holding one indexed grid of `side` x `side` vertices.
@@ -113,7 +115,7 @@ TEST_CASE(
     "A Blender glb loads every part with its transform, material and packed texture",
     "[assets][model]"
 ) {
-    const auto model = roboslop::loadModelFile(kAssets / "crate.glb");
+    const auto model = roboslop::loadModelFile(assets() / "crate.glb");
     REQUIRE(model);
     REQUIRE(model->parts.size() == 4);
 
@@ -175,7 +177,7 @@ TEST_CASE(
 TEST_CASE("Model bounds cover every transformed part", "[assets][model]") {
     REQUIRE(roboslop::modelBounds({}).max == glm::vec3{0.0F});
 
-    const auto model = roboslop::loadModelFile(kAssets / "crate.glb");
+    const auto model = roboslop::loadModelFile(assets() / "crate.glb");
     REQUIRE(model);
     const auto bounds = roboslop::modelBounds(*model);
     glm::vec3 lo{std::numeric_limits<float>::max()};
@@ -199,18 +201,18 @@ TEST_CASE("Model bounds cover every transformed part", "[assets][model]") {
 TEST_CASE("Models with more than 65535 vertices keep 32-bit indices", "[assets][model]") {
     const auto dir = tempDir();
     const auto file = dir / "grid.glb";
-    constexpr std::uint32_t kSide = 260; // 67600 vertices
-    writeGridGlb(file, kSide);
+    constexpr std::uint32_t Side = 260; // 67600 vertices
+    writeGridGlb(file, Side);
     const auto model = roboslop::loadModelFile(file);
     REQUIRE(model);
     REQUIRE(model->parts.size() == 1);
-    CHECK(model->parts[0].mesh.vertices.size() == kSide * kSide);
-    CHECK(std::ranges::max(model->parts[0].mesh.indices) == kSide * kSide - 1);
+    CHECK(model->parts[0].mesh.vertices.size() == std::size_t{Side} * Side);
+    CHECK(std::ranges::max(model->parts[0].mesh.indices) == (Side * Side) - 1);
     std::filesystem::remove_all(dir);
 }
 
 TEST_CASE("Model loading reports missing and unreadable files as values", "[assets][model]") {
-    const auto missing = roboslop::loadModelFile(kAssets / "does-not-exist.glb");
+    const auto missing = roboslop::loadModelFile(assets() / "does-not-exist.glb");
     REQUIRE_FALSE(missing);
     CHECK(missing.error().code == static_cast<int>(roboslop::MeshLoaderError::FileMissing));
 

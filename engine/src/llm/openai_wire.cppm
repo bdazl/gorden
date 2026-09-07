@@ -21,22 +21,22 @@ namespace roboslop {
 // and Ollama all accept. No I/O here so it is unit-testable.
 
 export [[nodiscard]] auto buildChatCompletionBody(const ChatRequest& req) -> std::string {
-    using json = nlohmann::json;
-    json body;
+    using Json = nlohmann::json;
+    Json body;
     body["model"] = req.model;
     body["temperature"] = req.temperature;
     body["max_tokens"] = req.maxTokens;
 
-    json messages = json::array();
+    Json messages = Json::array();
     for (const auto& m : req.messages) {
-        json jm;
+        Json jm;
         jm["role"] = roleName(m.role);
         jm["content"] = m.content;
         if (m.role == Role::Tool) {
             jm["tool_call_id"] = m.toolCallId;
         }
         if (m.role == Role::Assistant && !m.toolCalls.empty()) {
-            json calls = json::array();
+            Json calls = Json::array();
             for (const auto& c : m.toolCalls) {
                 calls.push_back({
                     {"id", c.id},
@@ -54,11 +54,11 @@ export [[nodiscard]] auto buildChatCompletionBody(const ChatRequest& req) -> std
     body["messages"] = std::move(messages);
 
     if (!req.tools.empty()) {
-        json tools = json::array();
+        Json tools = Json::array();
         for (const auto& t : req.tools) {
-            json params = json::parse(t.parametersSchemaJson, nullptr, /*allow_exceptions=*/false);
+            Json params = Json::parse(t.parametersSchemaJson, nullptr, /*allow_exceptions=*/false);
             if (params.is_discarded()) {
-                params = json::object({{"type", "object"}, {"properties", json::object()}});
+                params = Json::object({{"type", "object"}, {"properties", Json::object()}});
             }
             tools.push_back({
                 {"type", "function"},
@@ -77,8 +77,8 @@ export [[nodiscard]] auto buildChatCompletionBody(const ChatRequest& req) -> std
 // servers) maps to LlmError::ApiError; anything structurally
 // unexpected maps to BadResponse with the offending text as context.
 export [[nodiscard]] auto parseChatCompletion(std::string_view text) -> Result<ChatResponse> {
-    using json = nlohmann::json;
-    const json doc = json::parse(text, nullptr, /*allow_exceptions=*/false);
+    using Json = nlohmann::json;
+    const Json doc = Json::parse(text, nullptr, /*allow_exceptions=*/false);
     if (doc.is_discarded() || !doc.is_object()) {
         return std::unexpected(toError(LlmError::BadResponse, std::string{text.substr(0, 256)}));
     }
@@ -96,7 +96,7 @@ export [[nodiscard]] auto parseChatCompletion(std::string_view text) -> Result<C
     if (choices == doc.end() || !choices->is_array() || choices->empty()) {
         return std::unexpected(toError(LlmError::BadResponse, "no choices"));
     }
-    const json& choice = (*choices)[0];
+    const Json& choice = (*choices)[0];
     const auto message = choice.find("message");
     if (message == choice.end() || !message->is_object()) {
         return std::unexpected(toError(LlmError::BadResponse, "choice without message"));
@@ -109,7 +109,7 @@ export [[nodiscard]] auto parseChatCompletion(std::string_view text) -> Result<C
     }
     if (const auto calls = message->find("tool_calls");
         calls != message->end() && calls->is_array()) {
-        for (const json& c : *calls) {
+        for (const Json& c : *calls) {
             ToolCall call;
             if (c.contains("id") && c["id"].is_string()) {
                 call.id = c["id"].get<std::string>();
@@ -124,7 +124,7 @@ export [[nodiscard]] auto parseChatCompletion(std::string_view text) -> Result<C
                 call.name = (*fn)["name"].get<std::string>();
             }
             if (fn->contains("arguments")) {
-                const json& args = (*fn)["arguments"];
+                const Json& args = (*fn)["arguments"];
                 // OpenAI sends arguments as a JSON string; some local
                 // servers send an object. Normalise to text.
                 call.argumentsJson = args.is_string() ? args.get<std::string>() : args.dump();

@@ -28,7 +28,12 @@ namespace roboslop {
 
 namespace {
 
-std::atomic<int> g_glfwRefcount{0};
+// Function-local so it is initialised on first use and stays out of
+// the module's global namespace.
+auto glfwRefcount() -> std::atomic<int>& {
+    static std::atomic<int> count{0};
+    return count;
+}
 
 // GLFW reports errors only through this callback; without it a failing
 // platform call (a Wayland protocol error, an unsupported feature) is
@@ -38,10 +43,10 @@ auto glfwErrorCallback(int code, const char* description) -> void {
 }
 
 auto retainGlfw() -> bool {
-    if (g_glfwRefcount.fetch_add(1) == 0) {
+    if (glfwRefcount().fetch_add(1) == 0) {
         glfwSetErrorCallback(&glfwErrorCallback);
         if (glfwInit() == GLFW_FALSE) {
-            g_glfwRefcount.fetch_sub(1);
+            glfwRefcount().fetch_sub(1);
             return false;
         }
     }
@@ -49,7 +54,7 @@ auto retainGlfw() -> bool {
 }
 
 auto releaseGlfw() noexcept -> void {
-    if (g_glfwRefcount.fetch_sub(1) == 1) {
+    if (glfwRefcount().fetch_sub(1) == 1) {
         glfwTerminate();
     }
 }

@@ -106,14 +106,14 @@ TEST_CASE("free-fall position matches analytic curve within Jolt tolerance", "[p
     );
     const JPH::BodyID id = bi.CreateAndAddBody(settings, JPH::EActivation::Activate);
 
-    constexpr float kDt = 1.0F / 60.0F;
-    constexpr int kSteps = 30; // 0.5 s
-    for (int i = 0; i < kSteps; ++i) {
-        world.step(kDt);
+    constexpr float Dt = 1.0F / 60.0F;
+    constexpr int Steps = 30; // 0.5 s
+    for (int i = 0; i < Steps; ++i) {
+        world.step(Dt);
     }
 
     const JPH::RVec3 pos = bi.GetCenterOfMassPosition(id);
-    const float t = kDt * static_cast<float>(kSteps);
+    const float t = Dt * static_cast<float>(Steps);
     const float analytic = 10.0F - (0.5F * 9.81F * t * t);
     REQUIRE(pos.GetY() == Catch::Approx(analytic).margin(analytic * 0.05F));
 }
@@ -146,9 +146,9 @@ TEST_CASE("dynamic body lands on a static ground", "[physics][step]") {
     );
     const JPH::BodyID ball = bi.CreateAndAddBody(ballSettings, JPH::EActivation::Activate);
 
-    constexpr float kDt = 1.0F / 60.0F;
+    constexpr float Dt = 1.0F / 60.0F;
     for (int i = 0; i < 120; ++i) { // 2 s
-        world.step(kDt);
+        world.step(Dt);
     }
 
     const JPH::RVec3 pos = bi.GetCenterOfMassPosition(ball);

@@ -146,3 +146,8 @@ LLVM 22; run it primarily on `.cpp` impl units. `misc-include-cleaner` is
 disabled project-wide for the same reason, and so is
 `bugprone-unchecked-optional-access`, whose dataflow analysis segfaults on
 glm member access in units that import modules (decision of 2026-09-07).
+
+`make tidy` is warning-free and expected to stay that way. The disabled
+checks and the reason for each are listed in the 2026-09-07 entry in
+[decisions](../decisions.md); prefer fixing a finding over adding a new
+disable, and use `NOLINTNEXTLINE` with a reason for a genuine one-off.

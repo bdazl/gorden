@@ -57,7 +57,7 @@ export struct AppConfig {
 
     // Default 4 MiB — ~32 768 DrawItems at 128 B each, comfortable
     // overhead for any milestone's worst-case frame.
-    std::size_t frameArenaBytes = 4U * 1024U * 1024U;
+    std::size_t frameArenaBytes = std::size_t{4U} * 1024U * 1024U;
 
     // 0 selects defaultWorkerCount() (hardware concurrency - 1,
     // clamped [1, 8]).
@@ -188,7 +188,6 @@ export class App {
             const double dt = clock.tickFrame();
             const int steps = ticker.advance(dt);
             for (int i = 0; i < steps; ++i) {
-                (void)i;
                 SystemCtx ctx{
                     .world = &world,
                     .input = &input,
@@ -199,9 +198,9 @@ export class App {
                 scheduler.run(fixedGraph, ctx);
             }
 
-            render.beginFrame();
+            RenderContext::beginFrame();
             renderGraph.execute(world, render, assets);
-            render.endFrame();
+            RenderContext::endFrame();
         }
 
         spdlog::info("roboslop: main loop exited");

@@ -74,12 +74,12 @@ export class Texture {
     Texture(const Texture&) = delete;
     auto operator=(const Texture&) -> Texture& = delete;
 
-    Texture(Texture&& other) noexcept : handle(std::exchange(other.handle, kInvalid)) {}
+    Texture(Texture&& other) noexcept : handle(std::exchange(other.handle, Invalid)) {}
 
     auto operator=(Texture&& other) noexcept -> Texture& {
         if (this != &other) {
             destroy();
-            handle = std::exchange(other.handle, kInvalid);
+            handle = std::exchange(other.handle, Invalid);
         }
         return *this;
     }
@@ -105,11 +105,11 @@ export class Texture {
     auto destroy() noexcept -> void {
         if (bgfx::isValid(handle)) {
             bgfx::destroy(handle);
-            handle = kInvalid;
+            handle = Invalid;
         }
     }
 
-    static constexpr bgfx::TextureHandle kInvalid{bgfx::kInvalidHandle};
+    static constexpr bgfx::TextureHandle Invalid{bgfx::kInvalidHandle};
     bgfx::TextureHandle handle{bgfx::kInvalidHandle};
 };
 

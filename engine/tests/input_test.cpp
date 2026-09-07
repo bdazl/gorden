@@ -6,7 +6,7 @@ import roboslop.platform.input;
 
 namespace {
 
-constexpr float kEps = 1e-5F;
+constexpr float Eps = 1e-5F;
 
 } // namespace
 
@@ -17,8 +17,8 @@ TEST_CASE("computeMouseDelta returns zero when prev pose is invalid", "[platform
     curr.cursorPosValid = true;
 
     const glm::vec2 d = roboslop::computeMouseDelta(prev, curr);
-    REQUIRE(d.x == Catch::Approx(0.0F).margin(kEps));
-    REQUIRE(d.y == Catch::Approx(0.0F).margin(kEps));
+    REQUIRE(d.x == Catch::Approx(0.0F).margin(Eps));
+    REQUIRE(d.y == Catch::Approx(0.0F).margin(Eps));
 }
 
 TEST_CASE("computeMouseDelta returns zero when curr pose is invalid", "[platform][input]") {
@@ -28,8 +28,8 @@ TEST_CASE("computeMouseDelta returns zero when curr pose is invalid", "[platform
     const roboslop::InputSnapshot curr; // cursorPosValid = false
 
     const glm::vec2 d = roboslop::computeMouseDelta(prev, curr);
-    REQUIRE(d.x == Catch::Approx(0.0F).margin(kEps));
-    REQUIRE(d.y == Catch::Approx(0.0F).margin(kEps));
+    REQUIRE(d.x == Catch::Approx(0.0F).margin(Eps));
+    REQUIRE(d.y == Catch::Approx(0.0F).margin(Eps));
 }
 
 TEST_CASE("computeMouseDelta returns curr - prev when both valid", "[platform][input]") {
@@ -41,8 +41,8 @@ TEST_CASE("computeMouseDelta returns curr - prev when both valid", "[platform][i
     curr.cursorPosValid = true;
 
     const glm::vec2 d = roboslop::computeMouseDelta(prev, curr);
-    REQUIRE(d.x == Catch::Approx(30.0F).margin(kEps));
-    REQUIRE(d.y == Catch::Approx(-20.0F).margin(kEps));
+    REQUIRE(d.x == Catch::Approx(30.0F).margin(Eps));
+    REQUIRE(d.y == Catch::Approx(-20.0F).margin(Eps));
 }
 
 TEST_CASE("keyPressedEdge fires on false->true transition only", "[platform][input]") {

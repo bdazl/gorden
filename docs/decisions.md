@@ -11,6 +11,56 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — Trim the clang-tidy check set to what this codebase can honour
+
+**Decision.** `make tidy` is now warning-free. Getting there fixed ~700
+findings in the code and disabled the checks below, each because it fights
+a deliberate property of this codebase rather than finding a defect.
+
+Bounds and varargs, the game-dev pragmatics already behind
+`pro-bounds-pointer-arithmetic`:
+
+- `cppcoreguidelines-pro-bounds-avoid-unchecked-container-access` and
+  `-pro-bounds-constant-array-index`: indexing a `glm::vec3` or a
+  three-element table by axis is how graphics code reads.
+- `cppcoreguidelines-pro-type-vararg`: Dear ImGui's `Text` family and
+  `snprintf` are variadic by design.
+- `modernize-avoid-c-arrays` (and its alias): GPU vertex layouts and
+  third-party interface implementations need C array members.
+
+Checks that contradict the compiler or another check:
+
+- `readability-redundant-member-init`: dropping `{}` from a member removes
+  the default member initializer that lets `-Wmissing-designated-field-initializers`
+  accept partial designated initialisers, which this codebase uses widely.
+- `misc-use-anonymous-namespace`: it wants the opposite of
+  `misc-use-internal-linkage` for module interface units, which it treats
+  as headers. Module-local helpers are marked `static` instead.
+- `modernize-redundant-void-arg` and `misc-static-assert`: both misparse
+  module code — the first reads `(void)x;` as a declaration, the second
+  proposes `static_assert` for runtime expressions, which does not compile.
+- `readability-redundant-declaration`: flags Jolt's `operator new` overloads
+  and a `module :private` definition, and its fix deletes the definition.
+
+Domain facts:
+
+- `performance-enum-size`: the error enums are `: int` to mirror
+  `Error::code`, and none of these enums is stored in bulk.
+- `performance-no-int-to-ptr`: the frame arena and native window handles
+  do exactly this, deliberately.
+- `concurrency-mt-unsafe`: `getenv`/`strerror` on startup and in the POSIX
+  process wrapper, with no portable thread-safe replacement in use.
+- `bugprone-exception-escape`: `main` is allowed to terminate on an
+  exception; the apps report through `Result` everywhere else.
+- `cppcoreguidelines-avoid-const-or-ref-data-members`: `CommandContext`
+  holds the shell and VFS by reference on purpose.
+- `bugprone-unused-return-value` keeps its default but gains
+  `AllowCastToVoid`: a `(void)` cast is how this codebase says the failure
+  is acceptable here.
+
+**Where.** [`.clang-tidy`](../.clang-tidy),
+[`docs/conventions/code-style.md`](conventions/code-style.md).
+
 ## 2026-09-07 — Disable bugprone-unchecked-optional-access
 
 **Decision.** `.clang-tidy` disables `bugprone-unchecked-optional-access`.

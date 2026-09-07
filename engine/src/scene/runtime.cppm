@@ -39,7 +39,7 @@ export struct SceneIdentity {
 };
 
 namespace detail {
-auto solidTexture(const glm::vec3& color) -> bgfx::TextureHandle {
+static auto solidTexture(const glm::vec3& color) -> bgfx::TextureHandle {
     const std::array<std::uint8_t, 4> pixel{
         static_cast<std::uint8_t>(color.x * 255),
         static_cast<std::uint8_t>(color.y * 255),
@@ -66,16 +66,17 @@ export class SceneRuntime {
     SceneRuntime() = default;
     SceneRuntime(const SceneRuntime&) = delete;
     auto operator=(const SceneRuntime&) -> SceneRuntime& = delete;
+    // Lives in the world's context, constructed in place: never moved.
+    SceneRuntime(SceneRuntime&&) = delete;
+    auto operator=(SceneRuntime&&) -> SceneRuntime& = delete;
 
     ~SceneRuntime() {
         destroyTextures();
-        for (const auto& [name, mesh] : meshes) {
-            (void)name;
+        for ([[maybe_unused]] const auto& [name, mesh] : meshes) {
             bgfx::destroy(mesh.vb);
             bgfx::destroy(mesh.ib);
         }
-        for (const auto& [path, model] : models) {
-            (void)path;
+        for ([[maybe_unused]] const auto& [path, model] : models) {
             for (const auto& part : model.parts) {
                 bgfx::destroy(part.mesh.vb);
                 bgfx::destroy(part.mesh.ib);
@@ -141,7 +142,9 @@ export class SceneRuntime {
         for (const auto& object : document.objects) {
             const auto entity = world.create();
             entities.push_back(entity);
-            world.emplace<SceneIdentity>(entity, SceneIdentity{object.id, object.name});
+            world.emplace<SceneIdentity>(
+                entity, SceneIdentity{.id = object.id, .name = object.name}
+            );
             world.emplace<Transform>(entity, object.transform);
             if (object.geometry == "model") {
                 const auto& model = models.at(object.model);
@@ -263,8 +266,7 @@ export class SceneRuntime {
     }
 
     auto destroyTextures() -> void {
-        for (const auto& [id, handle] : textures) {
-            (void)id;
+        for ([[maybe_unused]] const auto& [id, handle] : textures) {
             bgfx::destroy(handle);
         }
         textures.clear();

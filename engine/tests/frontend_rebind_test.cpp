@@ -76,7 +76,7 @@ TEST_CASE("rebindProgram rewrites programs inside ModelInstance parts", "[render
 
 TEST_CASE("collectMeshDraws emits one draw per mesh and per model part", "[render][frontend]") {
     roboslop::World w;
-    roboslop::FrameArena arena{64 * 1024};
+    roboslop::FrameArena arena{std::size_t{64} * 1024};
 
     const auto a = w.create();
     w.emplace<roboslop::Mesh>(a, roboslop::Mesh{.program = bgfx::ProgramHandle{1}});

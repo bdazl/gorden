@@ -292,11 +292,11 @@ export [[nodiscard]] auto loadModelFile(const std::filesystem::path& path) -> Re
     }
 
     Assimp::Importer importer;
-    constexpr unsigned int kFlags = aiProcess_Triangulate | aiProcess_GenSmoothNormals |
-                                    aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
-                                    aiProcess_JoinIdenticalVertices;
+    constexpr unsigned int Flags = aiProcess_Triangulate | aiProcess_GenSmoothNormals |
+                                   aiProcess_FlipUVs | aiProcess_CalcTangentSpace |
+                                   aiProcess_JoinIdenticalVertices;
 
-    const aiScene* scene = importer.ReadFile(path.string(), kFlags);
+    const aiScene* scene = importer.ReadFile(path.string(), Flags);
     if (scene == nullptr || (scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) != 0U ||
         scene->mRootNode == nullptr) {
         std::string ctx = path.string();
