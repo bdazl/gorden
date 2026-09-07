@@ -143,4 +143,6 @@ settings is in [`docs/decisions.md`](../decisions.md).
 
 `clang-tidy` on `.cppm` files is best-effort while module tooling matures in
 LLVM 22; run it primarily on `.cpp` impl units. `misc-include-cleaner` is
-disabled project-wide for the same reason.
+disabled project-wide for the same reason, and so is
+`bugprone-unchecked-optional-access`, whose dataflow analysis segfaults on
+glm member access in units that import modules (decision of 2026-09-07).

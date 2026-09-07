@@ -11,6 +11,33 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — Disable bugprone-unchecked-optional-access
+
+**Decision.** `.clang-tidy` disables `bugprone-unchecked-optional-access`.
+
+**Why.** clang-tidy 22.1.8 segfaults in the check's flow-sensitive
+analysis (`RecordStorageLocation::getChild` from `VisitMemberExpr`) whenever
+a function that touches a `std::optional` also reads a glm anonymous-union
+member such as `position.x`, in a translation unit that imports C++20
+modules whose global module fragments include overlapping glm headers.
+`apps/editor/src/main.cpp` hits this in `drawInspector` and `drawGizmo`,
+which took the whole `make tidy` run down. The same code passes without
+module imports, so it is a clang bug, not a code problem. Minimal trigger
+with the editor's compile command:
+
+```cpp
+import roboslop.scene.transform;
+import roboslop.render.lighting;
+#include <glm/vec3.hpp>
+#include <optional>
+void probe(std::optional<int>& t, glm::vec3& v) { v.x += 1; if (!t) {} }
+```
+
+Re-enable when a clang release runs it cleanly over `apps/editor`.
+
+**Where.** [`.clang-tidy`](../.clang-tidy),
+[`docs/conventions/code-style.md`](conventions/code-style.md).
+
 ## 2026-09-07 — Models enter scenes as a path on the object, drawn by one entity
 
 **Decision.** A scene object references a model file with

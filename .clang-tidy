@@ -28,6 +28,7 @@ Checks: >
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-avoid-do-while,
   -bugprone-easily-swappable-parameters,
+  -bugprone-unchecked-optional-access,
   -misc-non-private-member-variables-in-classes,
   -misc-no-recursion,
   -misc-include-cleaner
