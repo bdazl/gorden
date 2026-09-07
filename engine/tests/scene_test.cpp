@@ -35,6 +35,21 @@ TEST_CASE("Scene document round trips without runtime handles", "[scene]") {
     REQUIRE_FALSE(json.dump().contains("RigidBody"));
 }
 
+TEST_CASE("Model objects round trip and primitives omit the model key", "[scene]") {
+    roboslop::SceneDocument scene;
+    scene.objects.push_back({.id = "box"});
+    scene.objects.push_back(
+        {.id = "crate", .geometry = "model", .model = "models/crate.glb", .body = "dynamic"}
+    );
+    const auto json = roboslop::sceneToJson(scene);
+    REQUIRE_FALSE(json["objects"][0].contains("model"));
+    REQUIRE(json["objects"][1]["model"] == "models/crate.glb");
+    auto decoded = roboslop::sceneFromJson(json);
+    REQUIRE(decoded);
+    REQUIRE(decoded->objects[1].model == "models/crate.glb");
+    REQUIRE(roboslop::sceneToJson(*decoded) == json);
+}
+
 TEST_CASE("Scene validation rejects invalid references and physics geometry", "[scene]") {
     roboslop::SceneDocument scene;
     scene.objects.push_back({.id = "box"});
@@ -66,6 +81,20 @@ TEST_CASE("Scene validation rejects invalid references and physics geometry", "[
         scene.objects[0].geometry = "sphere";
         scene.objects[0].body = "dynamic";
         scene.objects[0].transform.scale.x = 2;
+    }
+    SECTION("model without a path") {
+        scene.objects[0].geometry = "model";
+    }
+    SECTION("absolute model path") {
+        scene.objects[0].geometry = "model";
+        scene.objects[0].model = "/etc/crate.glb";
+    }
+    SECTION("model path escaping the asset root") {
+        scene.objects[0].geometry = "model";
+        scene.objects[0].model = "models/../../crate.glb";
+    }
+    SECTION("primitive with a model path") {
+        scene.objects[0].model = "models/crate.glb";
     }
     REQUIRE_FALSE(roboslop::validateScene(scene));
 }

@@ -51,13 +51,17 @@ adds its robot and player, and exposes object names to the robot's observation.
 
 Version 1 JSON contains `objects`, `materials`, `camera` and one directional
 `light`. Each object has a stable string `id`, `name`, `geometry` (`cube`, `sphere`,
-`plane`), material ID, transform and `body` (`none`, `static`, `dynamic`).
+`plane`, `model`), material ID, transform and `body` (`none`, `static`, `dynamic`).
+A `model` object also carries a `model` path relative to the asset root
+(`models/crate.glb`); the key is absent on primitives. Model objects draw with
+the materials inside the file and ignore the document material.
 Transforms store position/scale as XYZ arrays and rotation as a WXYZ unit
 quaternion. Geometry names identify shared unit primitives (sphere diameter 1,
 cube side 1, plane side 1). Material IDs refer to RGB colors in the document.
 
 The reader rejects unsupported versions, duplicate IDs, missing material
-references, nonfinite transforms, invalid rotations, and unsupported colliders.
+references, absolute or escaping (`..`) model paths, nonfinite transforms,
+invalid rotations, and unsupported colliders.
 Positive scale is limited to 0.01..1000. Limits: 2000 objects, 1000 physics bodies,
 256 materials. Saves validate first, close the temporary output, then rename it
 over the destination. A failed load keeps the editor's current document intact.

@@ -61,9 +61,10 @@ top-left origin, which is what bgfx and stb_image expect; the loader's
 
 ## Limits
 
-- The scene format does not reference model files yet; `geometry` still
-  names a primitive. The planned shape is a `model` path resolved against
-  the asset root.
+- A scene object references a file with `"geometry": "model"` and a
+  `model` path relative to the asset root (see
+  [scene editing](scene-editor.md)). There is no asset table or stable
+  asset id yet; the path is the identity.
 - No rig extraction: the animation modules exist without glTF import.
 - Only base colour is read; other PBR channels wait for a shader that uses
   them.

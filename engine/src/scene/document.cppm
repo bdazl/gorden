@@ -26,7 +26,11 @@ namespace roboslop {
 export struct SceneObject {
     std::string id;
     std::string name = "Object";
+    // A primitive name, or "model" with `model` naming a file relative
+    // to the asset root. Models draw with their own materials; the
+    // `material` key stays valid but unused for them.
     std::string geometry = "cube";
+    std::string model{};
     std::string material = "stone";
     Transform transform{};
     // Collider follows geometry and scale. Planes are visual only.
@@ -50,6 +54,21 @@ export [[nodiscard]] auto sceneError(std::string context) -> Error {
         .context = std::move(context)
     };
 }
+
+namespace detail {
+// Relative, inside the asset root: no root name, no leading separator,
+// no `..` component.
+auto modelPathValid(const std::string& model) -> bool {
+    if (model.empty()) {
+        return false;
+    }
+    const std::filesystem::path path{model};
+    if (path.has_root_name() || path.has_root_directory()) {
+        return false;
+    }
+    return std::ranges::none_of(path, [](const auto& part) { return part == ".."; });
+}
+} // namespace detail
 
 export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<void> {
     const auto finite = [](const glm::vec3& v) {
@@ -85,7 +104,9 @@ export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<vo
         if (object.id.empty() || !ids.insert(object.id).second || object.name.empty() ||
             !transformValid(object.transform) || !scene.materials.contains(object.material) ||
             (object.geometry != "cube" && object.geometry != "sphere" &&
-             object.geometry != "plane") ||
+             object.geometry != "plane" && object.geometry != "model") ||
+            (object.geometry == "model" ? !detail::modelPathValid(object.model)
+                                        : !object.model.empty()) ||
             (object.body != "none" && object.body != "static" && object.body != "dynamic") ||
             (object.geometry == "plane" && object.body != "none") ||
             (object.geometry == "sphere" && object.body != "none" &&
@@ -93,7 +114,8 @@ export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<vo
               std::abs(object.transform.scale.x - object.transform.scale.z) > 0.001F))) {
             return std::unexpected(sceneError(
                 "object " + object.id +
-                ": check ID, material, transform and collider (sphere requires uniform scale)"
+                ": check ID, material, model path, transform and collider (sphere requires "
+                "uniform scale)"
             ));
         }
     }
@@ -137,14 +159,19 @@ auto readTransform(const nlohmann::json& j) -> Transform {
 export [[nodiscard]] auto sceneToJson(const SceneDocument& scene) -> nlohmann::json {
     nlohmann::json objects = nlohmann::json::array();
     for (const auto& o : scene.objects) {
-        objects.push_back(
-            {{"id", o.id},
-             {"name", o.name},
-             {"geometry", o.geometry},
-             {"material", o.material},
-             {"transform", detail::transformJson(o.transform)},
-             {"body", o.body}}
-        );
+        nlohmann::json object = {
+            {"id", o.id},
+            {"name", o.name},
+            {"geometry", o.geometry},
+            {"material", o.material},
+            {"transform", detail::transformJson(o.transform)},
+            {"body", o.body}
+        };
+        // Only models carry the key, so primitive-only files stay byte-identical.
+        if (o.geometry == "model") {
+            object["model"] = o.model;
+        }
+        objects.push_back(std::move(object));
     }
     nlohmann::json materials = nlohmann::json::object();
     for (const auto& [id, color] : scene.materials) {
@@ -186,6 +213,7 @@ export [[nodiscard]] auto sceneFromJson(const nlohmann::json& json) -> Result<Sc
                 {.id = o.at("id").get<std::string>(),
                  .name = o.at("name").get<std::string>(),
                  .geometry = o.at("geometry").get<std::string>(),
+                 .model = o.value("model", std::string{}),
                  .material = o.at("material").get<std::string>(),
                  .transform = detail::readTransform(o.at("transform")),
                  .body = o.at("body").get<std::string>()}
