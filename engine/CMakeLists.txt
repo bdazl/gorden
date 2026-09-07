@@ -65,6 +65,7 @@ roboslop_add_module_library(roboslop
         src/llm/backend.cppm
         src/llm/backend_scripted.cppm
         src/llm/backend_openai.cppm
+        src/app/benchmark.cppm
         src/app/app.cppm
     SOURCES
         src/assets/stb_image_impl.cpp

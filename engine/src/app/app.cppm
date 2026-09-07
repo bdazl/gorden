@@ -26,6 +26,7 @@ import roboslop.render.graph;
 import roboslop.sched;
 import roboslop.time.clock;
 import roboslop.time.frame_stats;
+import roboslop.app.benchmark;
 import roboslop.ui;
 import roboslop.ui.perf_window;
 
@@ -94,7 +95,12 @@ export class App {
         if (!window) {
             return std::unexpected(window.error());
         }
-        auto render = RenderContext::make(*window);
+        const auto bench = benchmarkFromEnv();
+        RenderConfig renderCfg{};
+        if (bench.frames > 0) {
+            renderCfg = withoutVsync(renderCfg);
+        }
+        auto render = RenderContext::make(*window, renderCfg);
         if (!render) {
             return std::unexpected(render.error());
         }
@@ -128,6 +134,7 @@ export class App {
             std::move(*audio),
             std::move(scheduler),
             std::move(arena),
+            bench,
             std::move(cfg)
         };
     }
@@ -173,6 +180,16 @@ export class App {
         );
         clock.reset();
 
+        const bool benchmarking = bench.frames > 0;
+        if (benchmarking) {
+            spdlog::info(
+                "roboslop: benchmark {} frames ({} warm-up), fixed step, vsync off",
+                bench.frames,
+                bench.warmupFrames
+            );
+        }
+        std::size_t frameIndex = 0;
+
         while (true) {
             const auto frameStart = std::chrono::steady_clock::now();
             arena.reset();
@@ -196,7 +213,10 @@ export class App {
                 ui->toggleEnabled();
             }
 
-            const double dt = clock.tickFrame();
+            // A benchmark must not let a slow frame feed back into the
+            // simulation load, or the measurement measures itself.
+            const double wallDt = clock.tickFrame();
+            const double dt = benchmarking ? ticker.fixedDelta() : wallDt;
             const int steps = ticker.advance(dt);
             const auto fixedStart = std::chrono::steady_clock::now();
             for (int i = 0; i < steps; ++i) {
@@ -228,6 +248,17 @@ export class App {
                 .backbufferWidth = gpu.backbufferWidth,
                 .backbufferHeight = gpu.backbufferHeight,
             });
+
+            if (benchmarking) {
+                ++frameIndex;
+                if (frameIndex == bench.warmupFrames) {
+                    stats.clear();
+                }
+                if (frameIndex >= bench.warmupFrames + bench.frames) {
+                    reportBenchmark(stats, bench, RenderContext::multiThreaded());
+                    break;
+                }
+            }
         }
 
         spdlog::info("roboslop: main loop exited");
@@ -255,11 +286,16 @@ export class App {
         AudioDevice audio,
         Scheduler scheduler,
         FrameArena arena,
+        BenchmarkConfig bench,
         AppConfig cfg) noexcept
         : window(std::move(window)), render(std::move(render)), input(this->window),
           assets(std::move(assets)), ui(std::move(ui)), physics(std::move(physics)),
           audio(std::move(audio)), ticker(cfg.tickRateHz), scheduler(std::move(scheduler)),
-          arena(std::move(arena)), cfg(std::move(cfg)) {}
+          arena(std::move(arena)),
+          // A benchmark summarises every measured frame, so the ring has
+          // to hold the whole run rather than the last few seconds.
+          stats(bench.frames > 0 ? bench.frames : FrameStats::DefaultCapacity),
+          bench(std::move(bench)), cfg(std::move(cfg)) {}
 
     // Member order is destruction-critical: assets must outlive any
     // entity that stores its handles (world) and must die before bgfx
@@ -290,6 +326,7 @@ export class App {
     SystemGraph fixedGraph;
     RenderGraph renderGraph;
     FrameStats stats;
+    BenchmarkConfig bench;
     AppConfig cfg;
 };
 

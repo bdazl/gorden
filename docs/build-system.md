@@ -152,6 +152,15 @@ Read by the applications, never by the build:
 | `OPENAI_API_KEY` | gorden | Selects the OpenAI-compatible LLM backend. Absent → scripted demo provider. Never logged. |
 | `OPENAI_BASE_URL` | gorden | Base URL of the chat-completions API (default `https://api.openai.com/v1`; e.g. `http://127.0.0.1:8080/v1` for a llama.cpp server). |
 | `GORDEN_MODEL` | gorden | Model name sent in the request (default `gpt-4.1-mini`). |
+| `ROBOSLOP_BENCH_FRAMES` | any app | Runs that many frames and exits with a timing summary instead of looping until the window closes. Frames are stepped at the fixed rate and vsync is off, so the run measures how fast the engine produces frames. |
+| `ROBOSLOP_BENCH_WARMUP` | any app | Frames discarded before measuring (default 60) — the first frames pay for pipeline and texture creation. |
+| `ROBOSLOP_BENCH_JSON` | any app | Writes the same summary as JSON to this path. |
+
+The benchmark is configured through the environment rather than
+`AppConfig` so every application inherits it without naming a field, and
+without a command-line flag of its own. `roboslop.app.benchmark` owns the
+mode; `roboslop.time.frame_stats` owns the ring buffer and percentiles
+that both it and the dev-UI "Performance" overlay read.
 
 ## Shaders
 

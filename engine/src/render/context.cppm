@@ -55,6 +55,14 @@ export struct RenderConfig {
     std::uint32_t resetFlags = BGFX_RESET_VSYNC;
 };
 
+// Benchmarks measure how fast the engine can produce frames, which vsync
+// hides by pacing them to the display. Spelled here because BGFX_RESET_*
+// lives behind this module.
+export [[nodiscard]] auto withoutVsync(RenderConfig cfg) noexcept -> RenderConfig {
+    cfg.resetFlags &= ~static_cast<std::uint32_t>(BGFX_RESET_VSYNC);
+    return cfg;
+}
+
 // Owns the bgfx device. Construction binds to a Window; only one instance may
 // exist per process (bgfx is a global singleton). Submits view 0 with a clear
 // every frame so a default render produces a visible backbuffer without any
