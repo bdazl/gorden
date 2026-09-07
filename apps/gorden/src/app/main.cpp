@@ -667,7 +667,9 @@ auto main(int argc, char** argv) -> int {
                         .reads = {"transforms"},
                         .writes = {"agent"},
                         .run = [](roboslop::SystemCtx& c) {
-                            c.world->registry().ctx().get<gorden::AgentBrain>().pump(*c.world);
+                            c.world->registry().ctx().get<gorden::AgentBrain>().pump(
+                                *c.world, c.dt
+                            );
                         },
                     });
                     roboslop::registerPhysicsSystems(fixed);

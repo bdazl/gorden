@@ -23,6 +23,14 @@ export struct Named {
     std::string name{};
 };
 
+// An active goal as the robot sees it in an observation. Goals live in
+// gorden.agent.memory; they reach the observation so that validation
+// and the model see the same list.
+export struct ObservedGoal {
+    std::string id;
+    std::string text{};
+};
+
 export struct ObservedEntity {
     std::string name{};
     glm::vec3 position{0.0F};
@@ -38,6 +46,9 @@ export struct Observation {
     bool robotMoving = false;
     std::vector<ObservedEntity> nearby{}; // sorted by distance, robot excluded
     std::vector<std::string> recentEvents{};
+    // Filled by the brain from memory, not by buildObservation.
+    std::vector<ObservedGoal> goals{};
+    std::vector<std::string> beliefs{}; // one rendered line each
     std::string playerMessage{};
 };
 
@@ -92,6 +103,16 @@ export [[nodiscard]] auto observationToJson(const Observation& obs) -> std::stri
     }
     j["nearby"] = std::move(nearby);
     j["events"] = obs.recentEvents;
+    if (!obs.goals.empty()) {
+        nlohmann::json goals = nlohmann::json::array();
+        for (const auto& g : obs.goals) {
+            goals.push_back({{"id", g.id}, {"text", g.text}});
+        }
+        j["goals"] = std::move(goals);
+    }
+    if (!obs.beliefs.empty()) {
+        j["beliefs"] = obs.beliefs;
+    }
     if (!obs.playerMessage.empty()) {
         j["player_message"] = obs.playerMessage;
     }

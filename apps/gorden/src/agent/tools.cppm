@@ -9,6 +9,7 @@ module;
 #include <cstddef>
 #include <expected>
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,6 +18,7 @@ module;
 
 export module gorden.agent.tools;
 
+import gorden.agent.memory;
 import gorden.agent.observation;
 import roboslop.core.error;
 import roboslop.llm;
@@ -38,7 +40,37 @@ export struct Say {
     std::string text{};
 };
 
-export using Command = std::variant<MoveTo, Inspect, Say>;
+// The memory actions. The robot decides what is worth remembering, so
+// every write to gorden.agent.memory comes through one of these rather
+// than from the simulation behind its back.
+export struct Remember {
+    std::string text{};
+};
+
+export struct Recall {
+    std::string query{};
+    std::size_t limit = 3;
+};
+
+export struct Believe {
+    std::string subject{};
+    std::string predicate{};
+    std::string value{};
+    std::string source{};
+    float confidence = 0.5F;
+};
+
+export struct SetGoal {
+    std::string text{};
+};
+
+export struct CloseGoal {
+    std::string id{};
+    GoalStatus status = GoalStatus::Done;
+};
+
+export using Command =
+    std::variant<MoveTo, Inspect, Say, Remember, Recall, Believe, SetGoal, CloseGoal>;
 
 export enum class ToolError : int {
     UnknownTool = 1,
@@ -48,6 +80,9 @@ export enum class ToolError : int {
     UnknownEntity = 5,
     EmptyText = 6,
     TextTooLong = 7,
+    UnknownGoal = 8,
+    BadConfidence = 9,
+    TooManyGoals = 10,
 };
 
 export [[nodiscard]] auto toError(ToolError e, std::string ctx = {}) -> roboslop::Error {
@@ -73,7 +108,13 @@ export [[nodiscard]] auto toError(ToolError e, std::string ctx = {}) -> roboslop
     case ToolError::EmptyText:
         return make("say text is empty");
     case ToolError::TextTooLong:
-        return make("say text is too long");
+        return make("text is too long");
+    case ToolError::UnknownGoal:
+        return make("no active goal with that id");
+    case ToolError::BadConfidence:
+        return make("confidence must be between 0 and 1");
+    case ToolError::TooManyGoals:
+        return make("too many goals are already active");
     }
     return make("unknown ToolError");
 }
@@ -101,6 +142,45 @@ export [[nodiscard]] auto toolSpecs() -> std::vector<roboslop::ToolSpec> {
             .description = "Say something out loud to the player. Keep it short.",
             .parametersSchemaJson = R"({"type":"object","properties":{
                 "text":{"type":"string"}},"required":["text"]})",
+        },
+        roboslop::ToolSpec{
+            .name = "remember",
+            .description = "Store one thing worth remembering later. Write it as a full "
+                           "sentence with the words you would search for.",
+            .parametersSchemaJson = R"({"type":"object","properties":{
+                "text":{"type":"string"}},"required":["text"]})",
+        },
+        roboslop::ToolSpec{
+            .name = "recall",
+            .description = "Search your memories by keywords and get the best matches back.",
+            .parametersSchemaJson = R"({"type":"object","properties":{
+                "query":{"type":"string"},"limit":{"type":"integer"}},
+                "required":["query"]})",
+        },
+        roboslop::ToolSpec{
+            .name = "believe",
+            .description = "Record what you hold true about something, and where you learned "
+                           "it. A new value replaces the one you held before.",
+            .parametersSchemaJson = R"({"type":"object","properties":{
+                "subject":{"type":"string"},"predicate":{"type":"string"},
+                "value":{"type":"string"},"source":{"type":"string"},
+                "confidence":{"type":"number"}},
+                "required":["subject","predicate","value"]})",
+        },
+        roboslop::ToolSpec{
+            .name = "setGoal",
+            .description = "Start pursuing an intention. Active goals are listed in every "
+                           "observation.",
+            .parametersSchemaJson = R"({"type":"object","properties":{
+                "text":{"type":"string"}},"required":["text"]})",
+        },
+        roboslop::ToolSpec{
+            .name = "closeGoal",
+            .description = "Finish a goal by its id, as done or abandoned.",
+            .parametersSchemaJson = R"({"type":"object","properties":{
+                "id":{"type":"string"},
+                "status":{"type":"string","enum":["done","abandoned"]}},
+                "required":["id"]})",
         },
     };
 }
@@ -131,6 +211,79 @@ export [[nodiscard]] auto parseToolCall(const roboslop::ToolCall& call)
         }
         return Command{Say{.text = args["text"].get<std::string>()}};
     }
+    if (call.name == "remember") {
+        if (!args.contains("text") || !args["text"].is_string()) {
+            return std::unexpected(toError(ToolError::BadArguments, "remember needs text"));
+        }
+        return Command{Remember{.text = args["text"].get<std::string>()}};
+    }
+    if (call.name == "recall") {
+        if (!args.contains("query") || !args["query"].is_string()) {
+            return std::unexpected(toError(ToolError::BadArguments, "recall needs a query"));
+        }
+        Recall recall{.query = args["query"].get<std::string>()};
+        if (args.contains("limit")) {
+            if (!args["limit"].is_number_unsigned()) {
+                return std::unexpected(
+                    toError(ToolError::BadArguments, "recall limit must be a positive number")
+                );
+            }
+            recall.limit = args["limit"].get<std::size_t>();
+        }
+        return Command{recall};
+    }
+    if (call.name == "believe") {
+        if (!args.contains("subject") || !args["subject"].is_string() ||
+            !args.contains("predicate") || !args["predicate"].is_string() ||
+            !args.contains("value") || !args["value"].is_string()) {
+            return std::unexpected(
+                toError(ToolError::BadArguments, "believe needs subject, predicate and value")
+            );
+        }
+        Believe belief{
+            .subject = args["subject"].get<std::string>(),
+            .predicate = args["predicate"].get<std::string>(),
+            .value = args["value"].get<std::string>(),
+        };
+        if (args.contains("source")) {
+            if (!args["source"].is_string()) {
+                return std::unexpected(
+                    toError(ToolError::BadArguments, "believe source must be a string")
+                );
+            }
+            belief.source = args["source"].get<std::string>();
+        }
+        if (args.contains("confidence")) {
+            if (!args["confidence"].is_number()) {
+                return std::unexpected(
+                    toError(ToolError::BadArguments, "believe confidence must be a number")
+                );
+            }
+            belief.confidence = args["confidence"].get<float>();
+        }
+        return Command{belief};
+    }
+    if (call.name == "setGoal") {
+        if (!args.contains("text") || !args["text"].is_string()) {
+            return std::unexpected(toError(ToolError::BadArguments, "setGoal needs text"));
+        }
+        return Command{SetGoal{.text = args["text"].get<std::string>()}};
+    }
+    if (call.name == "closeGoal") {
+        if (!args.contains("id") || !args["id"].is_string()) {
+            return std::unexpected(toError(ToolError::BadArguments, "closeGoal needs an id"));
+        }
+        CloseGoal close{.id = args["id"].get<std::string>()};
+        if (args.contains("status")) {
+            if (!args["status"].is_string()) {
+                return std::unexpected(
+                    toError(ToolError::BadArguments, "closeGoal status must be a string")
+                );
+            }
+            close.status = goalStatusFromName(args["status"].get<std::string>());
+        }
+        return Command{close};
+    }
     return std::unexpected(toError(ToolError::UnknownTool, call.name));
 }
 
@@ -138,6 +291,9 @@ export struct Rules {
     float maxMoveDistance = 30.0F; // per moveTo, in metres from the robot
     float worldHalfExtent = 12.0F; // the ground plane is 20 m; keep a margin
     std::size_t maxSayLength = 200;
+    std::size_t maxMemoryTextLength = 300; // remember, believe and setGoal texts
+    std::size_t maxRecallResults = 5;      // a recall limit above this is clamped
+    std::size_t maxActiveGoals = 5;
 };
 
 // The validation boundary: a Command comes out only if the simulation
@@ -145,6 +301,20 @@ export struct Rules {
 // the model can be told why.
 export [[nodiscard]] auto validate(const Command& cmd, const Observation& obs, const Rules& rules)
     -> roboslop::Result<Command> {
+    // The memory tools all carry free text under the same two rules.
+    const auto checkText = [&](const std::string& text,
+                               std::string_view what) -> std::optional<roboslop::Error> {
+        if (text.empty()) {
+            return toError(ToolError::EmptyText, std::string{what});
+        }
+        if (text.size() > rules.maxMemoryTextLength) {
+            return toError(
+                ToolError::TextTooLong,
+                std::format("{}: {} chars, max {}", what, text.size(), rules.maxMemoryTextLength)
+            );
+        }
+        return std::nullopt;
+    };
     return std::visit(
         [&](const auto& c) -> roboslop::Result<Command> {
             using T = std::decay_t<decltype(c)>;
@@ -176,7 +346,7 @@ export [[nodiscard]] auto validate(const Command& cmd, const Observation& obs, c
                     return std::unexpected(toError(ToolError::UnknownEntity, c.name));
                 }
                 return Command{c};
-            } else {
+            } else if constexpr (std::is_same_v<T, Say>) {
                 if (c.text.empty()) {
                     return std::unexpected(toError(ToolError::EmptyText));
                 }
@@ -185,6 +355,54 @@ export [[nodiscard]] auto validate(const Command& cmd, const Observation& obs, c
                         ToolError::TextTooLong,
                         std::format("{} chars, max {}", c.text.size(), rules.maxSayLength)
                     ));
+                }
+                return Command{c};
+            } else if constexpr (std::is_same_v<T, Remember>) {
+                if (auto bad = checkText(c.text, "remember text"); bad) {
+                    return std::unexpected(*bad);
+                }
+                return Command{c};
+            } else if constexpr (std::is_same_v<T, Recall>) {
+                if (auto bad = checkText(c.query, "recall query"); bad) {
+                    return std::unexpected(*bad);
+                }
+                // A greedy limit is clamped rather than rejected: the
+                // model asked a reasonable question with a bad number.
+                return Command{
+                    Recall{.query = c.query, .limit = std::min(c.limit, rules.maxRecallResults)}
+                };
+            } else if constexpr (std::is_same_v<T, Believe>) {
+                for (const auto& [text, what] :
+                     {std::pair{c.subject, "belief subject"},
+                      std::pair{c.predicate, "belief predicate"},
+                      std::pair{c.value, "belief value"}}) {
+                    if (auto bad = checkText(text, what); bad) {
+                        return std::unexpected(*bad);
+                    }
+                }
+                if (!std::isfinite(c.confidence) || c.confidence < 0.0F || c.confidence > 1.0F) {
+                    return std::unexpected(
+                        toError(ToolError::BadConfidence, std::format("{:.2f} given", c.confidence))
+                    );
+                }
+                return Command{c};
+            } else if constexpr (std::is_same_v<T, SetGoal>) {
+                if (auto bad = checkText(c.text, "goal text"); bad) {
+                    return std::unexpected(*bad);
+                }
+                if (obs.goals.size() >= rules.maxActiveGoals) {
+                    return std::unexpected(toError(
+                        ToolError::TooManyGoals,
+                        std::format("max {}; close one first", rules.maxActiveGoals)
+                    ));
+                }
+                return Command{c};
+            } else {
+                const bool known = std::ranges::any_of(obs.goals, [&](const ObservedGoal& g) {
+                    return g.id == c.id;
+                });
+                if (!known) {
+                    return std::unexpected(toError(ToolError::UnknownGoal, c.id));
                 }
                 return Command{c};
             }
@@ -201,8 +419,18 @@ export [[nodiscard]] auto commandName(const Command& cmd) noexcept -> std::strin
                 return "moveTo";
             } else if constexpr (std::is_same_v<T, Inspect>) {
                 return "inspect";
-            } else {
+            } else if constexpr (std::is_same_v<T, Say>) {
                 return "say";
+            } else if constexpr (std::is_same_v<T, Remember>) {
+                return "remember";
+            } else if constexpr (std::is_same_v<T, Recall>) {
+                return "recall";
+            } else if constexpr (std::is_same_v<T, Believe>) {
+                return "believe";
+            } else if constexpr (std::is_same_v<T, SetGoal>) {
+                return "setGoal";
+            } else {
+                return "closeGoal";
             }
         },
         cmd
@@ -218,8 +446,25 @@ export [[nodiscard]] auto describeCommand(const Command& cmd) -> std::string {
                 return std::format("moveTo({:.1f}, {:.1f})", c.target.x, c.target.z);
             } else if constexpr (std::is_same_v<T, Inspect>) {
                 return std::format("inspect({})", c.name);
-            } else {
+            } else if constexpr (std::is_same_v<T, Say>) {
                 return std::format("say(\"{}\")", c.text);
+            } else if constexpr (std::is_same_v<T, Remember>) {
+                return std::format("remember(\"{}\")", c.text);
+            } else if constexpr (std::is_same_v<T, Recall>) {
+                return std::format("recall(\"{}\", {})", c.query, c.limit);
+            } else if constexpr (std::is_same_v<T, Believe>) {
+                return std::format(
+                    "believe({} {} = {} [{}], {:.2f})",
+                    c.subject,
+                    c.predicate,
+                    c.value,
+                    c.source.empty() ? "no source" : c.source,
+                    c.confidence
+                );
+            } else if constexpr (std::is_same_v<T, SetGoal>) {
+                return std::format("setGoal(\"{}\")", c.text);
+            } else {
+                return std::format("closeGoal({}, {})", c.id, goalStatusName(c.status));
             }
         },
         cmd

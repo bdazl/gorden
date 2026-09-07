@@ -1,4 +1,5 @@
 import gorden.agent.brain;
+import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.robot;
 import roboslop.core.error;
@@ -101,7 +102,7 @@ TEST_CASE("player message triggers a think; accepted moveTo drives the robot", "
     REQUIRE(requests.size() == 1);
     REQUIRE(requests[0].messages.front().role == roboslop::Role::System);
     REQUIRE(requests[0].messages.back().content.contains("go to the crate"));
-    REQUIRE(requests[0].tools.size() == 3);
+    REQUIRE(requests[0].tools.size() == 8);
 }
 
 TEST_CASE(
@@ -220,4 +221,83 @@ TEST_CASE("provider errors are reported and do not loop", "[agent][brain]") {
     REQUIRE_FALSE(brain.thinking());
     REQUIRE(brain.thinkCount() == 1);
     REQUIRE(brain.transcript().back().text.contains("provider error"));
+}
+
+TEST_CASE("remembered things come back through recall in a later think", "[agent][brain]") {
+    Fixture f;
+    auto provider =
+        std::make_unique<roboslop::ScriptedProvider>(std::vector<roboslop::ChatResponse>{
+            toolCallResponse("remember", R"({"text": "the crate hides a key"})"),
+            toolCallResponse("recall", R"({"query": "crate"})", "c2"),
+        });
+    auto* scripted = provider.get();
+    gorden::AgentBrain brain(std::move(provider), gorden::BrainConfig{}, f.robot, f.player);
+
+    brain.playerSays("the crate hides a key");
+    pumpUntilIdle(brain, f.world);
+    REQUIRE(brain.memory().episodes().size() == 1);
+    REQUIRE(logContains(brain, "remembered ep-1"));
+
+    brain.playerSays("what was in the crate?");
+    pumpUntilIdle(brain, f.world);
+
+    // The recall result reached the model as the tool message, and the
+    // episode itself never had to sit in the chat history.
+    const auto requests = scripted->recordedRequests();
+    REQUIRE(requests.size() == 2);
+    const auto& replayed = requests[1].messages;
+    const bool toolResultCarriesTheMemory =
+        std::ranges::any_of(replayed, [](const roboslop::ChatMessage& m) {
+            return m.role == roboslop::Role::Tool && m.content.contains("the crate hides a key");
+        });
+    REQUIRE(brain.memory().recall("crate", 5).size() == 1);
+    REQUIRE(logContains(brain, "recall \"crate\" → 1 hit(s)"));
+    REQUIRE_FALSE(toolResultCarriesTheMemory); // it lands after this request
+}
+
+TEST_CASE("an active goal rides along in the next observation", "[agent][brain]") {
+    Fixture f;
+    auto provider =
+        std::make_unique<roboslop::ScriptedProvider>(std::vector<roboslop::ChatResponse>{
+            toolCallResponse("setGoal", R"({"text": "find the key"})"),
+            toolCallResponse("closeGoal", R"({"id": "goal-1", "status": "done"})", "c2"),
+        });
+    auto* scripted = provider.get();
+    gorden::AgentBrain brain(std::move(provider), gorden::BrainConfig{}, f.robot, f.player);
+
+    brain.playerSays("find the key");
+    pumpUntilIdle(brain, f.world);
+    REQUIRE(brain.memory().activeGoals().size() == 1);
+
+    brain.playerSays("did you?");
+    pumpUntilIdle(brain, f.world);
+
+    const auto requests = scripted->recordedRequests();
+    REQUIRE(requests.size() == 2);
+    REQUIRE(requests[1].messages.back().content.contains("goal-1"));
+    REQUIRE(brain.memory().activeGoals().empty());
+    REQUIRE(brain.memory().goals()[0].status == gorden::GoalStatus::Done);
+}
+
+TEST_CASE("a belief is rendered into every later observation", "[agent][brain]") {
+    Fixture f;
+    auto provider =
+        std::make_unique<roboslop::ScriptedProvider>(std::vector<roboslop::ChatResponse>{
+            toolCallResponse(
+                "believe",
+                R"({"subject":"crate","predicate":"contents","value":"a key","source":"player"})"
+            ),
+            toolCallResponse("say", R"({"text": "Noted."})", "c2"),
+        });
+    auto* scripted = provider.get();
+    gorden::AgentBrain brain(std::move(provider), gorden::BrainConfig{}, f.robot, f.player);
+
+    brain.playerSays("the crate holds a key");
+    pumpUntilIdle(brain, f.world);
+    brain.playerSays("and?");
+    pumpUntilIdle(brain, f.world);
+
+    const auto requests = scripted->recordedRequests();
+    REQUIRE(requests[1].messages.back().content.contains("crate contents: a key (player"));
+    REQUIRE(brain.memory().beliefs().size() == 1);
 }

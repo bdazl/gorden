@@ -1,3 +1,4 @@
+import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.tools;
 import roboslop.llm;
@@ -21,12 +22,17 @@ auto observationWith(glm::vec3 robotPos, std::string visibleName) -> gorden::Obs
 
 } // namespace
 
-TEST_CASE("toolSpecs exposes the three first-slice tools", "[agent][tools]") {
+TEST_CASE("toolSpecs exposes the world and memory tools", "[agent][tools]") {
     const auto specs = gorden::toolSpecs();
-    REQUIRE(specs.size() == 3);
+    REQUIRE(specs.size() == 8);
     REQUIRE(specs[0].name == "moveTo");
     REQUIRE(specs[1].name == "inspect");
     REQUIRE(specs[2].name == "say");
+    REQUIRE(specs[3].name == "remember");
+    REQUIRE(specs[4].name == "recall");
+    REQUIRE(specs[5].name == "believe");
+    REQUIRE(specs[6].name == "setGoal");
+    REQUIRE(specs[7].name == "closeGoal");
 }
 
 TEST_CASE("parseToolCall turns model JSON into commands", "[agent][tools]") {
@@ -111,4 +117,103 @@ TEST_CASE("describeCommand renders one line per command", "[agent][tools]") {
     REQUIRE(gorden::describeCommand(gorden::Inspect{.name = "x"}) == "inspect(x)");
     REQUIRE(gorden::describeCommand(gorden::Say{.text = "hi"}) == "say(\"hi\")");
     REQUIRE(gorden::commandName(gorden::Say{.text = "hi"}) == "say");
+}
+
+TEST_CASE("The memory tools parse into commands", "[agent][tools]") {
+    const auto remember = gorden::parseToolCall(
+        {.id = "1", .name = "remember", .argumentsJson = R"({"text": "the crate is heavy"})"}
+    );
+    REQUIRE(remember.has_value());
+    REQUIRE(std::get<gorden::Remember>(*remember).text == "the crate is heavy");
+
+    const auto recall = gorden::parseToolCall(
+        {.id = "2", .name = "recall", .argumentsJson = R"({"query": "crate", "limit": 2})"}
+    );
+    REQUIRE(recall.has_value());
+    REQUIRE(std::get<gorden::Recall>(*recall).limit == 2);
+
+    const auto believe = gorden::parseToolCall(
+        {.id = "3",
+         .name = "believe",
+         .argumentsJson = R"({"subject":"crate","predicate":"weight","value":"heavy",
+                              "source":"player","confidence":0.8})"}
+    );
+    REQUIRE(believe.has_value());
+    REQUIRE(std::get<gorden::Believe>(*believe).source == "player");
+
+    const auto close = gorden::parseToolCall(
+        {.id = "4", .name = "closeGoal", .argumentsJson = R"({"id":"goal-1","status":"abandoned"})"}
+    );
+    REQUIRE(close.has_value());
+    REQUIRE(std::get<gorden::CloseGoal>(*close).status == gorden::GoalStatus::Abandoned);
+
+    const auto bad = gorden::parseToolCall(
+        {.id = "5", .name = "believe", .argumentsJson = R"({"subject": "crate"})"}
+    );
+    REQUIRE_FALSE(bad.has_value());
+    REQUIRE(bad.error().code == static_cast<int>(gorden::ToolError::BadArguments));
+}
+
+TEST_CASE("Memory commands are validated before they reach memory", "[agent][tools]") {
+    const gorden::Rules rules{
+        .maxMemoryTextLength = 10, .maxRecallResults = 2, .maxActiveGoals = 1
+    };
+    const auto obs = observationWith({0.0F, 0.0F, 0.0F}, "crate");
+
+    REQUIRE_FALSE(gorden::validate(gorden::Remember{}, obs, rules));
+    REQUIRE(
+        gorden::validate(gorden::Remember{.text = "way too long to keep"}, obs, rules)
+            .error()
+            .code == static_cast<int>(gorden::ToolError::TextTooLong)
+    );
+    REQUIRE(gorden::validate(gorden::Remember{.text = "short"}, obs, rules));
+
+    // A greedy recall limit is clamped, not rejected.
+    const auto recall = gorden::validate(gorden::Recall{.query = "crate", .limit = 99}, obs, rules);
+    REQUIRE(recall);
+    REQUIRE(std::get<gorden::Recall>(*recall).limit == 2);
+
+    const gorden::Believe belief{.subject = "crate", .predicate = "weight", .value = "heavy"};
+    REQUIRE(gorden::validate(belief, obs, rules));
+    auto unsure = belief;
+    unsure.confidence = 1.5F;
+    REQUIRE(
+        gorden::validate(unsure, obs, rules).error().code ==
+        static_cast<int>(gorden::ToolError::BadConfidence)
+    );
+
+    // setGoal is capped by the active goals the observation carries, and
+    // closeGoal only accepts an id from that same list.
+    REQUIRE(gorden::validate(gorden::SetGoal{.text = "find it"}, obs, rules));
+    auto busy = obs;
+    busy.goals.push_back({.id = "goal-1", .text = "find it"});
+    REQUIRE(
+        gorden::validate(gorden::SetGoal{.text = "and more"}, busy, rules).error().code ==
+        static_cast<int>(gorden::ToolError::TooManyGoals)
+    );
+    REQUIRE(gorden::validate(gorden::CloseGoal{.id = "goal-1"}, busy, rules));
+    REQUIRE(
+        gorden::validate(gorden::CloseGoal{.id = "goal-1"}, obs, rules).error().code ==
+        static_cast<int>(gorden::ToolError::UnknownGoal)
+    );
+}
+
+TEST_CASE("describeCommand renders the memory commands", "[agent][tools]") {
+    REQUIRE(gorden::commandName(gorden::Remember{.text = "x"}) == "remember");
+    REQUIRE(
+        gorden::describeCommand(gorden::Recall{.query = "crate", .limit = 3}) ==
+        "recall(\"crate\", 3)"
+    );
+    REQUIRE(
+        gorden::describeCommand(
+            gorden::Believe{
+                .subject = "crate", .predicate = "weight", .value = "heavy", .confidence = 0.75F
+            }
+        ) == "believe(crate weight = heavy [no source], 0.75)"
+    );
+    REQUIRE(
+        gorden::describeCommand(
+            gorden::CloseGoal{.id = "goal-1", .status = gorden::GoalStatus::Done}
+        ) == "closeGoal(goal-1, done)"
+    );
 }

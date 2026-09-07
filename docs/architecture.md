@@ -97,14 +97,21 @@ The agent code is the `gorden_agent` module library
 - `gorden.agent.observation` — `Named` component, `buildObservation`
   (every named entity within a radius, sorted by distance; no
   line-of-sight yet) and `observationToJson`, the text the model reads.
+  Active goals and beliefs are filled in by the brain, not by
+  `buildObservation`.
+- `gorden.agent.memory` — the long-term memory: episodes, beliefs with
+  provenance, goals, keyword retrieval and JSON serialisation. Only the
+  validated tools write to it.
 - `gorden.agent.tools` — the tool schemas, `parseToolCall` (JSON →
-  `MoveTo` / `Inspect` / `Say`), and `validate`, the boundary that turns
-  a proposal into a `Command` or a rejection with the rule named.
+  `MoveTo` / `Inspect` / `Say` / `Remember` / `Recall` / `Believe` /
+  `SetGoal` / `CloseGoal`), and `validate`, the boundary that turns a
+  proposal into a `Command` or a rejection with the rule named.
 - `gorden.agent.robot` — `RobotMotion` and the kinematic
   `robotLocomotion` system (straight line on XZ, no physics body).
 - `gorden.agent.brain` — `AgentBrain`: an event queue (player message,
   tool rejected, move completed, inspect result), a bounded working
-  memory, one in-flight `AsyncCompletion`, and the validated action log.
+  memory, the long-term `AgentMemory`, one in-flight `AsyncCompletion`,
+  and the validated action log.
   Events are the only trigger for a think; chained thinks are capped
   per player message; provider errors are logged and never retried on
   their own.

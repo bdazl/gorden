@@ -15,6 +15,7 @@ module;
 
 export module gorden.agent.brain;
 
+import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.agent.tools;
@@ -78,7 +79,11 @@ export struct BrainConfig {
         "the world only through the JSON observation in each user message. Act through "
         "the tools; use say to talk to {player} in one or two short sentences. "
         "Coordinates are metres, y is up. When a move completes or a tool is rejected you "
-        "get a new observation; do not repeat a rejected action.";
+        "get a new observation; do not repeat a rejected action. "
+        "You keep a memory between sessions: remember what you will want later, recall it "
+        "by keywords before assuming you have forgotten, believe what you learn about "
+        "things, and keep your intentions as goals — the active ones are listed in every "
+        "observation and you close them yourself.";
 };
 
 export [[nodiscard]] auto renderSystemPrompt(const BrainConfig& cfg) -> std::string {
@@ -126,7 +131,10 @@ export class AgentBrain {
         queueEvent({.kind = AgentEventKind::PlayerMessage, .text = std::move(text)});
     }
 
-    auto pump(roboslop::World& world) -> void {
+    // `dt` is the fixed step; the brain keeps its own simulation clock
+    // so memories can be timestamped without a global time service.
+    auto pump(roboslop::World& world, double dt = 0.0) -> void {
+        simSeconds += dt;
         collectRobotEvents(world);
         if (pending.active()) {
             if (pending.ready()) {
@@ -195,10 +203,49 @@ export class AgentBrain {
         return thinks;
     }
 
+    [[nodiscard]] auto memory() const noexcept -> const AgentMemory& {
+        return mem;
+    }
+
+    // Loading a save replaces the long-term memory wholesale; the chat
+    // history is not restored, so the robot resumes with what it chose
+    // to remember rather than with the raw conversation.
+    auto setMemory(AgentMemory memory, double simTime) -> void {
+        mem = std::move(memory);
+        simSeconds = simTime;
+    }
+
+    [[nodiscard]] auto simTime() const noexcept -> double {
+        return simSeconds;
+    }
+
   private:
     auto queueEvent(AgentEvent e) -> void {
         log(std::format("event {}: {}", eventKindName(e.kind), e.text));
         events.push_back(std::move(e));
+    }
+
+    // Perception plus the parts of memory the robot always carries:
+    // active goals and beliefs are small and steer every decision, so
+    // they ride along instead of waiting for a recall.
+    [[nodiscard]] auto observe(const roboslop::World& world) const -> Observation {
+        Observation obs = buildObservation(world, robot, player, cfg.observeRadius);
+        for (const auto& g : mem.activeGoals()) {
+            obs.goals.push_back({.id = g.id, .text = g.text});
+        }
+        for (const auto& b : mem.beliefs()) {
+            obs.beliefs.push_back(
+                std::format(
+                    "{} {}: {} ({}, {:.2f})",
+                    b.subject,
+                    b.predicate,
+                    b.value,
+                    b.source.empty() ? "unknown source" : b.source,
+                    b.confidence
+                )
+            );
+        }
+        return obs;
     }
 
     auto collectRobotEvents(roboslop::World& world) -> void {
@@ -213,7 +260,7 @@ export class AgentBrain {
     }
 
     auto startThink(roboslop::World& world) -> void {
-        Observation obs = buildObservation(world, robot, player, cfg.observeRadius);
+        Observation obs = observe(world);
         if (const auto* m = world.tryGet<RobotMotion>(robot); m != nullptr) {
             obs.robotMoving = m->target.has_value();
         }
@@ -278,7 +325,7 @@ export class AgentBrain {
             log(std::format("assistant text: {}", resp.content));
         }
 
-        const Observation obs = buildObservation(world, robot, player, cfg.observeRadius);
+        const Observation obs = observe(world);
         for (const auto& call : resp.toolCalls) {
             auto parsed = parseToolCall(call);
             auto validated = parsed ? validate(*parsed, obs, cfg.rules)
@@ -341,12 +388,56 @@ export class AgentBrain {
                     }
                     queueEvent({.kind = AgentEventKind::InspectResult, .text = text});
                     return text;
-                } else {
+                } else if constexpr (std::is_same_v<T, Say>) {
                     transcriptLines.push_back({.who = "robot", .text = c.text});
                     log(std::format("said: {}", c.text));
                     // Speech needs no follow-up think; it is not queued
                     // as an event.
                     return "said";
+                } else if constexpr (std::is_same_v<T, Remember>) {
+                    // Memory writes need no follow-up think either: the
+                    // robot already knows what it just stored.
+                    const auto& episode = mem.remember(c.text, thinks, simSeconds);
+                    log(std::format("remembered {}: {}", episode.id, episode.text));
+                    return std::format("remembered as {}", episode.id);
+                } else if constexpr (std::is_same_v<T, Recall>) {
+                    const auto hits = mem.recall(c.query, c.limit);
+                    log(std::format("recall \"{}\" → {} hit(s)", c.query, hits.size()));
+                    if (hits.empty()) {
+                        return "no memory matches that";
+                    }
+                    std::string text;
+                    for (const auto& e : hits) {
+                        text += std::format("{} ({:.0f}s): {}\n", e.id, e.at, e.text);
+                    }
+                    text.pop_back();
+                    return text;
+                } else if constexpr (std::is_same_v<T, Believe>) {
+                    mem.believe({
+                        .subject = c.subject,
+                        .predicate = c.predicate,
+                        .value = c.value,
+                        .source = c.source,
+                        .learnedAt = simSeconds,
+                        .confidence = c.confidence,
+                    });
+                    log(std::format(
+                        "believe {} {} = {} ({:.2f})", c.subject, c.predicate, c.value, c.confidence
+                    ));
+                    return "noted";
+                } else if constexpr (std::is_same_v<T, SetGoal>) {
+                    const auto& goal = mem.setGoal(c.text, simSeconds);
+                    log(std::format("goal {} set: {}", goal.id, goal.text));
+                    return std::format("goal {} is active", goal.id);
+                } else {
+                    // validate() already checked the id against the same
+                    // goal list, so a false here would be a bug, not a
+                    // model mistake.
+                    const bool closed = mem.closeGoal(c.id, c.status);
+                    log(std::format(
+                        "goal {} {}", c.id, closed ? goalStatusName(c.status) : "not found"
+                    ));
+                    return closed ? std::format("goal {} closed", c.id) : "no such goal";
                 }
             },
             cmd
@@ -379,6 +470,8 @@ export class AgentBrain {
     roboslop::AsyncCompletion pending;
     std::vector<TranscriptLine> transcriptLines{};
     std::vector<std::string> actionLogLines{};
+    AgentMemory mem{};
+    double simSeconds = 0.0;
     unsigned thinks = 0;
     int chainedThinks = 0;
     bool capLogged = false;
