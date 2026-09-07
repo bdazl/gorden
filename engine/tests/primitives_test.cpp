@@ -2,11 +2,34 @@ import roboslop.render.primitives;
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
+#include <glm/geometric.hpp>
+#include <glm/vec3.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <span>
+
+TEST_CASE("All primitive triangles agree with outward vertex normals", "[render][primitives]") {
+    for (const auto& g :
+         {roboslop::cubeGeometry(),
+          roboslop::sphereGeometry(8, 16, 0.5F),
+          roboslop::planeGeometry(2, 2)}) {
+        for (std::size_t i = 0; i < g.indices.size(); i += 3) {
+            const auto& a = g.vertices.at(g.indices[i]);
+            const auto& b = g.vertices.at(g.indices[i + 1]);
+            const auto& c = g.vertices.at(g.indices[i + 2]);
+            const glm::vec3 pa{a.position[0], a.position[1], a.position[2]};
+            const glm::vec3 pb{b.position[0], b.position[1], b.position[2]};
+            const glm::vec3 pc{c.position[0], c.position[1], c.position[2]};
+            const auto cross = glm::cross(pb - pa, pc - pa);
+            if (glm::dot(cross, cross) < 1e-12F) {
+                continue;
+            } // Sphere poles.
+            REQUIRE(glm::dot(cross, glm::vec3(a.normal[0], a.normal[1], a.normal[2])) > 0);
+        }
+    }
+}
 
 namespace {
 

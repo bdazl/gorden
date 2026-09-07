@@ -1,5 +1,6 @@
 module;
 
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -21,6 +22,38 @@ export struct Geometry {
     std::vector<MeshVertex> vertices;
     std::vector<std::uint16_t> indices;
 };
+
+// Unit cube, outward CCW triangles and independent UVs/normals per face.
+export [[nodiscard]] auto cubeGeometry() -> Geometry {
+    Geometry g;
+    constexpr std::array<std::array<float, 3>, 6> Normals{
+        {{{1, 0, 0}}, {{-1, 0, 0}}, {{0, 1, 0}}, {{0, -1, 0}}, {{0, 0, 1}}, {{0, 0, -1}}}
+    };
+    for (const auto& n : Normals) {
+        const std::array<float, 3> u =
+            n[1] != 0 ? std::array<float, 3>{1, 0, 0} : std::array<float, 3>{0, 1, 0};
+        const std::array<float, 3> v{
+            n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]
+        };
+        const auto base = static_cast<std::uint16_t>(g.vertices.size());
+        for (const auto& uv :
+             std::array<std::array<float, 2>, 4>{{{{0, 0}}, {{1, 0}}, {{1, 1}}, {{0, 1}}}}) {
+            MeshVertex vertex{};
+            for (std::size_t axis = 0; axis < 3; ++axis) {
+                vertex.position[axis] =
+                    n[axis] * 0.5F + u[axis] * (uv[0] - 0.5F) + v[axis] * (uv[1] - 0.5F);
+                vertex.normal[axis] = n[axis];
+            }
+            vertex.uv[0] = uv[0];
+            vertex.uv[1] = uv[1];
+            g.vertices.push_back(vertex);
+        }
+        for (const auto index : {0, 1, 2, 0, 2, 3}) {
+            g.indices.push_back(static_cast<std::uint16_t>(base + index));
+        }
+    }
+    return g;
+}
 
 // UV sphere centred at the origin. `rings` latitude bands (>= 2),
 // `segments` longitude slices (>= 3). Vertices per ring are duplicated
