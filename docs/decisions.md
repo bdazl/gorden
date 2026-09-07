@@ -24,26 +24,43 @@ built**.
 **Why.** The inversion's purpose was to keep bgfx's submit/render
 pipelining while putting every Vulkan/WSI call on the thread that owns
 the `wl_display`, which is what the 2026-09-07 single-threaded workaround
-gave up. The first benchmark says there is nothing to keep: Gorden's
-scene (17 draw calls, 2548x1391) runs a whole CPU frame in 0.167 ms at
-p50 — 0.136 ms render, 0.022 ms fixed step, 0.031 ms GPU. A render thread
-can overlap at most the smaller of those two CPU blocks, so the ceiling
-on the win is hundredths of a millisecond on a loop already six thousand
-frames per second. The restructuring it requires is not small: an
-in-house ImGui platform backend (upstream's supplies text input,
-clipboard, nine cursors and the monitor list), a split of `App`'s
+gave up. The first benchmark says the pipelining is not worth buying back
+yet: Gorden's scene (17 draw calls, 2548x1391) runs a whole CPU frame in
+0.167 ms at p50 — 0.136 ms render, 0.022 ms fixed step, 0.031 ms GPU — in
+a debug build.
+
+bgfx splits a frame into a submit half (recording the command buffer, S)
+and a render half (translating it to Vulkan and presenting, D). The
+measured render block is S + D together, because single-threaded mode
+runs the render half inline; the whole frame is F + S + D, where F is the
+fixed step. A render thread overlaps the halves, so the steady-state
+frame becomes max(F + S, D) and the win is min(F + S, D) — at best half
+the frame, around 0.08 ms, when the two are evenly matched.
+
+That ceiling is a doubling of CPU throughput, and it still does not
+matter: at 60 Hz the budget is 16.7 ms and we are using one percent of
+it, with vsync sleeping away the rest. The restructuring it would take is
+not small: an in-house ImGui platform backend (upstream's supplies text
+input, clipboard, nine cursors and the monitor list), a split of `App`'s
 ownership across two threads, and a new startup/shutdown handshake with
 several deadlock and hot-spin traps.
+
+The run was measured on a hidden compositor workspace, so if presentation
+is cheaper there than on a visible one, D — and with it the win — is
+understated. Not by the order of magnitude it would take to change the
+answer.
 
 **Consequences.**
 
 - Wayland keeps the single-threaded bgfx mode from the entry above. The
   race is still fixed; only the pipelining is still forfeit.
 - The design survives in the plan and in this entry, so the work can be
-  picked up when a scene actually becomes CPU-bound. The number to watch
-  is `waitSubmit`/`waitRender` in the overlay — both are zero by
-  construction while bgfx is single-threaded, so the trigger is really
-  `render` approaching the frame budget.
+  picked up when a scene actually becomes CPU-bound.
+  `waitSubmit`/`waitRender` cannot be the trigger: they measure how long
+  each half waits for the other, and are zero by construction while bgfx
+  is single-threaded. Watch the `render` block instead — it is exactly
+  the S + D a render thread would overlap. At a few milliseconds against
+  a 16.7 ms budget, halving it starts to be worth the restructuring.
 - One piece landed on its own merits: `Input` no longer calls GLFW.
   `setCursorCaptured` was running `glfwSetInputMode` from a scheduler
   worker, because free-fly camera control is a fixed system.
