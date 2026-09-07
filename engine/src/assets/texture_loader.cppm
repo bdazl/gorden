@@ -3,10 +3,13 @@ module;
 #include <bgfx/bgfx.h>
 #include <stb_image.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 
 export module roboslop.assets.texture;
@@ -95,6 +98,7 @@ export class Texture {
 
   private:
     friend auto loadTexture2D(const std::filesystem::path&) -> Result<Texture>;
+    friend auto loadTexture2D(std::span<const std::byte>, std::string_view) -> Result<Texture>;
 
     explicit Texture(bgfx::TextureHandle h) noexcept : handle(h) {}
 
@@ -109,22 +113,14 @@ export class Texture {
     bgfx::TextureHandle handle{bgfx::kInvalidHandle};
 };
 
-// Decode any stb_image-supported format (PNG, JPG, TGA, BMP, ...) into
-// a bgfx 2D RGBA8 texture. Pixels are copied into a bgfx::Memory and
-// owned by bgfx after createTexture2D returns, so the stbi buffer is
-// freed before we leave this function.
-export [[nodiscard]] auto loadTexture2D(const std::filesystem::path& path) -> Result<Texture> {
-    std::error_code ec;
-    if (!std::filesystem::exists(path, ec)) {
-        return std::unexpected(toError(TextureError::FileMissing, path.string()));
-    }
+namespace detail {
 
-    int width = 0;
-    int height = 0;
-    int channels = 0;
-    stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, /*desired=*/4);
+// Shared tail of both loaders: validate, copy into bgfx memory, free the
+// stbi buffer, create the texture. `context` names the source in errors.
+auto uploadPixels(stbi_uc* pixels, int width, int height, const std::string& context)
+    -> Result<bgfx::TextureHandle> {
     if (pixels == nullptr) {
-        std::string ctx = path.string();
+        std::string ctx = context;
         if (const char* reason = stbi_failure_reason(); reason != nullptr) {
             ctx += ": ";
             ctx += reason;
@@ -133,7 +129,7 @@ export [[nodiscard]] auto loadTexture2D(const std::filesystem::path& path) -> Re
     }
     if (width <= 0 || height <= 0 || width > 0xFFFF || height > 0xFFFF) {
         stbi_image_free(pixels);
-        return std::unexpected(toError(TextureError::InvalidDimensions, path.string()));
+        return std::unexpected(toError(TextureError::InvalidDimensions, context));
     }
 
     const auto bytes = static_cast<std::uint32_t>(width) * static_cast<std::uint32_t>(height) * 4U;
@@ -150,9 +146,55 @@ export [[nodiscard]] auto loadTexture2D(const std::filesystem::path& path) -> Re
         mem
     );
     if (!bgfx::isValid(handle)) {
-        return std::unexpected(toError(TextureError::BgfxCreateFailed, path.string()));
+        return std::unexpected(toError(TextureError::BgfxCreateFailed, context));
     }
-    return Texture{handle};
+    return handle;
+}
+
+} // namespace detail
+
+// Decode any stb_image-supported format (PNG, JPG, TGA, BMP, ...) into
+// a bgfx 2D RGBA8 texture. Pixels are copied into a bgfx::Memory and
+// owned by bgfx after createTexture2D returns, so the stbi buffer is
+// freed before we leave this function.
+export [[nodiscard]] auto loadTexture2D(const std::filesystem::path& path) -> Result<Texture> {
+    std::error_code ec;
+    if (!std::filesystem::exists(path, ec)) {
+        return std::unexpected(toError(TextureError::FileMissing, path.string()));
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc* pixels = stbi_load(path.string().c_str(), &width, &height, &channels, /*desired=*/4);
+    auto handle = detail::uploadPixels(pixels, width, height, path.string());
+    if (!handle) {
+        return std::unexpected(handle.error());
+    }
+    return Texture{*handle};
+}
+
+// Same, from an encoded image already in memory: textures packed inside
+// a model file (.glb), or generated at runtime. `name` only labels
+// errors.
+export [[nodiscard]] auto loadTexture2D(std::span<const std::byte> encoded, std::string_view name)
+    -> Result<Texture> {
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    stbi_uc* pixels = stbi_load_from_memory(
+        reinterpret_cast<const stbi_uc*>(encoded.data()),
+        static_cast<int>(encoded.size()),
+        &width,
+        &height,
+        &channels,
+        /*desired=*/4
+    );
+    auto handle = detail::uploadPixels(pixels, width, height, std::string{name});
+    if (!handle) {
+        return std::unexpected(handle.error());
+    }
+    return Texture{*handle};
 }
 
 } // namespace roboslop
