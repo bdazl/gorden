@@ -19,6 +19,12 @@ add_executable(gorden
     src/app/main.cpp
 )
 
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/scenes)
+# Seed once: reconfiguration must not overwrite a scene edited in the build tree.
+if(NOT EXISTS ${CMAKE_BINARY_DIR}/assets/scenes/room.json)
+    configure_file(assets/scenes/room.json ${CMAKE_BINARY_DIR}/assets/scenes/room.json COPYONLY)
+endif()
+
 target_link_libraries(gorden PRIVATE
     roboslop
     gorden_agent

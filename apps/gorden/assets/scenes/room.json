@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "materials": {
+    "stone": [
+      0.55,
+      0.62,
+      0.68
+    ],
+    "wood": [
+      0.65,
+      0.35,
+      0.15
+    ],
+    "metal": [
+      0.2,
+      0.65,
+      0.72
+    ]
+  },
+  "camera": {
+    "position": [
+      6,
+      4,
+      12
+    ],
+    "rotation": [
+      1,
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ]
+  },
+  "light": {
+    "direction": [
+      -0.3,
+      -1,
+      -0.2
+    ],
+    "color": [
+      1,
+      0.95,
+      0.85
+    ],
+    "intensity": 1.2
+  },
+  "objects": [
+    {
+      "id": "floor",
+      "name": "Floor",
+      "geometry": "cube",
+      "material": "stone",
+      "transform": {
+        "position": [
+          0,
+          -1,
+          0
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          20,
+          1,
+          20
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "wall-back",
+      "name": "Back wall",
+      "geometry": "cube",
+      "material": "stone",
+      "transform": {
+        "position": [
+          0,
+          2,
+          -9
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          20,
+          5,
+          0.5
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "wall-left",
+      "name": "Left wall",
+      "geometry": "cube",
+      "material": "stone",
+      "transform": {
+        "position": [
+          -9.75,
+          2,
+          0
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          0.5,
+          5,
+          18
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "crate-1",
+      "name": "crate-1",
+      "geometry": "cube",
+      "material": "wood",
+      "transform": {
+        "position": [
+          4,
+          0,
+          -2
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "crate-2",
+      "name": "crate-2",
+      "geometry": "cube",
+      "material": "wood",
+      "transform": {
+        "position": [
+          -4,
+          0,
+          -3
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "generator",
+      "name": "generator",
+      "geometry": "cube",
+      "material": "metal",
+      "transform": {
+        "position": [
+          0,
+          0.25,
+          -6
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.5,
+          1.5,
+          1.5
+        ]
+      },
+      "body": "static"
+    },
+    {
+      "id": "falling-box-1",
+      "name": "Falling box",
+      "geometry": "cube",
+      "material": "wood",
+      "transform": {
+        "position": [
+          -1.5,
+          5,
+          0
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "dynamic"
+    },
+    {
+      "id": "falling-box-2",
+      "name": "Falling box 2",
+      "geometry": "cube",
+      "material": "wood",
+      "transform": {
+        "position": [
+          1.5,
+          5.5,
+          0
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "dynamic"
+    },
+    {
+      "id": "ball",
+      "name": "Ball",
+      "geometry": "sphere",
+      "material": "metal",
+      "transform": {
+        "position": [
+          0,
+          7,
+          0
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "dynamic"
+    }
+  ]
+}

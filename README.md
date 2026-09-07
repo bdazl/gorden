@@ -68,9 +68,9 @@ exists today, all driven by the Gorden demo:
   /var/log/agent.log` follows the agent; `/persist` is a real directory
   under `~/.local/share/roboslop/gorden/`.
 
-Not yet started: agent memory and replay (M3), serialisation, scene
-files. The Gorden executable is a physics/rendering
-demo scene, not a game, which is intentional at this stage.
+Gorden now loads its environment from a shared scene file. Agent memory
+and replay (M3) remain unstarted; Gorden is still a physics/rendering and
+AI sandbox, rather than a complete game.
 
 ## Prerequisites
 
@@ -98,6 +98,7 @@ make shaders       # compile registered shaders through bgfx shaderc
 make apps          # list the apps under apps/
 make gorden        # build only gorden, then run it
 make shaderlab     # build only shaderlab, then run it
+make gorden ARGS="--scene /absolute/path/to/scene.json"
 make run-<app>     # run without building (make run APP=<app> also works)
 OPENAI_API_KEY=sk-... make gorden   # robot with a real LLM (gpt-4.1-mini by default)
 ```

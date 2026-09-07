@@ -24,6 +24,9 @@ import roboslop.render.lighting;
 import roboslop.render.material;
 import roboslop.render.mesh;
 import roboslop.scene.transform;
+import roboslop.scene.document;
+import roboslop.scene.runtime;
+import roboslop.render.primitives;
 import roboslop.sched;
 import roboslop.shell;
 import roboslop.ui;
@@ -31,6 +34,7 @@ import roboslop.ui.terminal;
 import roboslop.vfs;
 
 #include <bgfx/bgfx.h>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 #include <imgui.h>
 #include <nlohmann/json.hpp>
@@ -54,88 +58,6 @@ import roboslop.vfs;
 
 namespace {
 
-// Cube mesh shared by every physics-driven entity in the M1 demo. Until
-// the asset pipeline (M2) lands, geometry is hard-coded here. Eight
-// corners coloured one face per axis sign so the rotation is readable
-// at a glance once Jolt is integrating angular velocity.
-struct CubeVertex {
-    float x;
-    float y;
-    float z;
-    std::uint32_t abgr;
-};
-
-constexpr std::array<CubeVertex, 8> kCubeVertices = {
-    CubeVertex{-0.5F, -0.5F, -0.5F, 0xFFFF0000U},
-    CubeVertex{+0.5F, -0.5F, -0.5F, 0xFFFF8800U},
-    CubeVertex{+0.5F, +0.5F, -0.5F, 0xFFFFFF00U},
-    CubeVertex{-0.5F, +0.5F, -0.5F, 0xFF00FF00U},
-    CubeVertex{-0.5F, -0.5F, +0.5F, 0xFF00FFFFU},
-    CubeVertex{+0.5F, -0.5F, +0.5F, 0xFF0080FFU},
-    CubeVertex{+0.5F, +0.5F, +0.5F, 0xFF0000FFU},
-    CubeVertex{-0.5F, +0.5F, +0.5F, 0xFFFF00FFU},
-};
-
-constexpr std::array<std::uint16_t, 36> kCubeIndices = {
-    0, 1, 2, 0, 2, 3, // -Z
-    4, 6, 5, 4, 7, 6, // +Z
-    0, 3, 7, 0, 7, 4, // -X
-    1, 5, 6, 1, 6, 2, // +X
-    3, 2, 6, 3, 6, 7, // +Y
-    0, 4, 5, 0, 5, 1, // -Y
-};
-
-// Textured cube — 24 unique vertices (one per face corner) so the UVs
-// and face-aligned normals don't share verts across faces. Each face
-// is a unit-square 0..1 UV mapping.
-struct TexCubeVertex {
-    float position[3];
-    float normal[3];
-    float uv[2];
-};
-
-constexpr std::array<TexCubeVertex, 24> kTexCubeVertices = {
-    // -Z face (normal 0,0,-1)
-    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {0, 0, -1}, {0, 0}},
-    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {0, 0, -1}, {1, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {0, 0, -1}, {1, 1}},
-    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {0, 0, -1}, {0, 1}},
-    // +Z
-    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {0, 0, +1}, {0, 0}},
-    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {0, 0, +1}, {1, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {0, 0, +1}, {1, 1}},
-    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {0, 0, +1}, {0, 1}},
-    // -X
-    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {-1, 0, 0}, {0, 0}},
-    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {-1, 0, 0}, {1, 0}},
-    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {-1, 0, 0}, {1, 1}},
-    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {-1, 0, 0}, {0, 1}},
-    // +X
-    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {+1, 0, 0}, {0, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {+1, 0, 0}, {1, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {+1, 0, 0}, {1, 1}},
-    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {+1, 0, 0}, {0, 1}},
-    // -Y
-    TexCubeVertex{{-0.5F, -0.5F, -0.5F}, {0, -1, 0}, {0, 0}},
-    TexCubeVertex{{+0.5F, -0.5F, -0.5F}, {0, -1, 0}, {1, 0}},
-    TexCubeVertex{{+0.5F, -0.5F, +0.5F}, {0, -1, 0}, {1, 1}},
-    TexCubeVertex{{-0.5F, -0.5F, +0.5F}, {0, -1, 0}, {0, 1}},
-    // +Y
-    TexCubeVertex{{-0.5F, +0.5F, -0.5F}, {0, +1, 0}, {0, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, -0.5F}, {0, +1, 0}, {1, 0}},
-    TexCubeVertex{{+0.5F, +0.5F, +0.5F}, {0, +1, 0}, {1, 1}},
-    TexCubeVertex{{-0.5F, +0.5F, +0.5F}, {0, +1, 0}, {0, 1}},
-};
-
-constexpr std::array<std::uint16_t, 36> kTexCubeIndices = {
-    0,  1,  2,  0,  2,  3,  // -Z
-    4,  6,  5,  4,  7,  6,  // +Z
-    8,  9,  10, 8,  10, 11, // -X
-    12, 14, 13, 12, 15, 14, // +X
-    16, 18, 17, 16, 19, 18, // -Y
-    20, 21, 22, 20, 22, 23, // +Y
-};
-
 // 4×4 RGBA checkerboard so the cube's UV mapping is obvious at a
 // glance. Stored row-major top-to-bottom (stbi's convention, mirrored
 // by aiProcess_FlipUVs for Assimp loads).
@@ -153,59 +75,6 @@ constexpr std::array<std::uint8_t, 4 * 4 * 4> kCheckerPixels = [] {
     }
     return p;
 }();
-
-auto spawnDynamicCube(roboslop::World& world, const roboslop::Mesh& mesh, glm::vec3 pos) -> void {
-    const auto e = world.create();
-    world.emplace<roboslop::Transform>(e, roboslop::Transform{.position = pos});
-    world.emplace<roboslop::Mesh>(e, mesh);
-    world.emplace<roboslop::BodyDesc>(
-        e,
-        roboslop::BodyDesc{
-            .shape = roboslop::BoxShape{.halfExtents = {0.5F, 0.5F, 0.5F}},
-            .motion = roboslop::BodyMotion::Dynamic,
-            .mass = 1.0F,
-            .friction = 0.5F,
-            .restitution = 0.1F,
-        }
-    );
-}
-
-auto spawnDynamicSphere(roboslop::World& world, const roboslop::Mesh& mesh, glm::vec3 pos) -> void {
-    const auto e = world.create();
-    world.emplace<roboslop::Transform>(e, roboslop::Transform{.position = pos});
-    world.emplace<roboslop::Mesh>(e, mesh);
-    world.emplace<roboslop::BodyDesc>(
-        e,
-        roboslop::BodyDesc{
-            .shape = roboslop::SphereShape{.radius = 0.5F},
-            .motion = roboslop::BodyMotion::Dynamic,
-            .mass = 1.0F,
-            .friction = 0.5F,
-            .restitution = 0.4F,
-        }
-    );
-}
-
-// A named, static prop the robot can perceive and inspect. Reuses the
-// vertex-coloured cube; physics keeps the player's dynamic cubes from
-// falling through it.
-auto spawnProp(
-    roboslop::World& world, const roboslop::Mesh& mesh, std::string name, glm::vec3 pos, float size
-) -> void {
-    const auto e = world.create();
-    world.emplace<roboslop::Transform>(
-        e, roboslop::Transform{.position = pos, .scale = {size, size, size}}
-    );
-    world.emplace<roboslop::Mesh>(e, mesh);
-    world.emplace<gorden::Named>(e, gorden::Named{.name = std::move(name)});
-    world.emplace<roboslop::BodyDesc>(
-        e,
-        roboslop::BodyDesc{
-            .shape = roboslop::BoxShape{.halfExtents = {size * 0.5F, size * 0.5F, size * 0.5F}},
-            .motion = roboslop::BodyMotion::Static,
-        }
-    );
-}
 
 // Per-frame UI state for the Robot panel, parked in the world context.
 struct RobotPanelState {
@@ -570,28 +439,23 @@ auto mountGordenFiles(roboslop::World& world, roboslop::Vfs& fs) -> void {
     (void)fs.mountHost("/persist", roboslop::dataDir() / "gorden");
 }
 
-auto spawnGround(roboslop::World& world, const roboslop::Mesh& mesh) -> void {
-    const auto e = world.create();
-    world.emplace<roboslop::Transform>(
-        e,
-        roboslop::Transform{
-            .position = {0.0F, -1.0F, 0.0F},
-            .scale = {20.0F, 1.0F, 20.0F},
-        }
-    );
-    world.emplace<roboslop::Mesh>(e, mesh);
-    world.emplace<roboslop::BodyDesc>(
-        e,
-        roboslop::BodyDesc{
-            .shape = roboslop::BoxShape{.halfExtents = {10.0F, 0.5F, 10.0F}},
-            .motion = roboslop::BodyMotion::Static,
-        }
-    );
-}
-
 } // namespace
 
-auto main() -> int {
+auto main(int argc, char** argv) -> int {
+    std::filesystem::path scenePath = "assets/scenes/room.json";
+    if (argc == 3 && std::string_view{argv[1]} == "--scene") {
+        scenePath = argv[2];
+    } else if (argc != 1) {
+        std::println(stderr, "Usage: gorden [--scene path]");
+        return 1;
+    }
+    auto scene = roboslop::loadScene(scenePath);
+    if (!scene) {
+        std::println(
+            stderr, "Cannot load scene: {} ({})", scene.error().message, scene.error().context
+        );
+        return 1;
+    }
     // Settings first: names are needed while the scene is built.
     SettingsState initial;
     initial.path = gorden::settingsPath();
@@ -610,22 +474,20 @@ auto main() -> int {
             .assetRoot = "assets",
             .enableDevUi = true,
             .devUiIniPath = roboslop::configDir() / "gorden.imgui.ini",
-            .onSetup = [initial](roboslop::World& world, roboslop::AssetCache& assets)
-                -> roboslop::Result<void> {
-                auto prog = assets.program("vs_basic", "fs_basic");
-                if (!prog) {
-                    return std::unexpected(prog.error());
-                }
-
+            .onSetup = [initial, document = *scene](
+                           roboslop::World& world, roboslop::AssetCache& assets
+                       ) -> roboslop::Result<void> {
                 const auto cameraEntity = world.create();
-                world.emplace<roboslop::Transform>(
-                    cameraEntity, roboslop::Transform{.position = {6.0F, 4.0F, 12.0F}}
-                );
+                world.emplace<roboslop::Transform>(cameraEntity, document.camera);
                 world.emplace<roboslop::Camera>(
                     cameraEntity, roboslop::Camera{.projection = roboslop::Perspective{}}
                 );
                 world.emplace<roboslop::ActiveCamera>(cameraEntity);
-                world.emplace<roboslop::FreeFlyCamera>(cameraEntity);
+                const auto angles = glm::eulerAngles(document.camera.rotation);
+                world.emplace<roboslop::FreeFlyCamera>(
+                    cameraEntity,
+                    roboslop::FreeFlyCamera{.yawRadians = angles.y, .pitchRadians = angles.x}
+                );
                 // The camera doubles as the audio listener so 3D
                 // attenuation tracks the viewer.
                 world.emplace<roboslop::AudioListener>(cameraEntity);
@@ -633,36 +495,19 @@ auto main() -> int {
                     cameraEntity, gorden::Named{.name = initial.settings.playerName}
                 );
 
-                const auto layout = roboslop::vertexLayoutPosColor();
-                auto cube = roboslop::makeStaticMesh(
-                    std::as_bytes(std::span{kCubeVertices}), std::span{kCubeIndices}, layout
-                );
-                cube.program = prog->value;
+                auto& runtime = world.registry().ctx().emplace<roboslop::SceneRuntime>();
+                if (auto loaded = runtime.replace(world, assets, document, true); !loaded) {
+                    return loaded;
+                }
+                world.forEach<roboslop::SceneIdentity>([&world](auto entity, const auto& identity) {
+                    world.emplace<gorden::Named>(entity, gorden::Named{.name = identity.name});
+                });
 
-                spawnGround(world, cube);
-                spawnProp(world, cube, "crate-1", {4.0F, 0.0F, -2.0F}, 1.0F);
-                spawnProp(world, cube, "crate-2", {-4.0F, 0.0F, -3.0F}, 1.0F);
-                spawnProp(world, cube, "generator", {0.0F, 0.25F, -6.0F}, 1.5F);
-                spawnDynamicCube(world, cube, glm::vec3{-1.5F, 5.0F, 0.0F});
-                spawnDynamicCube(world, cube, glm::vec3{+1.5F, 5.5F, 0.0F});
-                spawnDynamicCube(world, cube, glm::vec3{0.0F, 7.0F, -1.0F});
-                spawnDynamicSphere(world, cube, glm::vec3{0.5F, 9.0F, 0.5F});
-                spawnDynamicSphere(world, cube, glm::vec3{-0.5F, 11.0F, 0.5F});
-
-                // Textured cube — wires the M2 asset path end-to-end:
-                // pos+normal+uv vertex layout, a procedurally built
-                // RGBA8 albedo, the textured shader pair, and a
-                // Material component the frontend reads at draw time.
                 auto texProg = assets.program("vs_textured", "fs_textured");
                 if (!texProg) {
                     return std::unexpected(texProg.error());
                 }
-                const auto texLayout = roboslop::vertexLayoutPosNormalUv();
-                auto texMesh = roboslop::makeStaticMesh(
-                    std::as_bytes(std::span{kTexCubeVertices}),
-                    std::span{kTexCubeIndices},
-                    texLayout
-                );
+                auto texMesh = roboslop::makeGeometryMesh(roboslop::cubeGeometry());
                 texMesh.program = texProg->value;
 
                 const bgfx::Memory* texelMem = bgfx::copy(
@@ -683,23 +528,6 @@ auto main() -> int {
                     .albedo = albedo,
                     .sAlbedo = sAlbedo,
                 };
-
-                const auto te = world.create();
-                world.emplace<roboslop::Transform>(
-                    te, roboslop::Transform{.position = {3.0F, 5.0F, 0.0F}}
-                );
-                world.emplace<roboslop::Mesh>(te, texMesh);
-                world.emplace<roboslop::Material>(te, material);
-                world.emplace<roboslop::BodyDesc>(
-                    te,
-                    roboslop::BodyDesc{
-                        .shape = roboslop::BoxShape{.halfExtents = {0.5F, 0.5F, 0.5F}},
-                        .motion = roboslop::BodyMotion::Dynamic,
-                        .mass = 1.0F,
-                        .friction = 0.5F,
-                        .restitution = 0.2F,
-                    }
-                );
 
                 // The robot: a textured cube with no physics body, moved
                 // kinematically by gorden.agent.robot when the brain
@@ -800,19 +628,6 @@ auto main() -> int {
                         st.lastVisibility[v.id] = v.visible;
                     }
                 }
-
-                // One directional light shading the textured cube. The
-                // basic-shader entities (vertex-coloured) ignore lighting
-                // entirely, so the M3 lighting only affects the M2 cube.
-                const auto le = world.create();
-                world.emplace<roboslop::DirectionalLight>(
-                    le,
-                    roboslop::DirectionalLight{
-                        .direction = {-0.3F, -1.0F, -0.2F},
-                        .color = {1.0F, 0.95F, 0.85F},
-                        .intensity = 1.2F,
-                    }
-                );
 
                 // Stash light uniform handles on the world so the pass
                 // record callback can find them each frame without
