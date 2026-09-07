@@ -36,6 +36,7 @@ namespace detail {
 //
 //   configDir(): $XDG_CONFIG_HOME/roboslop or ~/.config/roboslop
 //   dataDir():   $XDG_DATA_HOME/roboslop   or ~/.local/share/roboslop
+//   stateDir():  $XDG_STATE_HOME/roboslop  or ~/.local/state/roboslop
 export [[nodiscard]] auto configDir() -> std::filesystem::path {
     auto base = detail::envPath("XDG_CONFIG_HOME");
     if (base.empty()) {
@@ -48,6 +49,16 @@ export [[nodiscard]] auto dataDir() -> std::filesystem::path {
     auto base = detail::envPath("XDG_DATA_HOME");
     if (base.empty()) {
         base = detail::homeDir() / ".local" / "share";
+    }
+    return base / "roboslop";
+}
+
+// State is data the user would miss but that is not a document they
+// authored: save games, logs, window state.
+export [[nodiscard]] auto stateDir() -> std::filesystem::path {
+    auto base = detail::envPath("XDG_STATE_HOME");
+    if (base.empty()) {
+        base = detail::homeDir() / ".local" / "state";
     }
     return base / "roboslop";
 }

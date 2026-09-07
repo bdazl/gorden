@@ -38,19 +38,23 @@ struct EnvGuard {
 
 } // namespace
 
-TEST_CASE("configDir and dataDir honour the XDG variables", "[core][paths]") {
+TEST_CASE("the per-user directories honour the XDG variables", "[core][paths]") {
     const EnvGuard c("XDG_CONFIG_HOME", "/tmp/xdg-config");
     const EnvGuard d("XDG_DATA_HOME", "/tmp/xdg-data");
+    const EnvGuard s("XDG_STATE_HOME", "/tmp/xdg-state");
     REQUIRE(roboslop::configDir() == std::filesystem::path{"/tmp/xdg-config/roboslop"});
     REQUIRE(roboslop::dataDir() == std::filesystem::path{"/tmp/xdg-data/roboslop"});
+    REQUIRE(roboslop::stateDir() == std::filesystem::path{"/tmp/xdg-state/roboslop"});
 }
 
-TEST_CASE("configDir and dataDir fall back to HOME", "[core][paths]") {
+TEST_CASE("the per-user directories fall back to HOME", "[core][paths]") {
     const EnvGuard c("XDG_CONFIG_HOME", "");
     const EnvGuard d("XDG_DATA_HOME", "");
+    const EnvGuard s("XDG_STATE_HOME", "");
     const EnvGuard h("HOME", "/home/tester");
     REQUIRE(roboslop::configDir() == std::filesystem::path{"/home/tester/.config/roboslop"});
     REQUIRE(roboslop::dataDir() == std::filesystem::path{"/home/tester/.local/share/roboslop"});
+    REQUIRE(roboslop::stateDir() == std::filesystem::path{"/home/tester/.local/state/roboslop"});
 }
 
 TEST_CASE("ensureDir creates nested directories and tolerates existing ones", "[core][paths]") {
