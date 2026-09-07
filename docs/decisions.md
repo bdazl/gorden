@@ -11,6 +11,37 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — bgfx runs single-threaded on Wayland
+
+**Decision.** `RenderContext::make` calls `bgfx::renderFrame()` before
+`bgfx::init` when GLFW picked the Wayland platform, which puts bgfx in
+single-threaded mode. X11, Windows and macOS keep the render thread.
+
+**Why.** On Hyprland with the NVIDIA driver the app lost its
+`VkSurfaceKHR` (`vkQueuePresentKHR` → `VK_ERROR_SURFACE_LOST_KHR`, then
+`vkCreateSurfaceKHR` refusing the same `wl_surface` with "presentation to
+the given surface not supported") and went permanently black while the
+process stayed alive. The trigger is any `xdg_surface` configure —
+resize, fullscreen, or a plain focus change — because GLFW answers each
+one with a `wl_surface_commit` from the main thread while bgfx's render
+thread is presenting. NVIDIA's WSI does not survive that race; a
+single-threaded bgfx puts every Vulkan call on the thread that owns the
+window and removes it. Measured with a fullscreen-toggle stress harness:
+multi-threaded lost the surface after 41 and 72 toggles, single-threaded
+survived 165 and 164 with none. Compositor-driven resize and fullscreen
+stress on a hidden workspace does *not* reproduce the loss even
+multi-threaded, so the fix is not re-verifiable that way; the harness
+that does reproduce it pulls the window over the desktop.
+
+**Consequences.** Wayland loses bgfx's render-thread parallelism; the
+submit/render split still exists in the API, it just runs inline. The
+`third_party/patches/` swapchain patch stays — it is what turns a
+surviving loss into a trace line rather than a crash.
+
+**Where.** `engine/src/render/context.cppm`, `docs/architecture.md`.
+
+---
+
 ## 2026-09-07 — Agent memory in the app, a save game in the engine
 
 **Decision.** M3's memory slice splits in two. `gorden.agent.memory` (in the

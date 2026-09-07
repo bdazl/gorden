@@ -57,6 +57,10 @@ hyprctl eval 'local w = hl.get_window("class:gorden") hl.dispatch(hl.dsp.window.
 hyprctl eval 'local w = hl.get_window("class:gorden") hl.dispatch(hl.dsp.window.close({ window = w }))'
 ```
 
+Workspace 9 only contains a window that stays put: an in-app monitor
+fullscreen (`glfwSetWindowMonitor`) yanks it onto the primary output and over
+the user's screen. Resize or fullscreen it by handle instead.
+
 Verify with `hyprctl activewindow -j` and `hyprctl activeworkspace -j` after
 each step. Hidden windows still get configure events and render, so
 fullscreen stress tests are valid there. `hyprctl eval` only prints `ok`;

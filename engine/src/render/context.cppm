@@ -63,6 +63,17 @@ export class RenderContext {
             init.platformData.type = bgfx::NativeWindowHandleType::Wayland;
         }
 
+        // NVIDIA's Wayland WSI loses the VkSurfaceKHR when GLFW commits the
+        // wl_surface from the main thread — which it does on every configure
+        // event, so a resize, a fullscreen toggle or a plain focus change is
+        // enough — while bgfx's render thread is presenting. Calling
+        // renderFrame() before init puts bgfx in single-threaded mode, so
+        // every Vulkan call runs on the thread that owns the window and the
+        // race cannot happen. Other platforms keep the render thread.
+        if (handles.platform == NativePlatform::Wayland) {
+            bgfx::renderFrame();
+        }
+
         if (!bgfx::init(init)) {
             return std::unexpected(toError(RenderError::InitFailed));
         }

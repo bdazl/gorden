@@ -241,7 +241,12 @@ failures are `Error`s, HTTP status codes are data.
 
 ### Rendering
 
-- `roboslop.render.context` owns bgfx init/shutdown and the frame.
+- `roboslop.render.context` owns bgfx init/shutdown and the frame. On
+  Wayland it calls `bgfx::renderFrame()` before `bgfx::init`, which runs
+  bgfx single-threaded: NVIDIA's WSI loses the `VkSurfaceKHR` when GLFW
+  commits the `wl_surface` from the main thread (it does so on every
+  configure — resize, fullscreen, focus change) while the render thread
+  presents. Other platforms keep the render thread.
 - `roboslop.render.graph`: `PassDesc` + `RenderGraph`, same
   conflict-edge rule as systems, dense bgfx view-ID per pass.
 - `roboslop.render.frontend`: `FrameArena` (single allocation,
