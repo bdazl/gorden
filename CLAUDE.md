@@ -34,3 +34,26 @@ file minimal — new rules go in `docs/`.
   docs describe (conventions, architecture, build system, decisions), update
   the relevant doc in the same commit — stale docs are worse than missing
   ones.
+
+## Running app windows on this machine
+
+The desktop is Hyprland with a Lua config. The user works on workspaces 1
+and up; put test windows on **workspace 9** and never touch focus or the
+active workspace. `hyprctl dispatch` / `hyprctl keyword` fail on this config
+("use eval"), and dispatchers that act on the active window hit the user's
+windows, so always go through `hyprctl eval` with an explicit window handle:
+
+```sh
+# launch on a hidden workspace; the process is a child of Hyprland, so
+# redirect output and record the exit status yourself
+hyprctl eval 'hl.exec_cmd("cd '"$PWD"'/build/debug && apps/gorden/gorden > /tmp/gorden.log 2>&1; echo exit=$? >> /tmp/gorden.log", { workspace = "9 silent" })'
+
+# control it by handle (class = window title: gorden, editor, shaderlab)
+hyprctl eval 'local w = hl.get_window("class:gorden") hl.dispatch(hl.dsp.window.fullscreen({ mode = "fullscreen", window = w }))'
+hyprctl eval 'local w = hl.get_window("class:gorden") hl.dispatch(hl.dsp.window.close({ window = w }))'
+```
+
+Verify with `hyprctl activewindow -j` and `hyprctl activeworkspace -j` after
+each step. Hidden windows still get configure events and render, so
+fullscreen stress tests are valid there. `hyprctl eval` only prints `ok`;
+to inspect the Lua API, write to a file with `io.open` from inside eval.
