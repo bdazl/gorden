@@ -203,7 +203,7 @@ below) and install it into the world before `onSetup` runs.
 render; there is no per-frame callback. Every frame the engine:
 
 1. resets the arena;
-2. polls window events and snapshots `Input`;
+2. polls window events and feeds `Input` a fresh `InputSnapshot`;
 3. runs the fixed `SystemGraph` N times at the configured rate via the
    Taskflow executor;
 4. runs `RenderGraph::execute` between `RenderContext::beginFrame()` and
@@ -231,6 +231,12 @@ pointer in `entt::registry::ctx()` rather than adding typed fields to
 ### Platform
 
 `roboslop.platform.window` and `roboslop.platform.input` wrap GLFW.
+GLFW may only be called from the thread that owns the window, so `Input`
+holds no window handle: `capturePlatformInput(window)` reads the frame's
+`InputSnapshot` on that thread and `Input::beginFrame` is fed the result.
+`setCursorCaptured` only records a request — free-fly camera control runs
+as a fixed system on a scheduler worker — and `Input::applyCursorRequest`
+performs the GLFW call once per frame from the App loop.
 `roboslop.platform.process` runs a child process to completion and
 captures its merged stdout/stderr (`runProcess`); it exists so tools such
 as `shaderc` can be shelled out to from a worker thread. POSIX only —

@@ -166,7 +166,7 @@ namespace {
 // velocity, so repeating it across sub-steps would mis-integrate motion.
 export class Input {
   public:
-    explicit Input(const Window& window) noexcept : handle(window.glfwHandle()) {}
+    Input() noexcept = default;
 
     Input(const Input&) = delete;
     auto operator=(const Input&) -> Input& = delete;
@@ -174,24 +174,12 @@ export class Input {
     auto operator=(Input&&) noexcept -> Input& = default;
     ~Input() = default;
 
-    auto beginFrame() -> void {
+    // Takes the frame's snapshot from the caller rather than polling
+    // GLFW itself: the window may only be touched from the thread that
+    // owns it, while Input is read by systems on scheduler workers.
+    auto beginFrame(const InputSnapshot& snapshot) -> void {
         prev = curr;
-
-        for (std::size_t i = 0; i < detail::KeyCount; ++i) {
-            const auto k = static_cast<Key>(i);
-            curr.keys[i] = glfwGetKey(handle, translateKey(k)) == GLFW_PRESS;
-        }
-        for (std::size_t i = 0; i < detail::MouseButtonCount; ++i) {
-            const auto b = static_cast<MouseButton>(i);
-            curr.mouseButtons[i] =
-                glfwGetMouseButton(handle, translateMouseButton(b)) == GLFW_PRESS;
-        }
-
-        double cx = 0.0;
-        double cy = 0.0;
-        glfwGetCursorPos(handle, &cx, &cy);
-        curr.cursorPos = {cx, cy};
-        curr.cursorPosValid = true;
+        curr = snapshot;
 
         if (resetDeltaNextFrame) {
             cachedDelta = {0.0F, 0.0F};
@@ -229,35 +217,73 @@ export class Input {
         return cachedDelta;
     }
 
-    // Drives the cursor through GLFW directly rather than via Window, so
-    // Input doesn't need to hold a Window pointer (which would be a
-    // dangling pointer after an App move). resetDeltaNextFrame stops
-    // the OS-driven cursor jump from showing up as motion. Idempotent:
-    // asking for the current state changes nothing (and keeps the
-    // delta), so callers can express capture as a level, not an edge.
-    auto setCursorCaptured(bool captured) -> void {
-        if (captured == cursorCapturedFlag) {
-            return;
-        }
+    // Records a request; the window is not touched here. Free-fly camera
+    // control runs as a fixed system on a scheduler worker, so this is
+    // called off the window's thread — applyCursorRequest() below does
+    // the GLFW work where it is legal. Idempotent: asking for the
+    // current state changes nothing, so callers can express capture as a
+    // level rather than an edge.
+    auto setCursorCaptured(bool captured) noexcept -> void {
         cursorCapturedFlag = captured;
-        glfwSetInputMode(handle, GLFW_CURSOR, captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-        if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
-            glfwSetInputMode(handle, GLFW_RAW_MOUSE_MOTION, captured ? GLFW_TRUE : GLFW_FALSE);
-        }
-        resetDeltaNextFrame = true;
     }
 
+    // Reports the requested state immediately, before it has been
+    // applied, so a system that asks for capture and then reads the flag
+    // in the same tick sees its own request.
     [[nodiscard]] auto cursorCaptured() const noexcept -> bool {
         return cursorCapturedFlag;
     }
 
+    // Applies a pending cursor-mode change. Must run on the thread that
+    // owns the window; the App loop calls it once per frame after the
+    // fixed systems. resetDeltaNextFrame stops the OS-driven cursor jump
+    // from registering as motion on the following frame.
+    auto applyCursorRequest(const Window& window) -> void {
+        if (cursorCapturedFlag == cursorCapturedApplied) {
+            return;
+        }
+        cursorCapturedApplied = cursorCapturedFlag;
+        GLFWwindow* handle = window.glfwHandle();
+        glfwSetInputMode(
+            handle, GLFW_CURSOR, cursorCapturedApplied ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
+        );
+        if (glfwRawMouseMotionSupported() == GLFW_TRUE) {
+            glfwSetInputMode(
+                handle, GLFW_RAW_MOUSE_MOTION, cursorCapturedApplied ? GLFW_TRUE : GLFW_FALSE
+            );
+        }
+        resetDeltaNextFrame = true;
+    }
+
   private:
-    GLFWwindow* handle = nullptr;
     InputSnapshot prev;
     InputSnapshot curr;
     glm::vec2 cachedDelta{0.0F, 0.0F};
     bool resetDeltaNextFrame = false;
     bool cursorCapturedFlag = false;
+    bool cursorCapturedApplied = false;
 };
+
+// Reads the window's current keyboard, mouse-button and cursor state.
+// GLFW requires this on the thread that owns the window, which is why it
+// is a free function next to Window rather than a method on Input.
+export [[nodiscard]] auto capturePlatformInput(const Window& window) -> InputSnapshot {
+    GLFWwindow* handle = window.glfwHandle();
+    InputSnapshot out;
+    for (std::size_t i = 0; i < detail::KeyCount; ++i) {
+        out.keys[i] = glfwGetKey(handle, translateKey(static_cast<Key>(i))) == GLFW_PRESS;
+    }
+    for (std::size_t i = 0; i < detail::MouseButtonCount; ++i) {
+        out.mouseButtons[i] =
+            glfwGetMouseButton(handle, translateMouseButton(static_cast<MouseButton>(i))) ==
+            GLFW_PRESS;
+    }
+    double cx = 0.0;
+    double cy = 0.0;
+    glfwGetCursorPos(handle, &cx, &cy);
+    out.cursorPos = {cx, cy};
+    out.cursorPosValid = true;
+    return out;
+}
 
 } // namespace roboslop

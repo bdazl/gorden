@@ -4,6 +4,8 @@ import roboslop.platform.input;
 #include <catch2/catch_test_macros.hpp>
 #include <glm/vec2.hpp>
 
+#include <cstddef>
+
 namespace {
 
 constexpr float Eps = 1e-5F;
@@ -95,4 +97,50 @@ TEST_CASE("mouseButtonPressedEdge fires only on rising edge", "[platform][input]
 
     prev.mouseButtons[i] = true;
     REQUIRE_FALSE(roboslop::mouseButtonPressedEdge(prev, curr, roboslop::MouseButton::Right));
+}
+
+TEST_CASE("Input drives edges and delta from fed snapshots", "[platform][input]") {
+    roboslop::Input input;
+
+    roboslop::InputSnapshot first;
+    first.keys[static_cast<std::size_t>(roboslop::Key::W)] = true;
+    first.cursorPos = {10.0, 10.0};
+    first.cursorPosValid = true;
+    input.beginFrame(first);
+
+    REQUIRE(input.keyDown(roboslop::Key::W));
+    REQUIRE(input.keyPressed(roboslop::Key::W));
+
+    roboslop::InputSnapshot second = first;
+    second.cursorPos = {12.0, 7.0};
+    input.beginFrame(second);
+
+    // Held, not re-pressed; the delta is the difference between the two.
+    REQUIRE(input.keyDown(roboslop::Key::W));
+    REQUIRE_FALSE(input.keyPressed(roboslop::Key::W));
+    REQUIRE(input.mouseDelta().x == Catch::Approx(2.0F).margin(Eps));
+    REQUIRE(input.mouseDelta().y == Catch::Approx(-3.0F).margin(Eps));
+
+    roboslop::InputSnapshot third = second;
+    third.keys[static_cast<std::size_t>(roboslop::Key::W)] = false;
+    input.beginFrame(third);
+
+    REQUIRE(input.keyReleased(roboslop::Key::W));
+}
+
+TEST_CASE("Input reports a cursor-capture request before it is applied", "[platform][input]") {
+    roboslop::Input input;
+
+    REQUIRE_FALSE(input.cursorCaptured());
+
+    // setCursorCaptured runs on scheduler workers and must not touch the
+    // window; the request is readable immediately all the same, so a
+    // system can express capture as a level within one tick.
+    input.setCursorCaptured(true);
+
+    REQUIRE(input.cursorCaptured());
+
+    input.setCursorCaptured(false);
+
+    REQUIRE_FALSE(input.cursorCaptured());
 }

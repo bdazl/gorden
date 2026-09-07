@@ -194,7 +194,7 @@ export class App {
             const auto frameStart = std::chrono::steady_clock::now();
             arena.reset();
             pollWindowEvents();
-            input.beginFrame();
+            input.beginFrame(capturePlatformInput(window));
 
             if (cfg.closeOnEscape && input.keyPressed(Key::Escape)) {
                 window.requestClose();
@@ -229,6 +229,9 @@ export class App {
                 };
                 scheduler.run(fixedGraph, ctx);
             }
+            // Systems request cursor capture from scheduler workers; the
+            // window may only be touched here, on its own thread.
+            input.applyCursorRequest(window);
 
             const auto renderStart = std::chrono::steady_clock::now();
             RenderContext::beginFrame();
@@ -288,10 +291,9 @@ export class App {
         FrameArena arena,
         BenchmarkConfig bench,
         AppConfig cfg) noexcept
-        : window(std::move(window)), render(std::move(render)), input(this->window),
-          assets(std::move(assets)), ui(std::move(ui)), physics(std::move(physics)),
-          audio(std::move(audio)), ticker(cfg.tickRateHz), scheduler(std::move(scheduler)),
-          arena(std::move(arena)),
+        : window(std::move(window)), render(std::move(render)), assets(std::move(assets)),
+          ui(std::move(ui)), physics(std::move(physics)), audio(std::move(audio)),
+          ticker(cfg.tickRateHz), scheduler(std::move(scheduler)), arena(std::move(arena)),
           // A benchmark summarises every measured frame, so the ring has
           // to hold the whole run rather than the last few seconds.
           stats(bench.frames > 0 ? bench.frames : FrameStats::DefaultCapacity),
