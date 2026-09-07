@@ -21,8 +21,12 @@ export struct SphereShape {
     float radius = 0.5F;
 };
 
+// `center` offsets the box in shape space (before the entity transform)
+// so a collider can wrap geometry that is not centred on the origin,
+// like an imported model's bounds.
 export struct BoxShape {
     glm::vec3 halfExtents{0.5F, 0.5F, 0.5F};
+    glm::vec3 center{0.0F, 0.0F, 0.0F};
 };
 
 export using BodyShape = std::variant<SphereShape, BoxShape>;

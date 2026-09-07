@@ -70,6 +70,24 @@ TEST_CASE("makeJoltShape produces a valid box shape", "[physics][shape]") {
     REQUIRE(shape->GetSubType() == JPH::EShapeSubType::Box);
 }
 
+TEST_CASE("makeJoltShape offsets a box by its centre", "[physics][shape]") {
+    auto world = roboslop::JoltWorld::make();
+    const auto shape = roboslop::makeJoltShape(
+        roboslop::BoxShape{.halfExtents = {1.0F, 2.0F, 3.0F}, .center = {10.0F, 0.0F, -1.0F}}
+    );
+    REQUIRE(shape != nullptr);
+    REQUIRE(shape->GetSubType() == JPH::EShapeSubType::RotatedTranslated);
+    // Jolt keeps local bounds relative to the centre of mass; the
+    // offset shows up as the centre of mass itself.
+    const auto com = shape->GetCenterOfMass();
+    REQUIRE(com.GetX() == Catch::Approx(10.0F));
+    REQUIRE(com.GetY() == Catch::Approx(0.0F));
+    REQUIRE(com.GetZ() == Catch::Approx(-1.0F));
+    const auto bounds = shape->GetLocalBounds();
+    REQUIRE(bounds.mMax.GetX() - bounds.mMin.GetX() == Catch::Approx(2.0F));
+    REQUIRE(bounds.mMax.GetY() - bounds.mMin.GetY() == Catch::Approx(4.0F));
+}
+
 TEST_CASE("free-fall position matches analytic curve within Jolt tolerance", "[physics][step]") {
     // Drop a sphere from y=10 with no obstacles; let it fall for 0.5 s
     // at 60 Hz. Analytic position with g=9.81 m/s² is

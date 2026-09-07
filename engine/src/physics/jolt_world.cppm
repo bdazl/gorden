@@ -8,6 +8,7 @@ module;
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/EActivation.h>
 #include <Jolt/Physics/PhysicsSettings.h>
@@ -232,9 +233,15 @@ export [[nodiscard]] auto makeJoltShape(const BodyShape& shape) -> JPH::Ref<JPH:
             if constexpr (std::is_same_v<T, SphereShape>) {
                 return new JPH::SphereShape(s.radius);
             } else if constexpr (std::is_same_v<T, BoxShape>) {
-                return new JPH::BoxShape(
+                JPH::Ref<JPH::Shape> box = new JPH::BoxShape(
                     JPH::Vec3(s.halfExtents.x, s.halfExtents.y, s.halfExtents.z),
                     0.1F * std::min({s.halfExtents.x, s.halfExtents.y, s.halfExtents.z})
+                );
+                if (s.center == glm::vec3{0.0F}) {
+                    return box;
+                }
+                return new JPH::RotatedTranslatedShape(
+                    JPH::Vec3(s.center.x, s.center.y, s.center.z), JPH::Quat::sIdentity(), box
                 );
             } else {
                 return nullptr;
