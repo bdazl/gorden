@@ -176,6 +176,10 @@ export class Window {
         glfwSetWindowShouldClose(handle, GLFW_TRUE);
     }
 
+    auto cancelClose() const -> void {
+        glfwSetWindowShouldClose(handle, GLFW_FALSE);
+    }
+
     [[nodiscard]] auto framebufferSize() const -> std::pair<int, int> {
         int w = 0;
         int h = 0;

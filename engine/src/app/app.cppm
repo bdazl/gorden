@@ -28,6 +28,12 @@ import roboslop.ui;
 
 namespace roboslop {
 
+export struct AppExitRequest {};
+
+export auto requestAppClose(World& world) -> void {
+    world.registry().ctx().emplace<AppExitRequest>();
+}
+
 // Game-supplied hooks.
 //
 //   onSetup        — once after init, before the loop. Receives the
@@ -64,6 +70,9 @@ export struct AppConfig {
     bool enableDevUi = false;
     // ImGui layout persistence; empty keeps the layout in memory.
     std::filesystem::path devUiIniPath{};
+    bool closeOnEscape = true;
+    // Optional veto used by document editors to offer Save/Discard/Cancel.
+    std::function<bool(World&)> onCloseRequested{};
 
     std::function<Result<void>(World&, AssetCache&)> onSetup;
     std::function<void(SystemGraph&, RenderGraph&, FrameArena&)> onBuildGraphs;
@@ -154,13 +163,23 @@ export class App {
         );
         clock.reset();
 
-        while (!window.shouldClose()) {
+        while (true) {
             arena.reset();
             pollWindowEvents();
             input.beginFrame();
 
-            if (input.keyPressed(Key::Escape)) {
+            if (cfg.closeOnEscape && input.keyPressed(Key::Escape)) {
                 window.requestClose();
+            }
+            if (world.registry().ctx().contains<AppExitRequest>()) {
+                world.registry().ctx().erase<AppExitRequest>();
+                window.requestClose();
+            }
+            if (window.shouldClose()) {
+                if (!cfg.onCloseRequested || cfg.onCloseRequested(world)) {
+                    break;
+                }
+                window.cancelClose();
             }
             if (ui && input.keyPressed(Key::F1)) {
                 ui->toggleEnabled();
