@@ -1,6 +1,7 @@
 find_package(Catch2 3 CONFIG REQUIRED)
 
 add_executable(gorden_tests
+    memory_test.cpp
     tools_test.cpp
     observation_test.cpp
     robot_test.cpp

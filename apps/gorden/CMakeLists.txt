@@ -1,9 +1,10 @@
-# Agent logic (observation, tools + validation, robot motion, brain) is
-# its own module library so gorden_tests can exercise it without the
-# window/bgfx main.
+# Agent logic (observation, memory, tools + validation, robot motion,
+# brain) is its own module library so gorden_tests can exercise it
+# without the window/bgfx main.
 roboslop_add_module_library(gorden_agent
     MODULES
         src/agent/observation.cppm
+        src/agent/memory.cppm
         src/agent/tools.cppm
         src/agent/robot.cppm
         src/agent/brain.cppm
