@@ -184,6 +184,12 @@ Keep the implementation small enough to observe and debug by hand.
 
 ## M4 — Level editor vertical slice
 
+**Status.** First primitive-scene slice implemented ahead of M3 (2026-09-06):
+`apps/editor` creates, selects and transforms objects, edits solid materials
+and a directional light, saves/loads versioned JSON, provides undo/redo, and
+previews physics with restoration on Stop. Gorden consumes the same scene
+document. See [scene editing](scene-editor.md) for controls and limits.
+
 **Goal.** The first concrete editor use case. Not "build Unity".
 
 Enough to: open or create a small scene, select an entity, manipulate
@@ -196,10 +202,8 @@ preview of a running scene.
 
 **Open questions.**
 
-- Is the editor a separate executable, or a mode of the app it edits?
-  A separate executable is the working assumption.
-- Serialisation format for scenes (JSON via nlohmann is already a
-  declared dependency; a binary format may follow).
+- The editor is a separate executable; JSON version 1 is the first scene format.
+- Hierarchy, imported models, prefabs and richer asset identity remain open.
 - How much of the editor's UI is shared with Shader Lab's dev UI?
 
 ---

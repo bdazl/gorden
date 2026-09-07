@@ -43,6 +43,7 @@ its directory. `make apps` lists them.
 
 ```sh
 make shaderlab                  # build only shaderlab (+ engine, its shaders), then run it
+make editor                     # build and run the primitive scene editor
 make gorden ARGS="..."          # same for gorden; ARGS are forwarded
 make build-<app>                # build only <app>
 make run-<app>                  # run without building
@@ -130,7 +131,7 @@ related is fetched or vendored.
 
 | Option | Default | Effect |
 |---|---|---|
-| `ROBOSLOP_DEV_UI` | `ON` | `App` honours `AppConfig::enableDevUi` and the `shaderlab` app is configured. `OFF` still builds `roboslop.ui` (the module is unconditional to keep `App` free of `#if`-guarded members) but `App` logs a warning and skips the dev UI. |
+| `ROBOSLOP_DEV_UI` | `ON` | `App` honours `AppConfig::enableDevUi`; Shader Lab and the editor are configured. `OFF` skips those apps; Gorden and engine modules still build. |
 | `ROBOSLOP_BUILD_TESTS` | `ON` | Build the Catch2 test executable. |
 | `ROBOSLOP_SANITIZERS` | empty | See "Sanitisers". |
 

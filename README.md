@@ -20,9 +20,9 @@ This repository is a monorepo:
   the running scene; compile errors show in a panel while the last
   working program keeps rendering.
 
-Further applications (a level editor) are planned; see the
-[roadmap](docs/roadmap.md). Each is created when work on it starts, not
-before.
+- `apps/editor/` — a first scene editor: create primitive rooms, edit
+  objects and materials, save/load JSON, and preview physics with Play/Stop.
+  See [scene editing](docs/scene-editor.md).
 
 ## Status
 
@@ -98,6 +98,7 @@ make shaders       # compile registered shaders through bgfx shaderc
 make apps          # list the apps under apps/
 make gorden        # build only gorden, then run it
 make shaderlab     # build only shaderlab, then run it
+make editor        # build and run the scene editor
 make gorden ARGS="--scene /absolute/path/to/scene.json"
 make run-<app>     # run without building (make run APP=<app> also works)
 OPENAI_API_KEY=sk-... make gorden   # robot with a real LLM (gpt-4.1-mini by default)

@@ -155,12 +155,15 @@ Still to come for Shader Lab: imported meshes, terrain, fullscreen
 passes, several geometry types side by side, and a real asset identity
 once a second consumer needs it.
 
-### Level Editor (planned, M4)
+### Level Editor (first slice, M4)
 
-A separate program for creating and editing scenes. It will drive
-serialisation, asset identity, selection, gizmos, undo/redo, the
-editing-vs-runtime state split, and physics/live preview. It is not
-designed yet.
+A separate program under `apps/editor/` creates primitive scenes, selects and
+transforms objects, edits solid materials and a directional light, and provides
+undo/redo, JSON save/load and physics preview. `roboslop.scene.document` owns
+validated authored data; `roboslop.scene.runtime` instantiates that data into
+entities and owns shared primitive buffers/material textures. Play creates
+physics bodies, Stop removes them and reinstantiates the document. Gorden reads
+the same format and adds its player/robot logic. See [scene editing](scene-editor.md).
 
 ## Engine: current state
 

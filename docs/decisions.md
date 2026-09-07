@@ -11,6 +11,26 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-06 — Author primitive scenes before agent memory
+
+**Decision.** Pull a first M4 editor slice ahead of M3. The user needs to build
+environments for Gorden now. A separate `apps/editor` shares a versioned JSON
+document and scene instantiation with Gorden. Authored data owns stable object
+and material IDs; transient ECS, GPU and Jolt handles stay in the runtime.
+Play/Stop reinstantiates the authored document and releases old physics bodies.
+
+**Scope.** Flat scenes with cubes, spheres, planes, solid materials and one
+directional light. A small CPU picking and projected-axis manipulation layer
+uses the existing GLM/ImGui dependencies. Translation/rotation use world axes;
+scale uses local axes. History stores up to 128 document snapshots and groups
+continuous drags. Imported model hierarchies, prefabs and terrain wait for a
+subsequent use case. Primitive winding is outward CCW; the previous app-local
+cube arrays were wound inward and have been removed in favor of `cubeGeometry`.
+
+**Validation.** Document round trips and rejection, primitive winding, picking,
+undo/redo, physics removal, and a separate display-dependent runtime smoke
+executable. See `docs/scene-editor.md` for the workflow and current limits.
+
 ## 2026-09-06 — bgfx is patched to survive a lost surface during swapchain creation
 
 **Decision.** `third_party/patches/` holds git patches applied to the
