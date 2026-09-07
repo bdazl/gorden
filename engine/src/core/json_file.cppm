@@ -66,7 +66,12 @@ export [[nodiscard]] auto readJsonFile(const std::filesystem::path& path)
 export [[nodiscard]] auto
 writeJsonFile(const std::filesystem::path& path, const nlohmann::json& doc) -> Result<void> {
     std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
+    if (!path.parent_path().empty()) {
+        std::filesystem::create_directories(path.parent_path(), ec);
+        if (ec) {
+            return std::unexpected(toError(JsonError::WriteFailed, ec.message()));
+        }
+    }
     const auto tmp = path.string() + ".tmp";
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
@@ -74,6 +79,7 @@ writeJsonFile(const std::filesystem::path& path, const nlohmann::json& doc) -> R
             return std::unexpected(toError(JsonError::WriteFailed, tmp));
         }
         out << doc.dump(2) << '\n';
+        out.close();
         if (!out) {
             return std::unexpected(toError(JsonError::WriteFailed, tmp));
         }
