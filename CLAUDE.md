@@ -15,6 +15,8 @@ file minimal — new rules go in `docs/`.
 - [`docs/roadmap.md`](docs/roadmap.md) — milestones and open questions.
 - [`docs/build-system.md`](docs/build-system.md) — toolchain, presets, profiles,
   sanitisers, dependency policy, C++23 module notes.
+- [`docs/save-format.md`](docs/save-format.md) — the save game format and
+  where saves live.
 - [`docs/decisions.md`](docs/decisions.md) — running log of design and tooling
   choices, newest first. Append new entries here; don't edit in place.
 

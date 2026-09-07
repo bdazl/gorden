@@ -363,6 +363,15 @@ scrollback, the prompt, an input with Up/Down history and Tab
 completion, and follow mode for `tail -f` (Ctrl+C stops it; Esc is
 taken by the app for quit). Drawn from a registered dev window.
 
+### Saved games
+
+`roboslop.scene.savegame` is the counterpart to the scene document: a scene
+document is authored data, a save game is one *run* of it. A save refers to its
+scene by relative path, carries the transforms of the scene objects that moved,
+and hands the application an opaque `app` JSON object for everything the engine
+does not model. Saves live under `stateDir()` rather than `dataDir()`. See
+[the save format](save-format.md).
+
 ### Subsystem map
 
 | Subsystem | Library | State |

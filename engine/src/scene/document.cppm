@@ -55,30 +55,35 @@ export [[nodiscard]] auto sceneError(std::string context) -> Error {
     };
 }
 
-namespace detail {
 // Relative, inside the asset root: no root name, no leading separator,
-// no `..` component.
-static auto modelPathValid(const std::string& model) -> bool {
-    if (model.empty()) {
+// no `..` component. Shared with the save format, which stores a scene
+// path under the same rule.
+export [[nodiscard]] auto assetPathValid(const std::string& asset) -> bool {
+    if (asset.empty()) {
         return false;
     }
-    const std::filesystem::path path{model};
+    const std::filesystem::path path{asset};
     if (path.has_root_name() || path.has_root_directory()) {
         return false;
     }
     return std::ranges::none_of(path, [](const auto& part) { return part == ".."; });
 }
-} // namespace detail
+
+// A transform the simulation can use: finite, unit rotation, a scale
+// that neither collapses nor explodes.
+export [[nodiscard]] auto transformValid(const Transform& t) -> bool {
+    const auto finite = [](const glm::vec3& v) {
+        return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
+    };
+    const float q = glm::dot(t.rotation, t.rotation);
+    return finite(t.position) && finite(t.scale) && std::isfinite(q) &&
+           std::abs(q - 1.0F) < 0.001F && t.scale.x >= 0.01F && t.scale.y >= 0.01F &&
+           t.scale.z >= 0.01F && t.scale.x <= 1000 && t.scale.y <= 1000 && t.scale.z <= 1000;
+}
 
 export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<void> {
     const auto finite = [](const glm::vec3& v) {
         return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z);
-    };
-    const auto transformValid = [&](const Transform& t) {
-        const float q = glm::dot(t.rotation, t.rotation);
-        return finite(t.position) && finite(t.scale) && std::isfinite(q) &&
-               std::abs(q - 1.0F) < 0.001F && t.scale.x >= 0.01F && t.scale.y >= 0.01F &&
-               t.scale.z >= 0.01F && t.scale.x <= 1000 && t.scale.y <= 1000 && t.scale.z <= 1000;
     };
     if (scene.objects.size() > 2000 || scene.materials.empty() || scene.materials.size() > 256) {
         return std::unexpected(sceneError("limit: 2000 objects, 1..256 materials"));
@@ -105,8 +110,7 @@ export [[nodiscard]] auto validateScene(const SceneDocument& scene) -> Result<vo
             !transformValid(object.transform) || !scene.materials.contains(object.material) ||
             (object.geometry != "cube" && object.geometry != "sphere" &&
              object.geometry != "plane" && object.geometry != "model") ||
-            (object.geometry == "model" ? !detail::modelPathValid(object.model)
-                                        : !object.model.empty()) ||
+            (object.geometry == "model" ? !assetPathValid(object.model) : !object.model.empty()) ||
             (object.body != "none" && object.body != "static" && object.body != "dynamic") ||
             (object.geometry == "plane" && object.body != "none") ||
             (object.geometry == "sphere" && object.body != "none" &&
@@ -127,14 +131,17 @@ static auto vectorJson(const glm::vec3& v) -> nlohmann::json {
     return {v.x, v.y, v.z};
 }
 
-static auto transformJson(const Transform& t) -> nlohmann::json {
+} // namespace detail
+
+export [[nodiscard]] auto transformToJson(const Transform& t) -> nlohmann::json {
     return {
-        {"position", vectorJson(t.position)},
-        {"scale", vectorJson(t.scale)},
+        {"position", detail::vectorJson(t.position)},
+        {"scale", detail::vectorJson(t.scale)},
         {"rotation", {t.rotation.w, t.rotation.x, t.rotation.y, t.rotation.z}}
     };
 }
 
+namespace detail {
 static auto readVector(const nlohmann::json& j) -> glm::vec3 {
     if (!j.is_array() || j.size() != 3) {
         return {NAN, NAN, NAN};
@@ -142,9 +149,15 @@ static auto readVector(const nlohmann::json& j) -> glm::vec3 {
     return {j.at(0).get<float>(), j.at(1).get<float>(), j.at(2).get<float>()};
 }
 
-static auto readTransform(const nlohmann::json& j) -> Transform {
+} // namespace detail
+
+// Throws nlohmann::json::exception on a malformed object; every caller
+// is inside a try block at an input boundary.
+export [[nodiscard]] auto transformFromJson(const nlohmann::json& j) -> Transform {
     const auto& q = j.at("rotation");
-    Transform t{.position = readVector(j.at("position")), .scale = readVector(j.at("scale"))};
+    Transform t{
+        .position = detail::readVector(j.at("position")), .scale = detail::readVector(j.at("scale"))
+    };
     if (!q.is_array() || q.size() != 4) {
         t.rotation = glm::quat{0, 0, 0, 0};
     } else {
@@ -154,7 +167,6 @@ static auto readTransform(const nlohmann::json& j) -> Transform {
     }
     return t;
 }
-} // namespace detail
 
 export [[nodiscard]] auto sceneToJson(const SceneDocument& scene) -> nlohmann::json {
     nlohmann::json objects = nlohmann::json::array();
@@ -164,7 +176,7 @@ export [[nodiscard]] auto sceneToJson(const SceneDocument& scene) -> nlohmann::j
             {"name", o.name},
             {"geometry", o.geometry},
             {"material", o.material},
-            {"transform", detail::transformJson(o.transform)},
+            {"transform", transformToJson(o.transform)},
             {"body", o.body}
         };
         // Only models carry the key, so primitive-only files stay byte-identical.
@@ -181,7 +193,7 @@ export [[nodiscard]] auto sceneToJson(const SceneDocument& scene) -> nlohmann::j
         {"version", 1},
         {"objects", objects},
         {"materials", materials},
-        {"camera", detail::transformJson(scene.camera)},
+        {"camera", transformToJson(scene.camera)},
         {"light",
          {{"direction", detail::vectorJson(scene.light.direction)},
           {"color", detail::vectorJson(scene.light.color)},
@@ -201,7 +213,7 @@ export [[nodiscard]] auto sceneFromJson(const nlohmann::json& json) -> Result<Sc
         for (const auto& [id, color] : json.at("materials").items()) {
             scene.materials.emplace(id, detail::readVector(color));
         }
-        scene.camera = detail::readTransform(json.at("camera"));
+        scene.camera = transformFromJson(json.at("camera"));
         const auto& light = json.at("light");
         scene.light = {
             .direction = detail::readVector(light.at("direction")),
@@ -215,7 +227,7 @@ export [[nodiscard]] auto sceneFromJson(const nlohmann::json& json) -> Result<Sc
                  .geometry = o.at("geometry").get<std::string>(),
                  .model = o.value("model", std::string{}),
                  .material = o.at("material").get<std::string>(),
-                 .transform = detail::readTransform(o.at("transform")),
+                 .transform = transformFromJson(o.at("transform")),
                  .body = o.at("body").get<std::string>()}
             );
         }

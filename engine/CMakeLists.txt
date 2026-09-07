@@ -50,6 +50,7 @@ roboslop_add_module_library(roboslop
         src/animation/state.cppm
         src/scene/transform.cppm
         src/scene/document.cppm
+        src/scene/savegame.cppm
         src/scene/runtime.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
