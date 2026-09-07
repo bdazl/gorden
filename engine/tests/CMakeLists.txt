@@ -24,6 +24,7 @@ add_executable(roboslop_tests
     physics_test.cpp
     lighting_test.cpp
     primitives_test.cpp
+    scene_test.cpp
     animation_test.cpp
 )
 

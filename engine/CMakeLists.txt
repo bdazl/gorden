@@ -48,6 +48,8 @@ roboslop_add_module_library(roboslop
         src/animation/skeleton.cppm
         src/animation/state.cppm
         src/scene/transform.cppm
+        src/scene/document.cppm
+        src/scene/runtime.cppm
         src/ecs/world.cppm
         src/sched/scheduler.cppm
         src/vfs/vfs.cppm
@@ -128,6 +130,22 @@ roboslop_compile_shader(
     TARGET_VAR  ui_fs_target
 )
 add_dependencies(roboslop ${ui_vs_target} ${ui_fs_target})
+
+roboslop_compile_shader(
+    TYPE VERTEX
+    SHADERS ${ui_shader_src}/vs_scene.sc
+    VARYING ${ui_shader_src}/scene_varying.def.sc
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/assets/shaders
+    TARGET_VAR scene_vs_target
+)
+roboslop_compile_shader(
+    TYPE FRAGMENT
+    SHADERS ${ui_shader_src}/fs_scene.sc
+    VARYING ${ui_shader_src}/scene_varying.def.sc
+    OUTPUT_DIR ${CMAKE_BINARY_DIR}/assets/shaders
+    TARGET_VAR scene_fs_target
+)
+add_dependencies(roboslop ${scene_vs_target} ${scene_fs_target})
 
 # --- GLFW on Linux --------------------------------------------------------
 # GLFW's Wayland backend dlopen()s libwayland-client, libwayland-cursor,
