@@ -18,6 +18,7 @@ export module roboslop.render.frontend;
 import roboslop.ecs;
 import roboslop.render.material;
 import roboslop.render.mesh;
+import roboslop.render.model;
 import roboslop.scene.transform;
 
 namespace roboslop {
@@ -123,44 +124,47 @@ export [[nodiscard]] auto makeSortKey(
     return vc | vi | pg | dp;
 }
 
-// Walks every entity with a Mesh + Transform and emits one DrawItem per
-// entity into the arena. Returns the populated span. Frontend has full
+// Walks every entity with a Mesh + Transform and every entity with a
+// ModelInstance + Transform, emitting one DrawItem per mesh or model
+// part into the arena. Returns the populated span. Frontend has full
 // knowledge of which view this draw list targets; the viewId is baked
 // into both sortKey and DrawItem.viewId.
 //
 // No allocations beyond the single arena reservation. The caller is
-// responsible for sizing the arena to cover the worst-case entity count
+// responsible for sizing the arena to cover the worst-case draw count
 // per frame.
 export [[nodiscard]] auto
 collectMeshDraws(const World& world, FrameArena& arena, std::uint16_t viewId)
     -> std::span<DrawItem> {
     const auto& reg = world.registry();
-    auto view = reg.view<const Mesh, const Transform>();
+    auto meshes = reg.view<const Mesh, const Transform>();
+    auto models = reg.view<const ModelInstance, const Transform>();
 
     std::size_t count = 0;
-    for (const auto e : view) {
+    for (const auto e : meshes) {
         (void)e;
         ++count;
+    }
+    for (const auto e : models) {
+        count += reg.get<const ModelInstance>(e).parts.size();
     }
 
     auto draws = arena.allocate<DrawItem>(count);
     std::size_t i = 0;
-    for (const auto e : view) {
-        const auto& m = reg.get<const Mesh>(e);
-        const auto& t = reg.get<const Transform>(e);
+    const auto emit = [&](const Mesh& m, const Material* mat, const glm::mat4& model) {
         DrawItem& d = draws[i++];
         d.vb = m.vb;
         d.ib = m.ib;
         d.program = m.program;
         d.state = m.state;
-        d.model = toMatrix(t);
+        d.model = model;
         d.viewId = viewId;
 
         // When the entity carries a Material, override the program
         // and bind its albedo texture for submitDraws. Material wins
         // over Mesh.program — Mesh.program is the fallback for
         // vertex-coloured debug geometry.
-        if (const auto* mat = reg.try_get<const Material>(e); mat != nullptr) {
+        if (mat != nullptr) {
             if (mat->program.valid()) {
                 d.program = mat->program.value;
             }
@@ -169,15 +173,28 @@ collectMeshDraws(const World& world, FrameArena& arena, std::uint16_t viewId)
         }
 
         d.sortKey = makeSortKey(viewId, static_cast<std::uint32_t>(d.program.idx));
+    };
+    for (const auto e : meshes) {
+        emit(
+            reg.get<const Mesh>(e),
+            reg.try_get<const Material>(e),
+            toMatrix(reg.get<const Transform>(e))
+        );
+    }
+    for (const auto e : models) {
+        const auto entityMatrix = toMatrix(reg.get<const Transform>(e));
+        for (const auto& part : reg.get<const ModelInstance>(e).parts) {
+            emit(part.mesh, &part.material, entityMatrix * part.local);
+        }
     }
     return draws;
 }
 
-// Rewrites every Mesh.program and Material.program that currently
-// equals `from` to `to`. Companion to AssetCache::replaceProgram: the
-// cache swaps the owning Program, this swaps the copies entities hold.
-// Returns how many component fields were rewritten. Pure ECS walk, no
-// bgfx calls — safe to unit test without a device.
+// Rewrites every Mesh.program and Material.program (including those
+// inside ModelInstance parts) that currently equals `from` to `to`. Companion to
+// AssetCache::replaceProgram: the cache swaps the owning Program, this swaps the copies entities
+// hold. Returns how many component fields were rewritten. Pure ECS walk, no bgfx calls — safe to
+// unit test without a device.
 export auto rebindProgram(World& world, bgfx::ProgramHandle from, bgfx::ProgramHandle to)
     -> std::size_t {
     std::size_t count = 0;
@@ -194,6 +211,19 @@ export auto rebindProgram(World& world, bgfx::ProgramHandle from, bgfx::ProgramH
         if (mat.program.value.idx == from.idx) {
             mat.program.value = to;
             ++count;
+        }
+    }
+    for (auto [e, model] : reg.view<ModelInstance>().each()) {
+        (void)e;
+        for (auto& part : model.parts) {
+            if (part.mesh.program.idx == from.idx) {
+                part.mesh.program = to;
+                ++count;
+            }
+            if (part.material.program.value.idx == from.idx) {
+                part.material.program.value = to;
+                ++count;
+            }
         }
     }
     return count;

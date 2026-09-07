@@ -252,6 +252,10 @@ failures are `Error`s, HTTP status codes are data.
   (`makeProgram`) or from the asset root (`loadProgram`), static mesh
   creation with two vertex layouts, and a POD `Material` (program +
   albedo + sampler) the frontend reads per entity.
+- `roboslop.render.model`: `ModelInstance`, a list of `ModelDrawPart`s
+  (mesh + material + local matrix) on one entity. The frontend emits one
+  draw per part with `entity transform * local`, so an imported
+  multi-part model moves, collides and is picked as a single entity.
 - `roboslop.render.primitives`: procedural UV-sphere and plane
   generators (`sphereGeometry`, `planeGeometry`) producing pos/normal/uv
   `Geometry`, plus `makeGeometryMesh` to upload one as a static `Mesh`.
@@ -259,7 +263,7 @@ failures are `Error`s, HTTP status codes are data.
   `AssetCache::replaceProgram` exchanges the owning `Program` (bgfx
   defers the old handle's release to the end of the frame), then
   `rebindProgram` rewrites the handle copies held in `Mesh` / `Material`
-  components. Components keep storing raw bgfx handles; there is no
+  / `ModelInstance` components. Components keep storing raw bgfx handles; there is no
   asset-identity indirection yet.
 
 ### Assets
