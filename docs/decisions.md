@@ -11,6 +11,51 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — Frame statistics first; the inverted thread model waits
+
+**Decision.** The engine measures itself before it is restructured.
+`roboslop.time.frame_stats` collects per-frame CPU, GPU and bgfx
+wait timings; the dev UI grew a "Performance" overlay; `ROBOSLOP_BENCH_*`
+runs a fixed number of frames and reports percentiles. The planned
+inversion of the thread model — main thread pumping `bgfx::renderFrame()`
+while a separate app thread calls `bgfx::init` — is designed but **not
+built**.
+
+**Why.** The inversion's purpose was to keep bgfx's submit/render
+pipelining while putting every Vulkan/WSI call on the thread that owns
+the `wl_display`, which is what the 2026-09-07 single-threaded workaround
+gave up. The first benchmark says there is nothing to keep: Gorden's
+scene (17 draw calls, 2548x1391) runs a whole CPU frame in 0.167 ms at
+p50 — 0.136 ms render, 0.022 ms fixed step, 0.031 ms GPU. A render thread
+can overlap at most the smaller of those two CPU blocks, so the ceiling
+on the win is hundredths of a millisecond on a loop already six thousand
+frames per second. The restructuring it requires is not small: an
+in-house ImGui platform backend (upstream's supplies text input,
+clipboard, nine cursors and the monitor list), a split of `App`'s
+ownership across two threads, and a new startup/shutdown handshake with
+several deadlock and hot-spin traps.
+
+**Consequences.**
+
+- Wayland keeps the single-threaded bgfx mode from the entry above. The
+  race is still fixed; only the pipelining is still forfeit.
+- The design survives in the plan and in this entry, so the work can be
+  picked up when a scene actually becomes CPU-bound. The number to watch
+  is `waitSubmit`/`waitRender` in the overlay — both are zero by
+  construction while bgfx is single-threaded, so the trigger is really
+  `render` approaching the frame budget.
+- One piece landed on its own merits: `Input` no longer calls GLFW.
+  `setCursorCaptured` was running `glfwSetInputMode` from a scheduler
+  worker, because free-fly camera control is a fixed system.
+- The benchmark is configured by environment rather than `AppConfig`;
+  see `docs/build-system.md`.
+
+**Where.** `engine/src/time/frame_stats.cppm`,
+`engine/src/app/benchmark.cppm`, `engine/src/ui/perf_window.cppm`,
+`engine/src/platform/input.cppm`.
+
+---
+
 ## 2026-09-07 — bgfx runs single-threaded on Wayland
 
 **Decision.** `RenderContext::make` calls `bgfx::renderFrame()` before
