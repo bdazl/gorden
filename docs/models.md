@@ -14,9 +14,10 @@ page is the export checklist and the file contract; the reasoning is the
 - Engine fixtures live in `engine/tests/assets/`. `make_fixture.py`
   regenerates `crate.glb` and `crate.blend` headlessly:
   `blender -b --python make_fixture.py -- engine/tests/assets`.
-- Staging into `build/<preset>/assets/models/` is added with the first app
-  model, following the `configure_file(... COPYONLY)` pattern the scenes
-  use in `apps/gorden/CMakeLists.txt`.
+- `apps/gorden/CMakeLists.txt` stages each model into
+  `build/<preset>/assets/models/` with `configure_file(... COPYONLY)`. Unlike
+  the seeded scene file, models are always overwritten: they are authored in
+  Blender, never in the build tree. Add a line per new model.
 
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 

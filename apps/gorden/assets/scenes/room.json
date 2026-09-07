@@ -273,6 +273,32 @@
         ]
       },
       "body": "dynamic"
+    },
+    {
+      "id": "crate-model",
+      "name": "Crate",
+      "geometry": "model",
+      "model": "models/crate.glb",
+      "material": "wood",
+      "transform": {
+        "position": [
+          -5,
+          -0.5,
+          4
+        ],
+        "rotation": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      },
+      "body": "static"
     }
   ]
 }

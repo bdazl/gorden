@@ -25,6 +25,11 @@ if(NOT EXISTS ${CMAKE_BINARY_DIR}/assets/scenes/room.json)
     configure_file(assets/scenes/room.json ${CMAKE_BINARY_DIR}/assets/scenes/room.json COPYONLY)
 endif()
 
+# Models are authored in Blender, never in the build tree, so they are
+# always refreshed; configure_file also reconfigures when a .glb changes.
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/models)
+configure_file(assets/models/crate.glb ${CMAKE_BINARY_DIR}/assets/models/crate.glb COPYONLY)
+
 target_link_libraries(gorden PRIVATE
     roboslop
     gorden_agent

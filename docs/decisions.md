@@ -11,6 +11,44 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-07 — Models enter scenes as a path on the object, drawn by one entity
+
+**Decision.** A scene object references a model file with
+`"geometry": "model"` and a `model` path relative to the asset root
+(`models/crate.glb`); primitives omit the key so existing files are
+unchanged. There is no asset table: the path is the identity, and
+`validateScene` only requires it to be relative and free of `..`. The
+object's `material` stays required but is ignored for models, which draw
+with the materials inside the file (packed or adjacent texture, else a 1×1
+base-colour texture).
+
+`SceneRuntime` uploads each referenced file once (`loadModelFile`, one
+static mesh per part, one texture per material, `modelBounds`) and gives
+the object a single entity carrying the new `ModelInstance` component
+(`roboslop.render.model`): a list of parts with mesh, material and a local
+matrix that the frontend composes with the entity transform. The collider
+is a `BoxShape` around the model bounds, scaled by the object, with the new
+`center` offset because authored models are rarely centred on their origin.
+The editor lists `assets/models/*.glb` as add buttons, picks models by a
+ray/AABB test against the runtime's bounds, and draws the selection box
+around those bounds. Gorden stages `crate.glb` with an unconditional
+`configure_file` and places it in `room.json`.
+
+**Why one entity.** `syncPhysicsToTransform` writes back only the body's
+own entity. One entity per part would need a parent/child hierarchy or a
+follower system for a dynamic model to fall as one piece; a multi-part
+draw component keeps physics, picking and `SceneIdentity` on one entity
+without introducing transform propagation before anything else needs it.
+
+**Why no asset table yet.** A `models` table with ids would settle the
+asset-identity question early, but only one consumer exists and the path
+already round-trips. Revisit when a second asset type is referenced from
+scenes or when renaming files becomes a real chore.
+
+**Not in this slice.** Hierarchy in the ECS, prefabs, per-object material
+overrides or tinting for models (would need `fs_scene` to multiply the
+base colour), mesh or convex colliders, and a file dialog in the editor.
+
 ## 2026-09-07 — Blender models arrive as glTF binaries read through Assimp
 
 **Decision.** Authored models are exported from Blender as `.glb` (glTF 2.0
