@@ -39,12 +39,12 @@ export class OpenAiProvider final : public Provider {
         HttpRequest http{
             .url = cfg.baseUrl + "/chat/completions",
             .method = "POST",
-            .headers = {{"Content-Type", "application/json"}},
+            .headers = {{.name = "Content-Type", .value = "application/json"}},
             .body = buildChatCompletionBody(req),
             .timeoutSeconds = cfg.timeoutSeconds,
         };
         if (!cfg.apiKey.empty()) {
-            http.headers.push_back({"Authorization", "Bearer " + cfg.apiKey});
+            http.headers.push_back({.name = "Authorization", .value = "Bearer " + cfg.apiKey});
         }
 
         auto response = httpRequest(http);

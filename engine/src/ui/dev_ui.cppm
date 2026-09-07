@@ -62,7 +62,8 @@ export struct WindowVisibility {
 export class DevUi {
   public:
     [[nodiscard]] static auto
-    make(const Window& window, AssetCache& assets, DevUiConfig config = {}) -> Result<DevUi> {
+    make(const Window& window, AssetCache& assets, const DevUiConfig& config = {})
+        -> Result<DevUi> {
         auto program = assets.program("vs_imgui", "fs_imgui");
         if (!program) {
             return std::unexpected(program.error());

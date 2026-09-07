@@ -66,7 +66,7 @@ constexpr std::array<std::uint8_t, 4 * 4 * 4> kCheckerPixels = [] {
     for (std::size_t y = 0; y < 4; ++y) {
         for (std::size_t x = 0; x < 4; ++x) {
             const bool dark = ((x + y) & 1U) != 0U;
-            const std::size_t i = (y * 4U + x) * 4U;
+            const std::size_t i = ((y * 4U) + x) * 4U;
             p[i + 0] = dark ? std::uint8_t{32} : std::uint8_t{220};
             p[i + 1] = dark ? std::uint8_t{32} : std::uint8_t{220};
             p[i + 2] = dark ? std::uint8_t{96} : std::uint8_t{80};
@@ -199,14 +199,14 @@ auto makeProvider() -> std::unique_ptr<roboslop::Provider> {
         return roboslop::ToolCall{
             .id = std::move(id),
             .name = "say",
-            .argumentsJson = "{\"text\":\"" + std::move(text) + "\"}",
+            .argumentsJson = R"({"text":")" + std::move(text) + "\"}",
         };
     };
     std::vector<roboslop::ChatResponse> script{
         roboslop::ChatResponse{
             .toolCalls =
                 {say("Hello! I am a scripted robot. Watch me walk to the generator.", "s1"),
-                 {.id = "s2", .name = "moveTo", .argumentsJson = "{\"x\":0,\"z\":-4.5}"}},
+                 {.id = "s2", .name = "moveTo", .argumentsJson = R"({"x":0,"z":-4.5})"}},
             .finishReason = "tool_calls",
         },
         roboslop::ChatResponse{
@@ -620,6 +620,7 @@ auto main(int argc, char** argv) -> int {
                     );
 
                     std::vector<roboslop::WindowVisibility> saved;
+                    saved.reserve(st.settings.windows.size());
                     for (const auto& [id, visible] : st.settings.windows) {
                         saved.push_back({.id = id, .visible = visible});
                     }

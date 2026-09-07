@@ -278,7 +278,7 @@ export class AgentBrain {
             log(std::format("assistant text: {}", resp.content));
         }
 
-        Observation obs = buildObservation(world, robot, player, cfg.observeRadius);
+        const Observation obs = buildObservation(world, robot, player, cfg.observeRadius);
         for (const auto& call : resp.toolCalls) {
             auto parsed = parseToolCall(call);
             auto validated = parsed ? validate(*parsed, obs, cfg.rules)

@@ -45,9 +45,9 @@ auto writeGridGlb(const std::filesystem::path& file, std::uint32_t side) -> void
     std::vector<std::uint32_t> indices;
     for (std::uint32_t y = 0; y < side; ++y) {
         for (std::uint32_t x = 0; x < side; ++x) {
-            positions.insert(positions.end(), {float(x), float(y), 0.0F});
+            positions.insert(positions.end(), {static_cast<float>(x), static_cast<float>(y), 0.0F});
             if (x + 1 < side && y + 1 < side) {
-                const auto i = y * side + x;
+                const auto i = (y * side) + x;
                 indices.insert(indices.end(), {i, i + 1, i + side, i + 1, i + side + 1, i + side});
             }
         }
@@ -77,9 +77,9 @@ auto writeGridGlb(const std::filesystem::path& file, std::uint32_t side) -> void
         {"buffers", {{{"byteLength", posBytes + idxBytes}}}},
     };
     std::string json = doc.dump();
-    json.append((4 - json.size() % 4) % 4, ' ');
+    json.append((4 - (json.size() % 4)) % 4, ' ');
     const auto binLength = posBytes + idxBytes;
-    const auto binPadded = binLength + (4 - binLength % 4) % 4;
+    const auto binPadded = binLength + ((4 - (binLength % 4)) % 4);
     const auto write32 = [](std::ofstream& out, std::uint32_t v) {
         out.write(reinterpret_cast<const char*>(&v), sizeof v);
     };

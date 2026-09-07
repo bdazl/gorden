@@ -46,7 +46,7 @@ template <typename T>
     if (t >= times.back()) {
         return {times.size() - 1, 0.0};
     }
-    const auto upper = std::upper_bound(times.begin(), times.end(), t);
+    const auto upper = std::ranges::upper_bound(times, t);
     const std::size_t hi = static_cast<std::size_t>(upper - times.begin());
     const std::size_t lo = hi - 1;
     const double span = times[hi] - times[lo];

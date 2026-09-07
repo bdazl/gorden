@@ -260,10 +260,10 @@ struct Parsed {
     for (std::size_t i = 1; i < args.size(); ++i) {
         const auto& a = args[i];
         if (a.size() > 1 && a[0] == '-' && a != "--" &&
-            !std::isdigit(static_cast<unsigned char>(a[1]))) {
+            (std::isdigit(static_cast<unsigned char>(a[1])) == 0)) {
             for (std::size_t k = 1; k < a.size(); ++k) {
                 const char f = a[k];
-                if (withValue.find(f) != std::string_view::npos) {
+                if (withValue.contains(f)) {
                     if (k + 1 < a.size()) {
                         p.flags[f] = a.substr(k + 1);
                     } else if (i + 1 < args.size()) {
@@ -308,7 +308,7 @@ export class Shell {
     auto operator=(Shell&&) noexcept -> Shell& = default;
     ~Shell() = default;
 
-    auto registerCommand(std::string name, std::string help, CommandFn fn) -> void {
+    auto registerCommand(const std::string& name, std::string help, CommandFn fn) -> void {
         commands[name] = Entry{.help = std::move(help), .fn = std::move(fn)};
     }
 
@@ -332,7 +332,7 @@ export class Shell {
                 skipNext = false;
                 return;
             }
-            ShellResult r = executePipeline(pipeline);
+            const ShellResult r = executePipeline(pipeline);
             total.output += r.output;
             total.status = r.status;
             if (r.followPath) {
@@ -367,7 +367,7 @@ export class Shell {
         const bool firstWord =
             lastSpace == std::string_view::npos ||
             line.substr(0, lastSpace).find_first_not_of(' ') == std::string_view::npos;
-        if (firstWord && word.find('/') == std::string_view::npos) {
+        if (firstWord && !word.contains('/')) {
             for (const auto& [name, _] : commands) {
                 if (name.starts_with(word)) {
                     out.push_back(name);

@@ -6,7 +6,7 @@ import roboslop.render.frontend;
 #include <cstdint>
 
 TEST_CASE("FrameArena reports its capacity and zero initial usage", "[render][arena]") {
-    roboslop::FrameArena arena{1024};
+    const roboslop::FrameArena arena{1024};
     REQUIRE(arena.capacity() == 1024);
     REQUIRE(arena.used() == 0);
 }
@@ -55,13 +55,13 @@ TEST_CASE("FrameArena packs successive allocations contiguously", "[render][aren
 }
 
 TEST_CASE("makeSortKey orders by viewId first", "[render][sort]") {
-    const auto a = roboslop::makeSortKey(/*viewId=*/0, /*program=*/100);
-    const auto b = roboslop::makeSortKey(/*viewId=*/1, /*program=*/0);
+    const auto a = roboslop::makeSortKey(/*viewId=*/0, /*programIdx=*/100);
+    const auto b = roboslop::makeSortKey(/*viewId=*/1, /*programIdx=*/0);
     REQUIRE(a < b);
 }
 
 TEST_CASE("makeSortKey orders by program after viewId", "[render][sort]") {
-    const auto a = roboslop::makeSortKey(/*viewId=*/3, /*program=*/2);
-    const auto b = roboslop::makeSortKey(/*viewId=*/3, /*program=*/7);
+    const auto a = roboslop::makeSortKey(/*viewId=*/3, /*programIdx=*/2);
+    const auto b = roboslop::makeSortKey(/*viewId=*/3, /*programIdx=*/7);
     REQUIRE(a < b);
 }

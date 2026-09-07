@@ -111,6 +111,8 @@ export class SystemGraph {
         // frame, not over a per-frame SystemCtx that's gone before
         // execution. The lambda derefs currentCtx; Scheduler::run
         // guarantees it's non-null while taskflow runs.
+        // Capture the index, not a reference into `descs`: a later add()
+        // reallocates the vector.
         for (std::size_t i = 0; i < descs.size(); ++i) {
             tasks.push_back(taskflow.emplace(
                                         [this, i] { descs[i].run(*currentCtx); }

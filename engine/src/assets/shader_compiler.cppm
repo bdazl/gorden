@@ -70,9 +70,9 @@ export struct ShaderCompileRequest {
 // The --platform value shaderc expects for the OS this binary was built
 // for. Mirrors the PLATFORM branch in bgfx.cmake's bgfxToolUtils.
 export [[nodiscard]] constexpr auto shadercPlatform() noexcept -> std::string_view {
-#if defined(_WIN32)
+#ifdef _WIN32
     return "windows";
-#elif defined(__APPLE__)
+#elifdef __APPLE__
     return "osx";
 #else
     return "linux";

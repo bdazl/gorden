@@ -16,14 +16,13 @@ TEST_CASE("buildChatCompletionBody emits messages, tools, and settings", "[llm][
                 {.role = roboslop::Role::Assistant,
                  .content = "",
                  .toolCalls =
-                     {{.id = "c1", .name = "moveTo", .argumentsJson = "{\"x\":1,\"z\":2}"}}},
+                     {{.id = "c1", .name = "moveTo", .argumentsJson = R"({"x":1,"z":2})"}}},
                 {.role = roboslop::Role::Tool, .content = "accepted", .toolCallId = "c1"},
             },
         .tools =
             {{.name = "moveTo",
               .description = "Walk to a point",
-              .parametersSchemaJson =
-                  "{\"type\":\"object\",\"properties\":{\"x\":{\"type\":\"number\"}}}"}},
+              .parametersSchemaJson = R"({"type":"object","properties":{"x":{"type":"number"}}})"}},
         .temperature = 0.5,
         .maxTokens = 128,
     };

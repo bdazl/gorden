@@ -11,7 +11,7 @@ constexpr float kEps = 1e-5F;
 } // namespace
 
 TEST_CASE("computeMouseDelta returns zero when prev pose is invalid", "[platform][input]") {
-    roboslop::InputSnapshot prev; // cursorPosValid = false
+    const roboslop::InputSnapshot prev; // cursorPosValid = false
     roboslop::InputSnapshot curr;
     curr.cursorPos = {100.0, 50.0};
     curr.cursorPosValid = true;
@@ -25,7 +25,7 @@ TEST_CASE("computeMouseDelta returns zero when curr pose is invalid", "[platform
     roboslop::InputSnapshot prev;
     prev.cursorPos = {1.0, 2.0};
     prev.cursorPosValid = true;
-    roboslop::InputSnapshot curr; // cursorPosValid = false
+    const roboslop::InputSnapshot curr; // cursorPosValid = false
 
     const glm::vec2 d = roboslop::computeMouseDelta(prev, curr);
     REQUIRE(d.x == Catch::Approx(0.0F).margin(kEps));

@@ -33,7 +33,9 @@ export [[nodiscard]] auto cubeGeometry() -> Geometry {
         const std::array<float, 3> u =
             n[1] != 0 ? std::array<float, 3>{1, 0, 0} : std::array<float, 3>{0, 1, 0};
         const std::array<float, 3> v{
-            n[1] * u[2] - n[2] * u[1], n[2] * u[0] - n[0] * u[2], n[0] * u[1] - n[1] * u[0]
+            (n[1] * u[2]) - (n[2] * u[1]),
+            (n[2] * u[0]) - (n[0] * u[2]),
+            (n[0] * u[1]) - (n[1] * u[0])
         };
         const auto base = static_cast<std::uint16_t>(g.vertices.size());
         for (const auto& uv :
@@ -41,7 +43,7 @@ export [[nodiscard]] auto cubeGeometry() -> Geometry {
             MeshVertex vertex{};
             for (std::size_t axis = 0; axis < 3; ++axis) {
                 vertex.position[axis] =
-                    n[axis] * 0.5F + u[axis] * (uv[0] - 0.5F) + v[axis] * (uv[1] - 0.5F);
+                    (n[axis] * 0.5F) + (u[axis] * (uv[0] - 0.5F)) + (v[axis] * (uv[1] - 0.5F));
                 vertex.normal[axis] = n[axis];
             }
             vertex.uv[0] = uv[0];
@@ -92,7 +94,7 @@ export [[nodiscard]] auto sphereGeometry(std::uint16_t rings, std::uint16_t segm
     const auto stride = static_cast<std::uint16_t>(s + 1);
     for (std::size_t y = 0; y < r; ++y) {
         for (std::size_t x = 0; x < s; ++x) {
-            const auto a = static_cast<std::uint16_t>(y * stride + x);
+            const auto a = static_cast<std::uint16_t>((y * stride) + x);
             const auto b = static_cast<std::uint16_t>(a + stride);
             // Counter-clockwise when viewed from outside (bgfx default
             // culls CW).
@@ -122,7 +124,7 @@ export [[nodiscard]] auto planeGeometry(float size, std::uint16_t subdivisions) 
             const float u = static_cast<float>(x) / static_cast<float>(n);
             g.vertices.push_back(
                 MeshVertex{
-                    .position = {-half + u * size, 0.0F, -half + v * size},
+                    .position = {-half + (u * size), 0.0F, -half + (v * size)},
                     .normal = {0.0F, 1.0F, 0.0F},
                     .uv = {u, v},
                 }
@@ -133,7 +135,7 @@ export [[nodiscard]] auto planeGeometry(float size, std::uint16_t subdivisions) 
     const auto stride = static_cast<std::uint16_t>(n + 1);
     for (std::size_t z = 0; z < n; ++z) {
         for (std::size_t x = 0; x < n; ++x) {
-            const auto a = static_cast<std::uint16_t>(z * stride + x);
+            const auto a = static_cast<std::uint16_t>((z * stride) + x);
             const auto b = static_cast<std::uint16_t>(a + stride);
             // Counter-clockwise when viewed from +Y.
             g.indices.push_back(a);

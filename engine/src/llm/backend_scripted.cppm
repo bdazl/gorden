@@ -29,12 +29,12 @@ export class ScriptedProvider final : public Provider {
         : queue(script.begin(), script.end()), fallbackResponse(std::move(fallback)) {}
 
     auto push(ChatResponse response) -> void {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         queue.push_back(std::move(response));
     }
 
     [[nodiscard]] auto complete(const ChatRequest& request) -> Result<ChatResponse> override {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         requests.push_back(request);
         if (queue.empty()) {
             return fallbackResponse;
@@ -51,12 +51,12 @@ export class ScriptedProvider final : public Provider {
     // Every request seen so far, oldest first. Copy so tests can
     // inspect it without racing the worker thread.
     [[nodiscard]] auto recordedRequests() const -> std::vector<ChatRequest> {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         return requests;
     }
 
     [[nodiscard]] auto remaining() const -> std::size_t {
-        const std::lock_guard lock(mutex);
+        const std::scoped_lock lock(mutex);
         return queue.size();
     }
 

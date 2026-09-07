@@ -26,8 +26,8 @@ struct Fixture {
     roboslop::Entity robot{};
     roboslop::Entity player{};
 
-    Fixture() {
-        robot = world.create();
+    Fixture() : robot(world.create()), player(world.create()) {
+
         world.emplace<roboslop::Transform>(
             robot, roboslop::Transform{.position = {0.0F, 0.5F, 0.0F}}
         );
@@ -35,7 +35,6 @@ struct Fixture {
         world.emplace<gorden::Robot>(robot);
         world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 10.0F});
 
-        player = world.create();
         world.emplace<roboslop::Transform>(
             player, roboslop::Transform{.position = {3.0F, 1.0F, 0.0F}}
         );
@@ -172,6 +171,7 @@ TEST_CASE("chained thinks are capped per player message", "[agent][brain]") {
     // Every answer inspects the crate, which yields an InspectResult
     // event and would loop forever without the cap.
     std::vector<roboslop::ChatResponse> script;
+    script.reserve(10);
     for (int i = 0; i < 10; ++i) {
         script.push_back(
             toolCallResponse("inspect", R"({"name": "crate-1"})", "c" + std::to_string(i))
@@ -203,7 +203,7 @@ TEST_CASE("provider errors are reported and do not loop", "[agent][brain]") {
             return std::unexpected(roboslop::toError(roboslop::LlmError::TransportFailed, "down"));
         }
 
-        auto name() const noexcept -> std::string_view override {
+        [[nodiscard]] auto name() const noexcept -> std::string_view override {
             return "failing";
         }
     };

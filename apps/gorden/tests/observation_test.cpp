@@ -44,7 +44,7 @@ TEST_CASE("observationToJson is stable JSON the model can read", "[agent][observ
     obs.playerPosition = {0.0F, 1.0F, 0.0F};
     obs.robotMoving = true;
     obs.nearby.push_back({.name = "crate-1", .position = {1.0F, 0.0F, 1.0F}, .distance = 1.41F});
-    obs.recentEvents.push_back("move_completed: arrived");
+    obs.recentEvents.emplace_back("move_completed: arrived");
     obs.playerMessage = "hello";
 
     const auto j = nlohmann::json::parse(gorden::observationToJson(obs));

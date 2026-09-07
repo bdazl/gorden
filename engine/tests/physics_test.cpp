@@ -97,7 +97,7 @@ TEST_CASE("free-fall position matches analytic curve within Jolt tolerance", "[p
     auto world = roboslop::JoltWorld::make();
     auto& bi = world.bodyInterface();
     const auto shape = roboslop::makeJoltShape(roboslop::SphereShape{.radius = 0.5F});
-    JPH::BodyCreationSettings settings(
+    const JPH::BodyCreationSettings settings(
         shape,
         JPH::RVec3(0.0F, 10.0F, 0.0F),
         JPH::Quat::sIdentity(),
@@ -114,7 +114,7 @@ TEST_CASE("free-fall position matches analytic curve within Jolt tolerance", "[p
 
     const JPH::RVec3 pos = bi.GetCenterOfMassPosition(id);
     const float t = kDt * static_cast<float>(kSteps);
-    const float analytic = 10.0F - 0.5F * 9.81F * t * t;
+    const float analytic = 10.0F - (0.5F * 9.81F * t * t);
     REQUIRE(pos.GetY() == Catch::Approx(analytic).margin(analytic * 0.05F));
 }
 
@@ -127,7 +127,7 @@ TEST_CASE("dynamic body lands on a static ground", "[physics][step]") {
 
     const auto groundShape =
         roboslop::makeJoltShape(roboslop::BoxShape{.halfExtents = {5.0F, 0.5F, 5.0F}});
-    JPH::BodyCreationSettings groundSettings(
+    const JPH::BodyCreationSettings groundSettings(
         groundShape,
         JPH::RVec3(0.0F, 0.0F, 0.0F),
         JPH::Quat::sIdentity(),
@@ -137,7 +137,7 @@ TEST_CASE("dynamic body lands on a static ground", "[physics][step]") {
     (void)bi.CreateAndAddBody(groundSettings, JPH::EActivation::DontActivate);
 
     const auto ballShape = roboslop::makeJoltShape(roboslop::SphereShape{.radius = 0.5F});
-    JPH::BodyCreationSettings ballSettings(
+    const JPH::BodyCreationSettings ballSettings(
         ballShape,
         JPH::RVec3(0.0F, 2.0F, 0.0F),
         JPH::Quat::sIdentity(),

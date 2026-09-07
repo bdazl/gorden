@@ -38,7 +38,7 @@ TEST_CASE("FixedTimestep alpha stays within unit interval across many short fram
 }
 
 TEST_CASE("FixedTimestep::fixedDelta matches configured rate", "[time]") {
-    roboslop::FixedTimestep ts{120.0};
+    const roboslop::FixedTimestep ts{120.0};
 
     REQUIRE(ts.fixedDelta() == Approx(1.0 / 120.0));
 }

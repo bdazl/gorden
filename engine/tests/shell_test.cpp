@@ -12,6 +12,7 @@ namespace {
 
 auto words(const std::vector<roboslop::Token>& tokens) -> std::vector<std::string> {
     std::vector<std::string> out;
+    out.reserve(tokens.size());
     for (const auto& t : tokens) {
         out.push_back(t.isOperator ? "<" + t.text + ">" : t.text);
     }

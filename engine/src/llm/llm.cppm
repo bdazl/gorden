@@ -90,7 +90,7 @@ export [[nodiscard]] constexpr auto roleName(Role r) noexcept -> std::string_vie
 export struct ToolSpec {
     std::string name{};
     std::string description{};
-    std::string parametersSchemaJson = "{\"type\":\"object\",\"properties\":{}}";
+    std::string parametersSchemaJson = R"({"type":"object","properties":{}})";
 };
 
 // A call the model proposed. Arguments stay as JSON text: parsing and

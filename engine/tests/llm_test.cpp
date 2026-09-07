@@ -26,7 +26,7 @@ TEST_CASE("ScriptedProvider replays its script then falls back", "[llm][scripted
 
 TEST_CASE("startCompletion delivers the provider's answer asynchronously", "[llm][async]") {
     roboslop::ScriptedProvider provider({roboslop::ChatResponse{
-        .toolCalls = {{.id = "c1", .name = "say", .argumentsJson = "{\"text\":\"yo\"}"}},
+        .toolCalls = {{.id = "c1", .name = "say", .argumentsJson = R"({"text":"yo"})"}},
         .finishReason = "tool_calls",
     }});
     auto handle = roboslop::startCompletion(

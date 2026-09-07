@@ -14,7 +14,7 @@ module;
 // at runtime (Wayland when WAYLAND_DISPLAY is set, X11 otherwise), so both
 // sets of native handles are exposed and nativeHandles() asks GLFW which
 // platform it ended up on.
-#if defined(__linux__)
+#ifdef __linux__
 #define GLFW_EXPOSE_NATIVE_X11
 #define GLFW_EXPOSE_NATIVE_WAYLAND
 #include <GLFW/glfw3native.h>
@@ -131,7 +131,7 @@ export class Window {
         }
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-#if defined(__linux__)
+#ifdef __linux__
         // X11 derives the WM_CLASS from the title; Wayland's app_id has no
         // default, and compositor window rules key on it.
         glfwWindowHintString(GLFW_WAYLAND_APP_ID, cfg.title.c_str());
@@ -235,7 +235,7 @@ export class Window {
     // or VkSurfaceKHR from it.
     [[nodiscard]] auto nativeHandles() const -> NativeHandles {
         NativeHandles out;
-#if defined(__linux__)
+#ifdef __linux__
         switch (glfwGetPlatform()) {
         case GLFW_PLATFORM_WAYLAND:
             out.platform = NativePlatform::Wayland;

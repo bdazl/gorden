@@ -56,7 +56,7 @@ auto main(int argc, char** argv) -> int {
     }
     int frame = 0;
     bool failed = false;
-    const auto document = *loaded;
+    const auto& document = *loaded;
     const auto probe = document.objects.back().id;
     roboslop::LightUniforms uniforms;
     auto app = roboslop::App::make(

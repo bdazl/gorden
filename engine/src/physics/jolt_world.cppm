@@ -178,7 +178,7 @@ export class JoltWorld {
     }
 
   private:
-    JoltWorld() {
+    JoltWorld() : alive(true) {
         // 4 MiB scratch space; Jolt's HelloWorld uses 10 MiB. Retune
         // when broadphase complains.
         tempAlloc = std::make_unique<JPH::TempAllocatorImpl>(4U * 1024U * 1024U);
@@ -199,7 +199,6 @@ export class JoltWorld {
         );
         // Default gravity is (0, -9.81, 0), matching roboslop's +Y up
         // convention.
-        alive = true;
     }
 
     auto shutdown() noexcept -> void {
@@ -349,11 +348,7 @@ export auto syncPhysicsToTransform(SystemCtx& c) -> void {
         const JPH::RVec3 pos = bi.GetCenterOfMassPosition(rb.id);
         const JPH::Quat rot = bi.GetRotation(rb.id);
 
-        t.position = glm::vec3(
-            static_cast<float>(pos.GetX()),
-            static_cast<float>(pos.GetY()),
-            static_cast<float>(pos.GetZ())
-        );
+        t.position = glm::vec3(pos.GetX(), pos.GetY(), pos.GetZ());
         t.rotation = glm::quat(rot.GetW(), rot.GetX(), rot.GetY(), rot.GetZ());
     }
 }

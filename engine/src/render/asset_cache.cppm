@@ -72,7 +72,7 @@ export class AssetCache {
 
     [[nodiscard]] auto program(std::string_view vsName, std::string_view fsName)
         -> Result<ProgramHandle> {
-        Key key{std::string{vsName}, std::string{fsName}};
+        Key key{.vs = std::string{vsName}, .fs = std::string{fsName}};
         if (auto it = programs.find(key); it != programs.end()) {
             return ProgramHandle{it->second.bgfxHandle()};
         }
@@ -95,7 +95,7 @@ export class AssetCache {
     [[nodiscard]] auto
     replaceProgram(std::string_view vsName, std::string_view fsName, Program next)
         -> ProgramHandle {
-        Key key{std::string{vsName}, std::string{fsName}};
+        Key key{.vs = std::string{vsName}, .fs = std::string{fsName}};
         const auto handle = next.bgfxHandle();
         if (auto it = programs.find(key); it != programs.end()) {
             it->second = std::move(next);

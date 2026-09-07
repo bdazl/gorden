@@ -60,7 +60,7 @@ struct EditorState {
     roboslop::Entity camera = roboslop::NullEntity;
     roboslop::LightUniforms light;
 
-    auto dirty() const -> bool {
+    [[nodiscard]] auto dirty() const -> bool {
         return saved != roboslop::sceneToJson(history.document);
     }
 
@@ -425,13 +425,13 @@ auto project(glm::vec3 point, const glm::mat4& vp) -> std::optional<ImVec2> {
     }
     const auto size = ImGui::GetIO().DisplaySize;
     return ImVec2{
-        (clip.x / clip.w * 0.5F + 0.5F) * size.x, (0.5F - clip.y / clip.w * 0.5F) * size.y
+        ((clip.x / clip.w * 0.5F) + 0.5F) * size.x, (0.5F - (clip.y / clip.w * 0.5F)) * size.y
     };
 }
 
 auto drawGizmo(EditorState& state, const glm::mat4& vp) -> bool {
     auto* object = state.selectedObject();
-    if (!object || state.playing) {
+    if ((object == nullptr) || state.playing) {
         return false;
     }
     const auto origin = project(object->transform.position, vp);
@@ -482,18 +482,19 @@ auto drawGizmo(EditorState& state, const glm::mat4& vp) -> bool {
             continue;
         }
         const ImVec2 delta{endpoint->x - origin->x, endpoint->y - origin->y};
-        const float length = std::sqrt(delta.x * delta.x + delta.y * delta.y);
+        const float length = std::sqrt((delta.x * delta.x) + (delta.y * delta.y));
         if (length < 2) {
             continue;
         }
         const ImVec2 unit{delta.x / length, delta.y / length};
-        const ImVec2 handle{origin->x + unit.x * 85, origin->y + unit.y * 85};
+        const ImVec2 handle{origin->x + (unit.x * 85), origin->y + (unit.y * 85)};
         draw->AddLine(*origin, handle, Colors[static_cast<std::size_t>(axis)], 3);
         draw->AddCircleFilled(handle, 7, Colors[static_cast<std::size_t>(axis)]);
         const char* label = axis == 0 ? "X" : axis == 1 ? "Y" : "Z";
         draw->AddText({handle.x + 9, handle.y}, Colors[static_cast<std::size_t>(axis)], label);
-        const float dx = io.MousePos.x - handle.x, dy = io.MousePos.y - handle.y;
-        const bool hit = !overPanel && dx * dx + dy * dy < 225;
+        const float dx = io.MousePos.x - handle.x;
+        const float dy = io.MousePos.y - handle.y;
+        const bool hit = !overPanel && (dx * dx) + (dy * dy) < 225;
         hovered |= hit;
         if (hit && state.dragAxis < 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             state.finishEdit();
@@ -510,8 +511,8 @@ auto drawGizmo(EditorState& state, const glm::mat4& vp) -> bool {
             state.dragAxis = -1;
             state.finishEdit();
         } else {
-            const float delta = (io.MousePos.x - state.dragStart.x) * state.dragDirection.x +
-                                (io.MousePos.y - state.dragStart.y) * state.dragDirection.y;
+            const float delta = ((io.MousePos.x - state.dragStart.x) * state.dragDirection.x) +
+                                ((io.MousePos.y - state.dragStart.y) * state.dragDirection.y);
             auto transform = state.dragTransform;
             if (state.operation == 0) {
                 transform.position[state.dragAxis] += delta / state.dragPixels;
@@ -553,7 +554,8 @@ auto drawEditor(roboslop::PassCtx& pass) -> void {
     if (!state.playing && !gizmo && state.pending.empty() && !ui->wantCaptureMouse() &&
         ImGui::IsMouseClicked(ImGuiMouseButton_Left) && size.x > 0 && size.y > 0) {
         const auto mouse = ImGui::GetIO().MousePos;
-        const float x = mouse.x / size.x * 2 - 1, y = 1 - mouse.y / size.y * 2;
+        const float x = mouse.x / size.x * 2 - 1;
+        const float y = 1 - mouse.y / size.y * 2;
         const auto inverse = glm::inverse(vp);
         const auto nearPoint = inverse * glm::vec4(x, y, homogeneous ? -1 : 0, 1);
         const auto farPoint = inverse * glm::vec4(x, y, 1, 1);

@@ -10,7 +10,7 @@ module;
 #include <utility>
 #include <vector>
 
-#if !defined(_WIN32)
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -87,7 +87,7 @@ export struct ProcessResult {
 export [[nodiscard]] auto
 runProcess(const std::filesystem::path& exe, std::span<const std::string> args)
     -> Result<ProcessResult> {
-#if defined(_WIN32)
+#ifdef _WIN32
     (void)args;
     return std::unexpected(toError(ProcessError::Unsupported, exe.string()));
 #else

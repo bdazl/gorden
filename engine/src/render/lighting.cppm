@@ -62,7 +62,7 @@ export auto uploadDirectionalLight(
     for (const auto e : reg.view<const DirectionalLight>()) {
         const auto& light = reg.get<const DirectionalLight>(e);
         const auto packed = packDirectionalLightUniform(light);
-        bgfx::setUniform(uLightDir, &packed[0]);
+        bgfx::setUniform(uLightDir, packed.data());
         bgfx::setUniform(uLightColor, &packed[1]);
         return; // first one wins
     }
