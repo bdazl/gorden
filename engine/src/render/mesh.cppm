@@ -67,4 +67,24 @@ export [[nodiscard]] auto makeStaticMesh(
     return m;
 }
 
+// Same for 32-bit indices. Imported models routinely exceed 65535
+// vertices; bgfx needs BGFX_BUFFER_INDEX32 to read the buffer as such.
+export [[nodiscard]] auto makeStaticMesh(
+    std::span<const std::byte> vertices,
+    std::span<const std::uint32_t> indices,
+    const bgfx::VertexLayout& layout
+) -> Mesh {
+    Mesh m;
+    m.vb = bgfx::createVertexBuffer(
+        bgfx::copy(vertices.data(), static_cast<std::uint32_t>(vertices.size())), layout
+    );
+    m.ib = bgfx::createIndexBuffer(
+        bgfx::copy(
+            indices.data(), static_cast<std::uint32_t>(indices.size() * sizeof(std::uint32_t))
+        ),
+        BGFX_BUFFER_INDEX32
+    );
+    return m;
+}
+
 } // namespace roboslop
