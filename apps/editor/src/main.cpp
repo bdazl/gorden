@@ -56,6 +56,7 @@ struct EditorState {
     float dragPixels = 1;
     roboslop::Transform dragTransform;
     std::optional<roboslop::SceneDocument> transaction;
+    editor::ModelBounds modelBounds; // refreshed after every runtime rebuild
     roboslop::Entity camera = roboslop::NullEntity;
     roboslop::LightUniforms light;
 
@@ -258,6 +259,28 @@ auto drawInspector(EditorState& state) -> void {
         ImGui::SameLine();
     }
     ImGui::NewLine();
+    const auto models = editor::listModels("assets");
+    if (!models.empty()) {
+        ImGui::TextUnformatted("Models:");
+    }
+    for (const auto& model : models) {
+        ImGui::SameLine();
+        const auto stem = std::filesystem::path{model}.stem().string();
+        if (ImGui::Button(stem.c_str())) {
+            auto object = roboslop::SceneObject{
+                .id = editor::nextId(state.history.document),
+                .name = stem,
+                .geometry = "model",
+                .model = model,
+                .material = state.history.document.materials.begin()->first
+            };
+            state.selected = object.id;
+            state.history.document.objects.push_back(std::move(object));
+        }
+    }
+    if (!models.empty()) {
+        ImGui::NewLine();
+    }
     ImGui::BeginChild("Object list", {0, 130}, ImGuiChildFlags_Border);
     for (const auto& object : state.history.document.objects) {
         ImGui::PushID(object.id.c_str());
@@ -320,27 +343,33 @@ auto drawInspector(EditorState& state) -> void {
                 ImGuiSliderFlags_AlwaysClamp
             );
         }
-        if (ImGui::BeginCombo("Material", object->material.c_str())) {
-            for (const auto& [id, color] : state.history.document.materials) {
-                (void)color;
-                if (ImGui::Selectable(id.c_str(), object->material == id)) {
-                    object->material = id;
+        if (object->geometry == "model") {
+            ImGui::Text("Model: %s", object->model.c_str());
+            ImGui::TextWrapped("Materials and textures come from the model file.");
+        } else {
+            if (ImGui::BeginCombo("Material", object->material.c_str())) {
+                for (const auto& [id, color] : state.history.document.materials) {
+                    (void)color;
+                    if (ImGui::Selectable(id.c_str(), object->material == id)) {
+                        object->material = id;
+                    }
                 }
+                ImGui::EndCombo();
             }
-            ImGui::EndCombo();
-        }
-        ImGui::ColorEdit3(
-            "Shared color", glm::value_ptr(state.history.document.materials.at(object->material))
-        );
-        ImGui::TextWrapped("Color changes all objects using this material.");
-        if (ImGui::Button("Make material unique")) {
-            std::string id = object->id + "-material";
-            while (state.history.document.materials.contains(id)) {
-                id += "-copy";
+            ImGui::ColorEdit3(
+                "Shared color",
+                glm::value_ptr(state.history.document.materials.at(object->material))
+            );
+            ImGui::TextWrapped("Color changes all objects using this material.");
+            if (ImGui::Button("Make material unique")) {
+                std::string id = object->id + "-material";
+                while (state.history.document.materials.contains(id)) {
+                    id += "-copy";
+                }
+                state.history.document.materials[id] =
+                    state.history.document.materials.at(object->material);
+                object->material = id;
             }
-            state.history.document.materials[id] =
-                state.history.document.materials.at(object->material);
-            object->material = id;
         }
         if (object->geometry != "plane" && ImGui::BeginCombo("Physics", object->body.c_str())) {
             for (const auto* mode : {"none", "static", "dynamic"}) {
@@ -413,21 +442,24 @@ auto drawGizmo(EditorState& state, const glm::mat4& vp) -> bool {
     const bool overPanel =
         ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || !state.pending.empty();
     auto* draw = ImGui::GetBackgroundDrawList();
-    // A wire box makes the current selection visible even when a large
-    // object's origin is hidden behind the property panel.
+    // A wire box around the object's bounds makes the current selection
+    // visible even when a large object's origin is hidden behind the
+    // property panel.
     const auto model = roboslop::toMatrix(object->transform);
+    const auto bounds = editor::objectBounds(*object, state.modelBounds)
+                            .value_or({.min = glm::vec3{-0.5F}, .max = glm::vec3{0.5F}});
     for (int corner = 0; corner < 8; ++corner) {
         const glm::vec3 local{
-            (corner & 1) != 0 ? 0.5F : -0.5F,
-            (corner & 2) != 0 ? 0.5F : -0.5F,
-            (corner & 4) != 0 ? 0.5F : -0.5F
+            (corner & 1) != 0 ? bounds.max.x : bounds.min.x,
+            (corner & 2) != 0 ? bounds.max.y : bounds.min.y,
+            (corner & 4) != 0 ? bounds.max.z : bounds.min.z
         };
         for (int axis = 0; axis < 3; ++axis) {
             if ((corner & (1 << axis)) != 0) {
                 continue;
             }
             auto other = local;
-            other[axis] = 0.5F;
+            other[axis] = bounds.max[axis];
             auto a = project(glm::vec3(model * glm::vec4(local, 1)), vp);
             auto b = project(glm::vec3(model * glm::vec4(other, 1)), vp);
             if (a && b) {
@@ -527,7 +559,8 @@ auto drawEditor(roboslop::PassCtx& pass) -> void {
         const auto farPoint = inverse * glm::vec4(x, y, 1, 1);
         const glm::vec3 origin = glm::vec3(nearPoint) / nearPoint.w;
         const glm::vec3 direction = glm::normalize(glm::vec3(farPoint) / farPoint.w - origin);
-        state.selected = editor::pickObject(state.history.document, origin, direction);
+        state.selected =
+            editor::pickObject(state.history.document, origin, direction, state.modelBounds);
     }
     if (!ImGui::IsAnyItemActive() && state.dragAxis < 0) {
         state.finishEdit();
@@ -568,11 +601,17 @@ auto graphs(
          .record = [&arena](roboslop::PassCtx& c) {
              auto& state = c.world->registry().ctx().get<EditorState>();
              if (state.rebuild) {
-                 auto result = c.world->registry().ctx().get<roboslop::SceneRuntime>().replace(
-                     *c.world, *c.assets, state.history.document, state.playing
-                 );
+                 auto& runtime = c.world->registry().ctx().get<roboslop::SceneRuntime>();
+                 auto result =
+                     runtime.replace(*c.world, *c.assets, state.history.document, state.playing);
                  if (!result) {
                      state.status = result.error().context;
+                 }
+                 state.modelBounds.clear();
+                 for (const auto& object : state.history.document.objects) {
+                     if (const auto bounds = runtime.modelBounds(object.model)) {
+                         state.modelBounds.emplace(object.model, *bounds);
+                     }
                  }
                  state.rebuild = false;
              }

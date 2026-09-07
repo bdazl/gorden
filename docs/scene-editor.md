@@ -21,8 +21,10 @@ Save scenes outside `build/` to keep them across build-directory cleanup.
 ## Edit a room
 
 1. Use **New** for an empty scene or enter a path in **File** and press **Open**.
-2. Add a cube, sphere or plane. Select it in the object list or click its visible
-   geometry. A yellow wire box and colored axis handles identify the selection.
+2. Add a cube, sphere or plane, or one of the models listed from
+   `assets/models/*.glb` (see [models](models.md)). Select an object in the list
+   or click its visible geometry; models are picked by their bounds. A yellow
+   wire box around the bounds and colored axis handles identify the selection.
 3. Edit position, rotation (degrees) and scale in the inspector. For direct
    manipulation, choose Move, Rotate or Scale and drag a colored endpoint.
    Move and Rotate use world axes; Scale uses local axes. Rotation changes by
@@ -30,9 +32,11 @@ Save scenes outside `build/` to keep them across build-directory cleanup.
    move the camera or use the numeric fields.
 4. Choose a material. **Shared color** changes every object using that material;
    **Make material unique** creates a separate editable material for the object.
+   Models show their file path instead: their materials come from the file.
 5. Choose `static` physics for floors/walls and `dynamic` for falling objects.
-   The collider follows primitive dimensions and scale. A sphere collider
-   requires uniform scale; planes are visual only, so use a thin cube for floors.
+   The collider follows primitive dimensions and scale; a model gets a box
+   around its bounds. A sphere collider requires uniform scale; planes are
+   visual only, so use a thin cube for floors.
 6. Duplicate/Delete and Undo/Redo operate on authored objects. A continuous
    property or handle drag is one undo step. History holds the last 128 edits.
 7. **Use current camera as scene start** records the current camera pose. Merely

@@ -6,13 +6,16 @@ module;
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 export module editor.model;
+import roboslop.assets.mesh;
 import roboslop.scene.document;
 import roboslop.scene.transform;
 import roboslop.render.primitives;
@@ -73,17 +76,96 @@ export [[nodiscard]] auto nextId(const roboslop::SceneDocument& document) -> std
     }
 }
 
-// Triangle-accurate CPU picking uses the same primitive geometry as the
-// renderer. Transform the ray without normalising so t stays world distance.
+// Model-space bounds keyed by the scene's model path. The runtime that
+// loaded the files fills this; an object whose path is missing has no
+// bounds and is skipped by picking and selection drawing.
+export using ModelBounds = std::map<std::string, roboslop::Aabb>;
+
+// Object-space bounds: the unit box for primitives, the loaded bounds
+// for models.
 export [[nodiscard]] auto
-pickObject(const roboslop::SceneDocument& scene, glm::vec3 origin, glm::vec3 direction)
-    -> std::string {
+objectBounds(const roboslop::SceneObject& object, const ModelBounds& models)
+    -> std::optional<roboslop::Aabb> {
+    if (object.geometry != "model") {
+        return roboslop::Aabb{.min = glm::vec3{-0.5F}, .max = glm::vec3{0.5F}};
+    }
+    if (const auto it = models.find(object.model); it != models.end()) {
+        return it->second;
+    }
+    return std::nullopt;
+}
+
+// Model files the editor can add: `models/<name>.glb` relative to the
+// asset root, sorted. Empty when the directory does not exist.
+export [[nodiscard]] auto listModels(const std::filesystem::path& assetRoot)
+    -> std::vector<std::string> {
+    std::vector<std::string> out;
+    std::error_code ec;
+    for (const auto& entry : std::filesystem::directory_iterator{assetRoot / "models", ec}) {
+        if (entry.is_regular_file(ec) && entry.path().extension() == ".glb") {
+            out.push_back(
+                (std::filesystem::path{"models"} / entry.path().filename()).generic_string()
+            );
+        }
+    }
+    std::ranges::sort(out);
+    return out;
+}
+
+namespace detail {
+// Slab test in object space with an unnormalised ray; returns the entry
+// distance in world units, or nothing on a miss.
+auto rayBox(glm::vec3 ro, glm::vec3 rd, const roboslop::Aabb& box) -> std::optional<float> {
+    float enter = 0;
+    float exit = std::numeric_limits<float>::max();
+    for (int axis = 0; axis < 3; ++axis) {
+        if (std::abs(rd[axis]) < 1e-9F) {
+            if (ro[axis] < box.min[axis] || ro[axis] > box.max[axis]) {
+                return std::nullopt;
+            }
+            continue;
+        }
+        float t0 = (box.min[axis] - ro[axis]) / rd[axis];
+        float t1 = (box.max[axis] - ro[axis]) / rd[axis];
+        if (t0 > t1) {
+            std::swap(t0, t1);
+        }
+        enter = std::max(enter, t0);
+        exit = std::min(exit, t1);
+        if (enter > exit) {
+            return std::nullopt;
+        }
+    }
+    return enter;
+}
+} // namespace detail
+
+// CPU picking: triangle-accurate against the renderer's primitive
+// geometry, bounds-only for models. Transform the ray without
+// normalising so t stays world distance.
+export [[nodiscard]] auto pickObject(
+    const roboslop::SceneDocument& scene,
+    glm::vec3 origin,
+    glm::vec3 direction,
+    const ModelBounds& models = {}
+) -> std::string {
     float nearest = std::numeric_limits<float>::max();
     std::string selected;
     for (const auto& o : scene.objects) {
         const auto inverse = glm::inverse(roboslop::toMatrix(o.transform));
         const glm::vec3 ro = glm::vec3(inverse * glm::vec4(origin, 1));
         const glm::vec3 rd = glm::vec3(inverse * glm::vec4(direction, 0));
+        if (o.geometry == "model") {
+            const auto bounds = objectBounds(o, models);
+            if (!bounds) {
+                continue;
+            }
+            if (const auto hit = detail::rayBox(ro, rd, *bounds); hit && *hit < nearest) {
+                nearest = *hit;
+                selected = o.id;
+            }
+            continue;
+        }
         const auto geometry = o.geometry == "cube"     ? roboslop::cubeGeometry()
                               : o.geometry == "sphere" ? roboslop::sphereGeometry(24, 32, 0.5F)
                                                        : roboslop::planeGeometry(1, 1);
