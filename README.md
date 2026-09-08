@@ -11,7 +11,7 @@ This repository is a monorepo:
 
 - `engine/` — the Roboslop engine, a static library whose public
   surface is a set of C++23 modules under the `roboslop` namespace.
-- `apps/gorden/` — **Gorden**, a future single-player top-down 3D game
+- `apps/gorden/` — **Gorden**, a single-player 3D game in development
   with an LLM-controlled robot companion. Today it doubles as the
   gameplay/AI sandbox and the debug/demo app where new engine features
   are first exercised.
@@ -68,9 +68,13 @@ exists today, all driven by the Gorden demo:
   /var/log/agent.log` follows the agent; `/persist` is a real directory
   under `~/.local/share/roboslop/gorden/`.
 
-Gorden now loads its environment from a shared scene file. Agent memory
-and replay (M3) remain unstarted; Gorden is still a physics/rendering and
-AI sandbox, rather than a complete game.
+Gorden loads its environment from a shared scene file and has agent memory
+and explicit save/load (M3's first slice); further reflection and replay
+remain unfinished. It is still a physics/rendering and AI sandbox. The next
+major priority is a first playable locked room: a visible third-person
+player, keyboard/mouse and controller input, and a computer/terminal puzzle
+that opens the exit. This gameplay is planned, and must work without an LLM.
+See the [roadmap](docs/roadmap.md).
 
 ## Prerequisites
 

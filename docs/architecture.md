@@ -1,11 +1,10 @@
 # Architecture
 
-A structural overview for orientation, not a specification. The first
-half describes **what exists today**; the second half describes the
-**accepted direction** for the AI/agent side, which is documented here
-before it is implemented so the coming vertical slices build on the same
-vocabulary. Anything marked *open question* is deliberately still an
-experiment.
+A structural overview for orientation, not a specification. The opening
+sections describe **what exists today**; later sections distinguish
+**accepted direction** for playable Gorden and its agents from **likely
+future direction**. Planned gameplay is not implemented yet. Anything
+marked *open question* is deliberately unsettled.
 
 ## What Roboslop is
 
@@ -14,7 +13,7 @@ Roboslop is a platform, not a single game's engine. It hosts:
 - a real-time rendering / game / simulation core (`engine/`),
 - applications built on that core (`apps/`), of which Gorden is the
   first,
-- tools around the engine (a shader lab and a level editor are planned),
+- tools around the engine (Shader Lab and a first scene editor exist),
 - graphical experiments, and eventually adjacent libraries or "fusion
   projects" that reuse parts of the core.
 
@@ -76,20 +75,26 @@ that need allowed.
 
 ### Gorden
 
-A future single-player top-down 3D game and, at the same time, our
-gameplay/AI sandbox and the debug/demo app where new engine features
-are tried first. It is acceptable for Gorden to look more like a
-technical sandbox than a finished game for long stretches; that is part
-of the strategy, not a failure of it.
+A single-player 3D game in development, with a robot companion whose
+high-level behaviour can be decided by an AI/LLM. It also serves as our
+gameplay/AI sandbox and the debug/demo app where engine features are
+tried first. The next major slice is an actual playable room with a
+third-person player, described below; the game must remain fully
+playable without an LLM.
 
-The core game idea is stable: the player has a robot companion whose
-high-level behaviour is decided by an AI/LLM. The robot perceives the
-world mainly through structured, semantic observations, acts through
-validated high-level tools, and never drives locomotion or physics
-frame by frame. Today Gorden is the physics + textured-cube demo scene with a free-fly
-camera plus the first agent loop (roadmap M2, first slice): a robot
-entity, three named props, dev windows ("Robot" chat, "Agent log" with
-filter, "Settings"), and the pipeline below.
+**Current state.** Gorden loads the shared scene document through
+`SceneRuntime`: a room-like environment with named props, rigid-body
+physics and an imported `.glb` crate. In `apps/gorden/src/app/main.cpp`,
+the free-fly camera entity also carries the player's name and the audio
+listener, and is passed to `AgentBrain` as the player. There is no
+visible player avatar or character collision/controller. Gorden is a
+textured cube moving directly toward targets without a physics body or
+pathfinding. The terminal and robot chat are developer windows. There
+is no gameplay computer, door state, interaction mode or escape puzzle.
+
+The robot perceives structured observations and acts through validated
+high-level tools; it never drives locomotion or physics frame by frame.
+The agent loop (M2) and memory/save slice (part of M3) exist today.
 
 The agent code is the `gorden_agent` module library
 (`apps/gorden/src/agent/`, tested by `gorden_tests`):
@@ -410,29 +415,158 @@ does not model. Saves live under `stateDir()` rather than `dataDir()`. See
 | Assets — textures | stb_image | in use |
 | Audio | miniaudio (FetchContent) | in use |
 | Logging | spdlog | in use (a handful of call sites) |
-| JSON | nlohmann/json | in use (LLM wire format; scene serialisation later) |
+| JSON | nlohmann/json | in use (LLM wire format, scenes, saves and settings) |
 | HTTP client | libcurl (Conan, OpenSSL) | in use (`roboslop.platform.http`, LLM backends only) |
 | Debug UI | Dear ImGui (docking) | in use (`roboslop.ui`): GLFW backend from the Conan package, bgfx renderer in `engine/src/ui/`; `ROBOSLOP_DEV_UI=OFF` makes `App` ignore `enableDevUi` |
 | LLM runtime | `roboslop.llm` + OpenAI-compatible HTTP backend | in use (Gorden M2); local-first remains the target |
 
+## Accepted direction: first playable Gorden room
+
+Playability is the next major priority, ahead of further M3 reflection/replay
+infrastructure or broad editor work. The player starts in a small locked room
+with Gorden, explores, uses a computer to solve a small terminal/system puzzle,
+unlocks/opens the exit and leaves:
+
+```text
+move/explore → observe → interact → reason / use terminal
+    → change world state → progress
+```
+
+This loop must work without an LLM or a model-generated solution. Gorden can
+perceive and react to progress, but inference is not a prerequisite for it.
+Only engine needs exposed by this slice should be built; gameplay concepts
+stay in Gorden until multiple consumers establish a shared boundary.
+
+### Player, camera and models
+
+Separate these responsibilities (a conceptual split, not a frozen component API):
+
+| Concept | Responsibility |
+|---|---|
+| Player | `Transform`, visible avatar/model, movement/controller state, collision and character movement |
+| Third-person camera | `Transform`, `Camera`, `ActiveCamera`, follow/orbit controller targeting the player |
+| Audio listener | Follows the camera |
+
+The first camera may simply follow the player and orbit in yaw/pitch, with
+mouse or right-stick look. Movement is relative to the camera's horizontal
+orientation. Keep the free-fly camera for developer/editor use. A complete
+camera framework, spring arm or cinematic stack is not required.
+
+Use the existing [`.glb` pipeline](models.md) for distinct player and Gorden
+models, replacing the absent player representation and robot placeholder.
+Both may initially be rigid/static models. Animation and GPU skinning are
+not prerequisites; animated characters should create that engine requirement
+later. Character movement/collision is needed for this room, but the choice
+of controller implementation remains open.
+
+### Input
+
+Today's `InputSnapshot` contains keyboard/mouse state. Its existing split
+between platform-thread capture and snapshot consumption is the seam for
+adding gamepad state. Prefer GLFW's normalized gamepad support for the first
+implementation, with at least this Gorden mapping:
+
+| Action | Keyboard/mouse | Xbox-style controller |
+|---|---|---|
+| Move | WASD | Left stick |
+| Look | Mouse | Right stick |
+| Interact | E | A |
+| Cancel | Escape | B |
+
+A general rebinding/action-map framework waits for a concrete need. Input
+routing must distinguish exploration, terminal use and developer UI; today
+Escape closes Gorden, so the planned Cancel behaviour requires a change.
+Controller terminal navigation/text entry remains an implementation question,
+but the playable loop must be completable with either input scheme.
+
+### Interactions and semantic gameplay state
+
+Game objects should expose meaningful state and possible interactions, with
+simulation-side validation authoritative for both human and AI requests:
+
+```text
+human input      → interaction request → validation → world action
+AI tool proposal → interaction request → same validation → same world action
+```
+
+`Interactable`, `Interaction` and `Affordance` are possible vocabulary, not
+an agreed API or type hierarchy. Keep the initial representation in Gorden.
+For illustration only, not a serialization contract:
+
+| Object | Kind | Relevant state | Affordances |
+|---|---|---|---|
+| Exit door | door | locked, powered | inspect |
+| Computer | terminal | online | use |
+
+The actor's access and the world's current state determine what is valid;
+exposing an affordance does not authorize an unconditional state mutation.
+The exact targeting, range checks and representation are open implementation
+questions to resolve with the room. Richer AI use/interact tools can follow
+this first human-playable loop through the same gameplay rules.
+
+### Computer and diegetic terminal
+
+Reuse `Vfs → Shell → TerminalWindow` to give the terminal a gameplay role:
+
+```text
+Explore mode → interact with computer → Terminal mode
+Explore mode ← cancel                ← Terminal mode
+```
+
+In Terminal mode, suspend player locomotion and route keyboard/controller
+input to the terminal as appropriate. Cancel returns control to the player.
+An ImGui/full-screen overlay is enough initially; rendering onto an in-world
+screen is optional later work. The gameplay terminal exists because the
+player used a computer in the world, rather than being a permanent debug
+panel. Keep the developer terminal/debug UI separately available through
+the developer UI; gameplay access must not depend on opening a debug window.
+
+Today's developer VFS mounts are useful infrastructure, not an agreed set
+of gameplay-visible files or commands. Select those for the puzzle. Any
+agent terminal/shell access must remain sandboxed to game abstractions and
+the VFS, never arbitrary host execution; no shell tool exists for agents today.
+
+### First puzzle and persistence
+
+The room needs the player, Gorden, a computer and a locked exit door; the
+existing generator or another small subsystem is a possible ingredient.
+No puzzle solution is fixed yet. Its success must change real simulation
+state, including the physical/visual exit and progression:
+
+```text
+terminal action → validated game command → door state changes
+    → physical/visual world changes → world event → agent can perceive/react
+```
+
+Savegames must persist that progression and restore a consistent door and
+world state. The existing save container and Gorden-owned `app` payload
+provide the starting point; today's saves contain transforms and agent
+memory, not lock/puzzle state. The gameplay state representation, authored
+setup and save payload changes remain open; a generic engine puzzle or
+interaction subsystem is not implied.
+
 ## Accepted direction: AI and agents
 
-The first slice of this exists in code as of M2 (see "Gorden" above and
-the [roadmap](roadmap.md)); memory, reflection opportunities beyond the
-event triggers, and replay (M3) do not. The section stays the shared
-vocabulary for both.
+M2's agent loop and M3's memory slice exist (see "Gorden" above and the
+[roadmap](roadmap.md)). Reflection opportunities beyond the existing event
+triggers and replay remain unfinished, and need not precede the playable room.
 
 ### Semantic-first perception
 
-The agent primarily receives an **engine-produced, structured
+The agent primarily receives a **simulation-produced, structured
 observation** of the world from the robot's point of view. Rendered
 images may be used as multimodal augmentation for backends that accept
 them, but they are not the canonical world-state channel.
 
 Exactly which facts a robot may observe is an *open question* for
 experiments. We deliberately avoid locking in a broad or god-like
-perception model now; the first `Observation` should contain what the
-first tools need and nothing more.
+perception model now. Today observations contain names, positions,
+distance, robot movement, recent events, the player message, goals and
+beliefs. Gameplay should pull in richer semantics: entity kind, relevant
+state and available interactions/affordances, subject to perception rules.
+Recognizing a locked door is more useful than just locating an entity named
+"exit door". This remains filtered semantic perception, not raw unrestricted
+world access; range is the only visibility limit implemented today.
 
 ### High-level actions
 
@@ -467,24 +601,67 @@ simulation reports back, not what the agent asked for.
 
 ### Local-first, asynchronous inference
 
-The primary target is local inference. The provider abstraction may
-grow remote backends later, but the architecture must not assume an
-external API service is always present. Inference is asynchronous
+The primary target is local inference. The existing OpenAI-compatible
+backend can use local or remote endpoints, but the architecture must not
+assume an external API service is always present. Inference is asynchronous
 relative to the simulation: the game loop never blocks while the model
 thinks. Results arrive as proposed tool calls to be validated on the
 simulation side.
 
 ### Reflection opportunities
 
-The agent has no fixed "think tick". Instead the simulation emits
-event-driven opportunities: player interaction, a meaningful world
-event, a tool failure, goal completion, a memory trigger, or a generic
-`ReflectionOpportunity` — a voluntary chance for internal activity when
-nothing demands immediate action.
+The agent has no fixed "think tick". Today player messages, tool
+rejections, move completion and inspect results trigger thinking. The
+accepted direction extends these with meaningful world events, goal
+completion, memory triggers or a conceptual `ReflectionOpportunity` —
+a voluntary chance for internal activity when nothing demands immediate
+action. These additional triggers are not implemented yet.
 
 Internal activity is expressed through explicit mechanisms (update goal,
 store memory, revise belief, inspect memory) rather than by making
 private free text or chain-of-thought persistent gameplay state.
+
+### Directives and NPCs: longer-term direction
+
+Distinguish game/story motivation from goals the agent chooses itself:
+
+```text
+Directive / motivation → Goals → Current intention → Validated actions
+```
+
+A directive is higher-level game/story truth; the LLM may not casually
+remove or rewrite it. The agent can create and retire lower-level goals
+beneath it. Today only agent-created goals exist; directives and a separate
+intention representation are not implemented. Possible Gorden directives
+are "Protect the player", "Help the player escape the facility", and
+"Preserve yourself when practical". These are illustrative story choices,
+not fixed directive text or a planning algorithm.
+
+The same direction should support friendly, neutral and hostile robots.
+A security robot might be directed to prevent unauthorized entities from
+leaving Sector 3 and to protect facility infrastructure. An active goal or
+directive may later create deliberation opportunities when relevant world
+state changes, an action completes or fails, or the agent becomes idle with
+an active goal remaining. This extends event/opportunity-driven thinking;
+it does not introduce a continuous fixed-rate AI tick.
+
+### Capabilities and additional agents: likely future direction
+
+Integrations may become capability unlocks or story progression: for example,
+`camera_access`, `facility_network`, `robot_radio` or `security_override`.
+An unlock might expose new information, terminal functionality, interactions
+or AI tools, such as surveillance cameras or facility systems. These are
+primarily game capabilities, not a reason to design a generic plugin system.
+Their representation and unlock mechanics remain open.
+
+`AgentBrain` currently serves one robot/player pair. That is acceptable;
+do not refactor it pre-emptively for the locked-room slice. The first genuinely
+additional AI-controlled NPC should drive any multi-agent abstraction,
+possibly an `AgentRuntime` containing `AgentInstance(Gorden)`,
+`AgentInstance(SecurityBot)` and others. Those names are conceptual only.
+Each agent would need its own event queue, model activity, memory, directives,
+capabilities and action state. Ownership and scheduling details wait for
+that concrete second NPC.
 
 ### Memory is a first-class concept
 
@@ -510,8 +687,8 @@ Gorden implements episodic memory, beliefs and goals in
 retrieval, written only through validated tools and stored in the save
 game's `app` payload; see [agent memory](agent-memory.md). Whether any
 of it belongs in the engine, and whether retrieval eventually needs
-embeddings or a vector store, are still *open questions*. Provenance
-for beliefs is an accepted direction, roughly:
+embeddings or a vector store, are still *open questions*. Belief provenance
+is already stored; conceptually:
 
 ```text
 belief:
@@ -523,7 +700,7 @@ belief:
     confidence
 ```
 
-so that we can later answer "why does the robot believe this?".
+so the recorded source can help answer "why does the robot believe this?".
 
 ### Replay and reproducibility
 

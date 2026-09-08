@@ -11,6 +11,35 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-08 — Gorden's next major slice is a playable locked room
+
+**Decision.** Prioritize a first playable room (M5) ahead of remaining M3
+reflection/replay infrastructure and broad editor expansion. Separate the
+visible player and character movement/collision from a simple third-person
+camera; support keyboard/mouse and Xbox-style controller input. Existing
+`.glb` loading is enough for rigid player and robot models; animation is not
+a prerequisite. This supersedes the earlier top-down gameplay direction.
+
+The player enters gameplay terminal mode by interacting with a computer.
+A terminal puzzle must change validated simulation state, open the exit,
+expose relevant semantics/events to Gorden and persist progression. The
+whole game must remain playable without an LLM. Keep developer terminal
+access separate, and route human and future AI interactions through the
+same authoritative gameplay rules.
+
+**Why.** The existing scene, input, physics, model, terminal and save
+foundations are enough to make playability the next concrete source of
+engine requirements. Interaction concepts stay Gorden-specific until
+multiple consumers establish a shared boundary. No interaction API, puzzle
+solution, general camera/input framework or multi-agent runtime is locked
+by this decision. Completed milestones and unfinished M3 work are preserved.
+
+**Where.** [Architecture](architecture.md#accepted-direction-first-playable-gorden-room)
+and [roadmap](roadmap.md#m5--first-playable-room). This records direction;
+no gameplay systems are implemented by this documentation change.
+
+---
+
 ## 2026-09-07 — Frame statistics first; the inverted thread model waits
 
 **Decision.** The engine measures itself before it is restructured.

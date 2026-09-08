@@ -9,9 +9,14 @@ logged in [`decisions.md`](decisions.md); this file only says where we
 are heading.
 
 Legend for status words used below: **current state** is what the tree
-does today, **accepted direction** is what we have agreed to build, and
-**open question** is something we are deliberately leaving to
-experiment.
+does today, **accepted direction** is what we have agreed to build,
+**likely future direction** describes later possibilities, and **open
+question** is something we are deliberately leaving to experiment.
+
+**Next major priority: M5 — make Gorden playable.** M0–M4 retain their
+historical status below. The remaining M3 reflection/replay work stays on
+the roadmap, but is no longer necessarily next; broad editor expansion
+also waits behind the first playable room.
 
 ---
 
@@ -100,8 +105,8 @@ virtual filesystem with live and host mounts (`roboslop.vfs`), a small
 shell over it (`roboslop.shell`), and a terminal window
 (`roboslop.ui.terminal`). Gorden exposes its agent log, observation,
 transcript, status, and settings as files. Candidates: a monospace
-font, a diegetic role for the terminal inside the game, mounting Shader
-Lab's diagnostics.
+font and mounting Shader Lab's diagnostics. A diegetic gameplay role for
+the terminal is now accepted for M5, separately from this developer UI.
 
 ## M2 — Gorden agent vertical slice
 
@@ -180,7 +185,9 @@ a session through a new engine save format (`roboslop.scene.savegame`,
 see [the save format](save-format.md)) with explicit Save/Load in the
 Settings window and `save` / `load` in the terminal. Details in
 [agent memory](agent-memory.md). Reflection opportunities beyond the
-existing event triggers, and replay, are not done.
+existing event triggers, and replay, are not done. They remain planned,
+but the next major priority is M5 playability rather than completing all
+of M3 first.
 
 **Resolved questions** (details in [`decisions.md`](decisions.md)).
 
@@ -232,10 +239,108 @@ preview of a running scene.
 
 ---
 
-## Beyond M4
+## M5 — First playable room
 
-Not planned in detail. Candidates: GPU skinning and rigged characters
-(the animation data layer already exists), multiple lights, a proper
-character controller for the robot, remote LLM providers behind the
-same abstraction, and further "fusion projects" that reuse the engine
-core.
+**Status.** Accepted direction; not implemented. This is the next major slice.
+
+**Goal.** Start in a small locked room with Gorden, explore and interact,
+solve a computer/terminal puzzle that unlocks/opens the exit, and leave.
+The complete loop must be playable without an LLM:
+
+```text
+move/explore → observe → interact → reason / use terminal
+    → change world state → progress
+```
+
+Vertical slice:
+
+- A real player entity, separate from the camera, with movement state
+  and character movement/collision.
+- Distinct visible player and Gorden models through the existing `.glb`
+  pipeline. Rigid/static models are sufficient; animation and GPU skinning
+  are not prerequisites.
+- A simple third-person follow/orbit camera targeting the player, with
+  camera-relative horizontal movement and an audio listener following
+  the camera. Free-fly remains a developer/editor camera.
+- Keyboard/mouse and Xbox-style controller support: WASD/left stick move,
+  mouse/right stick look, E/A interact, Escape/B cancel. Prefer normalized
+  GLFW gamepad input through the existing snapshot seam.
+- Basic Gorden-side interactions: objects expose semantic state and
+  possible interactions; requests pass simulation-side validation. Future
+  AI interaction must use the same gameplay rules as human interaction.
+- Interact with the computer to enter Terminal mode, suspend locomotion,
+  and route input to the terminal; cancel returns to Explore mode. An
+  ImGui/full-screen overlay is enough. Keep the developer terminal separate.
+- A small terminal/system puzzle that changes actual door state and the
+  physical/visual world, allowing the player to leave. The generator or
+  another subsystem may participate; the solution is not chosen yet.
+- Relevant semantic gameplay state and world events visible to Gorden
+  through perception rules, so it can perceive/react to progression.
+- Save/load of progression, restoring consistent gameplay and physical state
+  using the existing save foundation with Gorden-owned state as needed.
+
+**Definition of done.** The player can complete the room with keyboard/mouse
+or an Xbox-style controller, without an LLM or developer-panel intervention.
+The exit initially blocks progress, terminal success changes the simulation
+and opens a route out, and saved progression survives loading. Gorden's
+observation can describe the relevant gameplay state, not just object names
+and coordinates.
+
+**Open implementation questions.** Character-controller implementation;
+interaction targeting/range and concrete state/API vocabulary; the puzzle
+and its commands/files; controller terminal navigation/text entry; authored
+gameplay setup and save representation. See the accepted boundaries in
+[architecture](architecture.md#accepted-direction-first-playable-gorden-room).
+Do not front-load general input rebinding, a camera framework, an engine
+interaction hierarchy, broader editor work or a multi-agent runtime.
+
+---
+
+## M6 — Agent/world interaction
+
+**Status.** Longer-term direction; not implemented.
+
+Build on M5's gameplay rules with richer affordances and AI use/interact
+proposals. Distinguish game/story directives from agent-created goals and
+current intention; directives are not casually editable by the LLM.
+Relevant world changes, action completion/failure and becoming idle with
+an active goal may create autonomous deliberation opportunities. Thinking
+stays event/opportunity-driven and asynchronous; simulation controls
+locomotion and physics. Planning algorithms and concrete directive/intention
+representations remain open. M3 reflection/replay work remains available
+as gameplay and debugging needs justify it.
+
+---
+
+## M7 — Connected facility
+
+**Status.** Likely future direction; not implemented or planned in detail.
+
+Extend beyond one room into multiple spaces. Facility network/camera access
+and other integrations may serve as capability unlocks or story progression,
+exposing information, terminal functions, interactions or AI tools. Examples
+include `camera_access`, `facility_network`, `robot_radio` and
+`security_override`; neither their mechanics nor a generic plugin system
+are specified. Agent shell access stays inside game abstractions/VFS.
+
+---
+
+## M8 — Additional NPC agent
+
+**Status.** Likely future direction; not required for the locked room.
+
+Introduce the first genuinely additional AI-controlled NPC, with friendly,
+neutral or hostile directives. That concrete need should drive any
+`AgentBrain`/runtime refactoring for multiple agents, each with its own
+event queue, model activity, memory, directives, capabilities and action
+state. The current one robot/player pair is acceptable until then; a
+conceptual runtime/instance split is a possibility, not a committed API.
+
+## Other later work
+
+Candidates remain GPU skinning and rigged characters when animated characters
+need them, multiple lights, robot character collision/pathfinding, richer
+editor tooling and further "fusion projects" that reuse the engine core.
+These are not prerequisites for making the first room playable. The existing
+OpenAI-compatible backend already supports remote endpoints; additional
+providers should follow a concrete need.
