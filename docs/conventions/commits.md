@@ -25,7 +25,8 @@ Use whichever fits best:
 - `apps` — changes spanning several apps or the `apps/` layout itself
 - `build` — CMake, Conan, presets, scripts
 - `cmake` — CMake-specific helpers under `cmake/`
-- `docs` — anything under `docs/`, plus the top-level README and CLAUDE.md
+- `docs` — anything under `docs/`, plus the top-level README, AGENTS.md and
+  CLAUDE.md
 - `shaders` — under `apps/<app>/assets/shaders/`
 - `assets` — non-shader assets
 - `repo` — repo-wide hygiene (editor configs, `.gitignore`, `.gitattributes`)
