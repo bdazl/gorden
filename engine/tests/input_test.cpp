@@ -144,3 +144,30 @@ TEST_CASE("Input reports a cursor-capture request before it is applied", "[platf
 
     REQUIRE_FALSE(input.cursorCaptured());
 }
+
+TEST_CASE("Look delta survives zero fixed ticks and is consumed once", "[platform][input]") {
+    roboslop::Input input;
+    roboslop::InputSnapshot snapshot;
+    snapshot.cursorPosValid = true;
+    snapshot.mouseButtons[1] = true;
+    input.beginFrame(snapshot);
+    snapshot.cursorPos = {10.0, 4.0};
+    input.beginFrame(snapshot);
+    snapshot.cursorPos = {25.0, 12.0};
+    input.beginFrame(snapshot);
+    const auto delta = input.takeLookDelta();
+    REQUIRE(delta.x == 25.0F);
+    REQUIRE(delta.y == 12.0F);
+    REQUIRE(input.takeLookDelta().x == 0.0F);
+    snapshot.cursorPos = {30.0, 20.0};
+    input.beginFrame(snapshot);
+    snapshot.focused = false;
+    input.beginFrame(snapshot);
+    REQUIRE(input.takeLookDelta().x == 0.0F);
+}
+
+TEST_CASE("Gamepad deadzone is radial and preserves analog magnitude", "[platform][input]") {
+    REQUIRE(roboslop::stickWithDeadzone({0.1F, 0.1F}).x == 0.0F);
+    REQUIRE(roboslop::stickWithDeadzone({0.6F, 0.0F}).x == Catch::Approx(0.5F));
+    REQUIRE(roboslop::stickWithDeadzone({1.0F, 1.0F}).x == Catch::Approx(0.70710678F));
+}

@@ -3,6 +3,7 @@ import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.save;
+import gorden.player;
 import gorden.settings;
 import gorden.llm_config;
 import roboslop.app;
@@ -19,7 +20,6 @@ import roboslop.platform.window;
 import roboslop.render.asset_cache;
 import roboslop.render.camera;
 import roboslop.render.context;
-import roboslop.render.free_fly_camera;
 import roboslop.render.frontend;
 import roboslop.render.graph;
 import roboslop.render.lighting;
@@ -79,10 +79,37 @@ constexpr std::array<std::uint8_t, std::size_t{4} * 4 * 4> CheckerPixels = [] {
     return p;
 }();
 
+// App-owned avatar buffers and shared texture outlive the components
+// borrowing them and are released before App shuts down bgfx.
+struct AvatarAssets {
+    roboslop::Mesh robot;
+    roboslop::Mesh player;
+    bgfx::TextureHandle albedo{bgfx::kInvalidHandle};
+
+    AvatarAssets() = default;
+    AvatarAssets(const AvatarAssets&) = delete;
+    auto operator=(const AvatarAssets&) -> AvatarAssets& = delete;
+    AvatarAssets(AvatarAssets&&) = delete;
+    auto operator=(AvatarAssets&&) -> AvatarAssets& = delete;
+
+    ~AvatarAssets() {
+        for (const auto& mesh : {robot, player}) {
+            if (bgfx::isValid(mesh.vb)) {
+                bgfx::destroy(mesh.vb);
+            }
+            if (bgfx::isValid(mesh.ib)) {
+                bgfx::destroy(mesh.ib);
+            }
+        }
+        if (bgfx::isValid(albedo)) {
+            bgfx::destroy(albedo);
+        }
+    }
+};
+
 // Per-frame UI state for the Robot panel, parked in the world context.
 struct RobotPanelState {
     std::array<char, 256> input{};
-    bool uiWantsMouse = false;
     bool scrollTranscript = false;
     std::size_t seenLines = 0;
 };
@@ -546,6 +573,7 @@ auto main(int argc, char** argv) -> int {
             .assetRoot = "assets",
             .enableDevUi = true,
             .devUiIniPath = roboslop::configDir() / "gorden.imgui.ini",
+            .closeOnEscape = false,
             .onSetup = [initial, document = *scene, scenePathText = scenePath.string()](
                            roboslop::World& world, roboslop::AssetCache& assets
                        ) -> roboslop::Result<void> {
@@ -555,17 +583,9 @@ auto main(int argc, char** argv) -> int {
                     cameraEntity, roboslop::Camera{.projection = roboslop::Perspective{}}
                 );
                 world.emplace<roboslop::ActiveCamera>(cameraEntity);
-                const auto angles = glm::eulerAngles(document.camera.rotation);
-                world.emplace<roboslop::FreeFlyCamera>(
-                    cameraEntity,
-                    roboslop::FreeFlyCamera{.yawRadians = angles.y, .pitchRadians = angles.x}
-                );
-                // The camera doubles as the audio listener so 3D
-                // attenuation tracks the viewer.
                 world.emplace<roboslop::AudioListener>(cameraEntity);
-                world.emplace<gorden::Named>(
-                    cameraEntity, gorden::Named{.name = initial.settings.playerName}
-                );
+                world.emplace<gorden::OrbitCamera>(cameraEntity);
+                world.registry().ctx().emplace<gorden::PlayerControls>();
 
                 auto& runtime = world.registry().ctx().emplace<roboslop::SceneRuntime>();
                 if (auto loaded = runtime.replace(world, assets, document, true); !loaded) {
@@ -579,7 +599,9 @@ auto main(int argc, char** argv) -> int {
                 if (!texProg) {
                     return std::unexpected(texProg.error());
                 }
-                auto texMesh = roboslop::makeGeometryMesh(roboslop::cubeGeometry());
+                auto& avatars = world.registry().ctx().emplace<AvatarAssets>();
+                auto& texMesh = avatars.robot;
+                texMesh = roboslop::makeGeometryMesh(roboslop::cubeGeometry());
                 texMesh.program = texProg->value;
 
                 const bgfx::Memory* texelMem = bgfx::copy(
@@ -594,6 +616,7 @@ auto main(int argc, char** argv) -> int {
                     BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT,
                     texelMem
                 );
+                avatars.albedo = albedo;
                 const bgfx::UniformHandle sAlbedo = assets.sampler("s_albedo");
                 const roboslop::Material material{
                     .program = *texProg,
@@ -616,11 +639,34 @@ auto main(int argc, char** argv) -> int {
                 world.emplace<gorden::Robot>(robot);
                 world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 2.5F});
 
+                // Visible placeholder avatar; the capsule and the player identity
+                // are independent of the camera and of rendering geometry.
+                const auto player = world.create();
+                world.emplace<roboslop::Transform>(
+                    player,
+                    roboslop::Transform{.position = {0.0F, 0.4F, 4.0F}, .scale = {0.7F, 1.8F, 0.7F}}
+                );
+                auto& playerMesh = avatars.player;
+                playerMesh = roboslop::makeGeometryMesh(roboslop::sphereGeometry(24, 32, 0.5F));
+                playerMesh.program = texProg->value;
+                world.emplace<roboslop::Mesh>(player, playerMesh);
+                world.emplace<roboslop::Material>(player, material);
+                world.emplace<gorden::Named>(
+                    player, gorden::Named{.name = initial.settings.playerName}
+                );
+                world.emplace<gorden::Player>(player);
+                gorden::followPlayer(
+                    world.get<gorden::OrbitCamera>(cameraEntity),
+                    world.get<roboslop::Transform>(player),
+                    world.get<roboslop::Transform>(cameraEntity),
+                    *world.registry().ctx().get<roboslop::JoltWorld*>()
+                );
+
                 auto& ctx = world.registry().ctx();
                 gorden::BrainConfig brainCfg;
                 brainCfg.robotName = initial.settings.robotName;
                 brainCfg.playerName = initial.settings.playerName;
-                ctx.emplace<gorden::AgentBrain>(makeProvider(), brainCfg, robot, cameraEntity);
+                ctx.emplace<gorden::AgentBrain>(makeProvider(), brainCfg, robot, player);
                 ctx.emplace<RobotPanelState>();
                 ctx.emplace<AgentLogState>();
                 auto& saveState = ctx.emplace<SaveState>(
@@ -751,16 +797,32 @@ auto main(int argc, char** argv) -> int {
                 [](roboslop::SystemGraph& fixed,
                    roboslop::RenderGraph& render,
                    roboslop::FrameArena& arena) {
+                    roboslop::registerPhysicsSystems(fixed);
                     fixed.add({
-                        .name = "freeFlyCameras",
-                        .reads = {"input"},
-                        .writes = {"transforms"},
+                        .name = "playerMovement",
+                        .reads = {"agent"},
+                        .writes = {"transforms", "physicsState", "input"},
                         .run = [](roboslop::SystemCtx& c) {
-                            // A fly may only start while no dev-UI window
-                            // wants the mouse; the engine handles the rest.
-                            const auto& st = c.world->registry().ctx().get<RobotPanelState>();
-                            roboslop::updateFreeFlyCameras(
-                                *c.world, *c.input, c.dt, /*allowCapture=*/!st.uiWantsMouse
+                            auto& ctx = c.world->registry().ctx();
+                            auto& physics = *ctx.get<roboslop::JoltWorld*>();
+                            const auto in = gorden::readPlayerInput(
+                                *c.input, ctx.get<gorden::PlayerControls>()
+                            );
+                            const auto entity = ctx.get<gorden::AgentBrain>().playerEntity();
+                            auto& transform = c.world->get<roboslop::Transform>(entity);
+                            auto& player = c.world->get<gorden::Player>(entity);
+                            c.world->forEach<gorden::OrbitCamera, roboslop::Transform>(
+                                [&](auto& orbit, auto& camera) {
+                                    gorden::turnCamera(orbit, in, static_cast<float>(c.dt));
+                                    gorden::movePlayer(
+                                        player,
+                                        transform,
+                                        physics,
+                                        gorden::playerVelocity(orbit, in.move),
+                                        static_cast<float>(c.dt)
+                                    );
+                                    gorden::followPlayer(orbit, transform, camera, physics);
+                                }
                             );
                         },
                     });
@@ -780,7 +842,6 @@ auto main(int argc, char** argv) -> int {
                             );
                         },
                     });
-                    roboslop::registerPhysicsSystems(fixed);
                     roboslop::registerAudioSystems(fixed);
                     render.add({
                         .name = "main",
@@ -816,10 +877,11 @@ auto main(int argc, char** argv) -> int {
                                     performSaveRequest(*c.world, *c.assets, save, request);
                                 spdlog::info("gorden: {}", save.status);
                             }
-                            auto& st = ctx.get<RobotPanelState>();
                             ui->beginFrame();
                             ui->drawWindows();
-                            st.uiWantsMouse = ui->wantCaptureMouse();
+                            auto& controls = ctx.get<gorden::PlayerControls>();
+                            controls.uiMouse = ui->wantCaptureMouse();
+                            controls.uiKeyboard = ui->wantCaptureKeyboard();
                             ui->endFrame(c.viewId);
 
                             // Persist window visibility when it changes

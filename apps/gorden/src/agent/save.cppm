@@ -3,6 +3,7 @@ module;
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <expected>
 #include <filesystem>
 #include <string>
@@ -11,6 +12,7 @@ module;
 
 export module gorden.save;
 
+import gorden.player;
 import gorden.agent.brain;
 import gorden.agent.memory;
 import gorden.agent.observation;
@@ -85,6 +87,34 @@ export [[nodiscard]] auto applySave(
     AgentBrain& brain,
     const roboslop::SaveGame& save
 ) -> roboslop::Result<void> {
+    // Validate the whole app payload before rebuilding bodies or changing
+    // transforms. A rejected load must not leave a live character at the
+    // old physics position with a new visual position/contact environment.
+    roboslop::Transform robotTransform;
+    roboslop::Transform playerTransform;
+    AgentMemory restoredMemory;
+    double simTime = 0.0;
+    try {
+        if (save.app.value("version", 0) != AppPayloadVersion) {
+            return std::unexpected(saveError("unsupported gorden payload version"));
+        }
+        robotTransform = roboslop::transformFromJson(save.app.at("robot"));
+        playerTransform = roboslop::transformFromJson(save.app.at("player"));
+        simTime = save.app.at("sim_time").get<double>();
+        if (!roboslop::transformValid(robotTransform) ||
+            !roboslop::transformValid(playerTransform) || !std::isfinite(simTime) ||
+            simTime < 0.0) {
+            return std::unexpected(saveError("invalid actor transform or simulation time"));
+        }
+        auto memory = memoryFromJson(save.app.at("memory"));
+        if (!memory) {
+            return std::unexpected(memory.error());
+        }
+        restoredMemory = std::move(*memory);
+    } catch (const nlohmann::json::exception& e) {
+        return std::unexpected(saveError(e.what()));
+    }
+
     for (const auto& saved : save.objects) {
         auto it = std::ranges::find(document.objects, saved.id, &roboslop::SceneObject::id);
         if (it == document.objects.end()) {
@@ -104,21 +134,12 @@ export [[nodiscard]] auto applySave(
         world.emplace<Named>(entity, Named{.name = identity.name});
     });
 
-    try {
-        if (save.app.value("version", 0) != AppPayloadVersion) {
-            return std::unexpected(saveError("unsupported gorden payload version"));
-        }
-        world.get<roboslop::Transform>(brain.robotEntity()) =
-            roboslop::transformFromJson(save.app.at("robot"));
-        world.get<roboslop::Transform>(brain.playerEntity()) =
-            roboslop::transformFromJson(save.app.at("player"));
-        auto memory = memoryFromJson(save.app.at("memory"));
-        if (!memory) {
-            return std::unexpected(memory.error());
-        }
-        brain.setMemory(std::move(*memory), save.app.at("sim_time").get<double>());
-    } catch (const nlohmann::json::exception& e) {
-        return std::unexpected(saveError(e.what()));
+    world.get<roboslop::Transform>(brain.robotEntity()) = robotTransform;
+    world.get<roboslop::Transform>(brain.playerEntity()) = playerTransform;
+    brain.setMemory(std::move(restoredMemory), simTime);
+
+    if (auto* player = world.tryGet<Player>(brain.playerEntity())) {
+        player->reset();
     }
 
     // A move from before the load must not resume towards a target the

@@ -241,7 +241,11 @@ preview of a running scene.
 
 ## M5 — First playable room
 
-**Status.** Accepted direction; not implemented. This is the next major slice.
+**Status.** Player movement slice implemented (2026-09-08): separate visible
+placeholder avatar with Jolt capsule collision, camera-relative WASD/gamepad
+movement, third-person orbit with obstruction handling, camera audio and
+player save/load reset. See [player controls](player-controls.md). The
+locked room, character models, interactions and puzzle remain to be built.
 
 **Goal.** Start in a small locked room with Gorden, explore and interact,
 solve a computer/terminal puzzle that unlocks/opens the exit, and leave.
@@ -286,8 +290,7 @@ and opens a route out, and saved progression survives loading. Gorden's
 observation can describe the relevant gameplay state, not just object names
 and coordinates.
 
-**Open implementation questions.** Character-controller implementation;
-interaction targeting/range and concrete state/API vocabulary; the puzzle
+**Open implementation questions.** Interaction targeting/range and concrete state/API vocabulary; the puzzle
 and its commands/files; controller terminal navigation/text entry; authored
 gameplay setup and save representation. See the accepted boundaries in
 [architecture](architecture.md#accepted-direction-first-playable-gorden-room).

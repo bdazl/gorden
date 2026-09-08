@@ -2,6 +2,8 @@ import gorden.agent.brain;
 import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.save;
+import roboslop.render.asset_cache;
+import roboslop.scene.document;
 import roboslop.ecs;
 import roboslop.llm;
 import roboslop.llm.backend;
@@ -13,6 +15,7 @@ import roboslop.scene.transform;
 
 #include <chrono>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -101,4 +104,35 @@ TEST_CASE("A captured save survives a trip through a file", "[agent][save]") {
     REQUIRE(memory->activeGoals().size() == 1);
     REQUIRE(memory->beliefs().size() == 1);
     std::filesystem::remove(file);
+}
+
+TEST_CASE("Rejected app payload leaves the world untouched", "[agent][save]") {
+    Fixture fixture;
+    auto brain = brainWithMemory(fixture);
+    auto save = gorden::captureSave(fixture.world, brain, "scenes/room.json");
+    save.app["robot"]["position"] = {8.0F, 0.0F, 0.0F};
+    SECTION("unsupported app version") {
+        save.app["version"] = 99;
+    }
+    SECTION("invalid memory") {
+        save.app["memory"]["version"] = 99;
+    }
+    SECTION("invalid character position") {
+        save.app["player"]["position"][0] = std::numeric_limits<float>::infinity();
+    }
+    SECTION("invalid simulation time") {
+        save.app["sim_time"] = -1.0;
+    }
+    // No render context: rejecting the payload must happen before scene
+    // replacement can allocate graphics resources or destroy entities.
+    roboslop::AssetCache assets{"assets"};
+    roboslop::SceneRuntime runtime;
+    const auto result =
+        gorden::applySave(fixture.world, assets, runtime, roboslop::SceneDocument{}, brain, save);
+    REQUIRE_FALSE(result);
+    REQUIRE(fixture.world.valid(fixture.crate));
+    REQUIRE(fixture.world.get<roboslop::Transform>(fixture.robot).position.x == 1.0F);
+    REQUIRE(fixture.world.get<roboslop::Transform>(fixture.player).position.x == 0.0F);
+    REQUIRE(brain.simTime() == 12.0);
+    REQUIRE(brain.memory().activeGoals().size() == 1);
 }

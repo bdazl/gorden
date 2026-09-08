@@ -7,6 +7,8 @@ import gorden.agent.memory;
 import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.save;
+import gorden.player;
+import roboslop.physics;
 import roboslop.app;
 import roboslop.core.error;
 import roboslop.ecs;
@@ -68,7 +70,12 @@ auto main(int argc, char** argv) -> int {
                  camera, roboslop::Camera{.projection = roboslop::Perspective{}}
              );
              world.emplace<roboslop::ActiveCamera>(camera);
-             world.emplace<gorden::Named>(camera, gorden::Named{.name = "Player"});
+             const auto player = world.create();
+             world.emplace<roboslop::Transform>(
+                 player, roboslop::Transform{.position = {0.0F, 0.4F, 4.0F}}
+             );
+             world.emplace<gorden::Player>(player);
+             world.emplace<gorden::Named>(player, gorden::Named{.name = "Player"});
              uniforms = {
                  .dir = assets.uniform("u_lightDir", bgfx::UniformType::Vec4),
                  .color = assets.uniform("u_lightColor", bgfx::UniformType::Vec4)
@@ -95,7 +102,7 @@ auto main(int argc, char** argv) -> int {
                  ),
                  gorden::BrainConfig{},
                  robot,
-                 camera
+                 player
              );
              gorden::AgentMemory memory;
              memory.remember("the crate hides a key", 1, 10.0);
@@ -104,9 +111,27 @@ auto main(int argc, char** argv) -> int {
              return {};
          },
          .onBuildGraphs =
-             [&](roboslop::SystemGraph&,
+             [&](roboslop::SystemGraph& fixed,
                  roboslop::RenderGraph& render,
                  roboslop::FrameArena& arena) {
+                 roboslop::registerPhysicsSystems(fixed);
+                 fixed.add({
+                     .name = "player",
+                     .reads = {},
+                     .writes = {"transforms", "physicsState"},
+                     .run = [](roboslop::SystemCtx& c) {
+                         auto& world = *c.world;
+                         const auto entity =
+                             world.registry().ctx().get<gorden::AgentBrain>().playerEntity();
+                         gorden::movePlayer(
+                             world.get<gorden::Player>(entity),
+                             world.get<roboslop::Transform>(entity),
+                             *world.registry().ctx().get<roboslop::JoltWorld*>(),
+                             glm::vec3{0.0F},
+                             static_cast<float>(c.dt)
+                         );
+                     },
+                 });
                  render.add(
                      {.name = "smoke",
                       .reads = {},
@@ -134,6 +159,9 @@ auto main(int argc, char** argv) -> int {
                               // Now change the world and forget everything.
                               world.get<roboslop::Transform>(brain.robotEntity()).position.x = 0.0F;
                               brain.setMemory(gorden::AgentMemory{}, 0.0);
+                              world.get<roboslop::Transform>(brain.playerEntity()).position.x =
+                                  5.0F;
+                              world.get<gorden::Player>(brain.playerEntity()).reset();
                           } else if (frame == 3) {
                               auto loaded = roboslop::loadSaveGame(savePath);
                               if (!loaded) {
@@ -150,6 +178,12 @@ auto main(int argc, char** argv) -> int {
                               if (world.get<roboslop::Transform>(brain.robotEntity()).position.x !=
                                   MovedX) {
                                   fail("the robot did not return to its saved position");
+                              }
+                              if (world.get<roboslop::Transform>(brain.playerEntity()).position.x !=
+                                  0.0F) {
+                                  fail(
+                                      "the player controller did not return to its saved position"
+                                  );
                               }
                               if (brain.memory().recall("crate key", 5).size() != 1 ||
                                   brain.memory().activeGoals().size() != 1 ||

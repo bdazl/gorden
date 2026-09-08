@@ -36,8 +36,8 @@ exists today, all driven by the Gorden demo:
 - Render graph over bgfx view-IDs, with a frontend/backend split: draw
   items are collected into a per-frame arena, sorted by a packed key,
   and submitted with no heap allocation in the render loop.
-- Windowing and polled per-frame input via GLFW, with a free-fly debug
-  camera.
+- Windowing and polled keyboard/mouse/gamepad input via GLFW, with a free-fly
+  debug camera.
 - Jolt physics as three fixed-update systems (spawn, step, sync back to
   transforms).
 - Asset loading: meshes via Assimp, textures via stb_image, a
@@ -70,10 +70,11 @@ exists today, all driven by the Gorden demo:
 
 Gorden loads its environment from a shared scene file and has agent memory
 and explicit save/load (M3's first slice); further reflection and replay
-remain unfinished. It is still a physics/rendering and AI sandbox. The next
-major priority is a first playable locked room: a visible third-person
-player, keyboard/mouse and controller input, and a computer/terminal puzzle
-that opens the exit. This gameplay is planned, and must work without an LLM.
+remain unfinished. The first M5 movement slice adds a visible placeholder
+player with capsule collision and a third-person camera: WASD/left stick
+move, RMB-drag/right stick look. See [player controls](docs/player-controls.md).
+The next major priority remains the complete locked room, including a
+computer/terminal puzzle that opens the exit without requiring an LLM.
 See the [roadmap](docs/roadmap.md).
 
 ## Prerequisites

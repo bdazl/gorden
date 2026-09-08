@@ -3,8 +3,8 @@
 A structural overview for orientation, not a specification. The opening
 sections describe **what exists today**; later sections distinguish
 **accepted direction** for playable Gorden and its agents from **likely
-future direction**. Planned gameplay is not implemented yet. Anything
-marked *open question* is deliberately unsettled.
+future direction**. The first player movement slice is implemented; the room
+puzzle is still planned. Anything marked *open question* is deliberately unsettled.
 
 ## What Roboslop is
 
@@ -85,10 +85,12 @@ playable without an LLM.
 **Current state.** Gorden loads the shared scene document through
 `SceneRuntime`: a room-like environment with named props, rigid-body
 physics and an imported `.glb` crate. In `apps/gorden/src/app/main.cpp`,
-the free-fly camera entity also carries the player's name and the audio
-listener, and is passed to `AgentBrain` as the player. There is no
-visible player avatar or character collision/controller. Gorden is a
-textured cube moving directly toward targets without a physics body or
+a separate visible player uses Jolt capsule collision and camera-relative
+keyboard/gamepad movement. `gorden.player` owns the controller and a simple
+third-person orbit camera with a sphere sweep for obstructions. The camera
+carries the audio listener; `AgentBrain` and saves use the player entity.
+See [player controls](player-controls.md) for controls and current limits.
+Gorden is a textured cube moving directly toward targets without a physics body or
 pathfinding. The terminal and robot chat are developer windows. There
 is no gameplay computer, door state, interaction mode or escape puzzle.
 
@@ -96,9 +98,10 @@ The robot perceives structured observations and acts through validated
 high-level tools; it never drives locomotion or physics frame by frame.
 The agent loop (M2) and memory/save slice (part of M3) exist today.
 
-The agent code is the `gorden_agent` module library
-(`apps/gorden/src/agent/`, tested by `gorden_tests`):
+The gameplay and agent code share the `gorden_agent` module library
+(`apps/gorden/src/gameplay/` and `src/agent/`, tested by `gorden_tests`):
 
+- `gorden.player` — player input, capsule movement, orbit and camera obstruction.
 - `gorden.agent.observation` — `Named` component, `buildObservation`
   (every named entity within a radius, sorted by distance; no
   line-of-sight yet) and `observationToJson`, the text the model reads.
@@ -110,7 +113,8 @@ The agent code is the `gorden_agent` module library
 - `gorden.save` — capture and restore: the scene objects' transforms go
   in the engine's save game, the robot, the player and the memory in its
   `app` payload. Loading rebuilds the scene through `SceneRuntime` so
-  the physics bodies follow.
+  the physics bodies follow; the player controller is reset at the restored
+  transform, discarding velocity and cached contacts.
 - `gorden.agent.tools` — the tool schemas, `parseToolCall` (JSON →
   `MoveTo` / `Inspect` / `Say` / `Remember` / `Recall` / `Believe` /
   `SetGoal` / `CloseGoal`), and `validate`, the boundary that turns a
@@ -236,6 +240,10 @@ pointer in `entt::registry::ctx()` rather than adding typed fields to
 ### Platform
 
 `roboslop.platform.window` and `roboslop.platform.input` wrap GLFW.
+Snapshots include focus and the first normalized gamepad (sticks and B),
+with radial stick deadzone filtering available as a pure helper.
+`Input::takeLookDelta` consumes accumulated RMB motion for Gorden once per
+fixed update, preserving frames with no tick without duplicating catch-up input.
 GLFW may only be called from the thread that owns the window, so `Input`
 holds no window handle: `capturePlatformInput(window)` reads the frame's
 `InputSnapshot` on that thread and `Input::beginFrame` is fed the result.
@@ -447,24 +455,23 @@ Separate these responsibilities (a conceptual split, not a frozen component API)
 | Third-person camera | `Transform`, `Camera`, `ActiveCamera`, follow/orbit controller targeting the player |
 | Audio listener | Follows the camera |
 
-The first camera may simply follow the player and orbit in yaw/pitch, with
-mouse or right-stick look. Movement is relative to the camera's horizontal
+The first camera follows the player and orbits in yaw/pitch, with
+RMB-drag or right-stick look. Movement is relative to the camera's horizontal
 orientation. Keep the free-fly camera for developer/editor use. A complete
 camera framework, spring arm or cinematic stack is not required.
 
 Use the existing [`.glb` pipeline](models.md) for distinct player and Gorden
-models, replacing the absent player representation and robot placeholder.
+models, replacing the temporary ellipsoid avatar and robot cube.
 Both may initially be rigid/static models. Animation and GPU skinning are
 not prerequisites; animated characters should create that engine requirement
-later. Character movement/collision is needed for this room, but the choice
-of controller implementation remains open.
+later. The movement slice uses Jolt `CharacterVirtual` for capsule collision,
+floor support and small steps; gameplay policy stays in `gorden.player`.
 
 ### Input
 
-Today's `InputSnapshot` contains keyboard/mouse state. Its existing split
-between platform-thread capture and snapshot consumption is the seam for
-adding gamepad state. Prefer GLFW's normalized gamepad support for the first
-implementation, with at least this Gorden mapping:
+`InputSnapshot` contains keyboard/mouse state, focus and GLFW-normalized
+gamepad sticks/B, captured on the platform thread. Movement, look and cancel
+are implemented; interact and terminal routing remain planned:
 
 | Action | Keyboard/mouse | Xbox-style controller |
 |---|---|---|
@@ -474,8 +481,9 @@ implementation, with at least this Gorden mapping:
 | Cancel | Escape | B |
 
 A general rebinding/action-map framework waits for a concrete need. Input
-routing must distinguish exploration, terminal use and developer UI; today
-Escape closes Gorden, so the planned Cancel behaviour requires a change.
+routing must distinguish exploration, terminal use and developer UI. Escape/B
+now cancel mouse capture and suppress gameplay input while held; Escape no
+longer closes Gorden. See [player controls](player-controls.md).
 Controller terminal navigation/text entry remains an implementation question,
 but the playable loop must be completable with either input scheme.
 

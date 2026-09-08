@@ -1,10 +1,14 @@
 module;
 
 #include <GLFW/glfw3.h>
+#include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
+#include <utility>
 
 export module roboslop.platform.input;
 
@@ -44,6 +48,23 @@ inline constexpr std::size_t KeyCount = 14;
 inline constexpr std::size_t MouseButtonCount = 3;
 } // namespace detail
 
+// GLFW's normalized Xbox-style layout; stick Y grows down like mouse Y.
+export struct GamepadSnapshot {
+    bool connected = false;
+    glm::vec2 leftStick{0.0F};
+    glm::vec2 rightStick{0.0F};
+    bool buttonB = false;
+};
+
+export [[nodiscard]] auto stickWithDeadzone(glm::vec2 stick) noexcept -> glm::vec2 {
+    constexpr float Deadzone = 0.2F;
+    const float length = glm::length(stick);
+    if (!std::isfinite(length) || length <= Deadzone) {
+        return glm::vec2{0.0F};
+    }
+    return stick / length * ((std::min(length, 1.0F) - Deadzone) / (1.0F - Deadzone));
+}
+
 // Pure value-type snapshot of one frame's input. No GLFW calls happen
 // here — beginFrame() in Input populates two of these per frame. Tests
 // build snapshots by hand and feed them to the free helpers below.
@@ -56,6 +77,8 @@ export struct InputSnapshot {
     std::array<bool, detail::MouseButtonCount> mouseButtons{};
     glm::dvec2 cursorPos{0.0, 0.0};
     bool cursorPosValid = false;
+    bool focused = true;
+    GamepadSnapshot gamepad;
 };
 
 // Mouse-position delta between two snapshots. Returns zero when either
@@ -150,10 +173,7 @@ namespace {
 
 } // namespace
 
-// Engine-facing per-frame input poller. Holds the raw GLFWwindow handle
-// — stable across Window moves because only the wrapper's pointer is
-// exchanged, never the underlying GLFW object — so Input survives any
-// App move without re-seating.
+// Engine-facing cached input. Platform polling stays on the window thread.
 //
 // beginFrame() runs once per render frame after pollWindowEvents().
 // Edge queries (keyPressed / keyReleased / mouseButtonPressed) compare
@@ -187,6 +207,14 @@ export class Input {
         } else {
             cachedDelta = computeMouseDelta(prev, curr);
         }
+        // Accumulate only an uninterrupted RMB hold. A render frame with
+        // no fixed tick must neither lose motion nor queue a UI drag.
+        if (curr.focused && prev.focused && mouseButton(MouseButton::Right) &&
+            prev.mouseButtons[1]) {
+            pendingLookDelta += cachedDelta;
+        } else {
+            pendingLookDelta = {0.0F, 0.0F};
+        }
     }
 
     [[nodiscard]] auto keyDown(Key k) const noexcept -> bool {
@@ -215,6 +243,20 @@ export class Input {
 
     [[nodiscard]] auto mouseDelta() const noexcept -> glm::vec2 {
         return cachedDelta;
+    }
+
+    [[nodiscard]] auto focused() const noexcept -> bool {
+        return curr.focused;
+    }
+
+    [[nodiscard]] auto gamepad() const noexcept -> const GamepadSnapshot& {
+        return curr.gamepad;
+    }
+
+    // Single consuming controller: preserves zero-tick frames and prevents
+    // applying a pixel displacement twice during catch-up ticks.
+    [[nodiscard]] auto takeLookDelta() noexcept -> glm::vec2 {
+        return std::exchange(pendingLookDelta, glm::vec2{0.0F});
     }
 
     // Records a request; the window is not touched here. Free-fly camera
@@ -259,6 +301,7 @@ export class Input {
     InputSnapshot prev;
     InputSnapshot curr;
     glm::vec2 cachedDelta{0.0F, 0.0F};
+    glm::vec2 pendingLookDelta{0.0F};
     bool resetDeltaNextFrame = false;
     bool cursorCapturedFlag = false;
     bool cursorCapturedApplied = false;
@@ -270,6 +313,26 @@ export class Input {
 export [[nodiscard]] auto capturePlatformInput(const Window& window) -> InputSnapshot {
     GLFWwindow* handle = window.glfwHandle();
     InputSnapshot out;
+    out.focused = glfwGetWindowAttrib(handle, GLFW_FOCUSED) == GLFW_TRUE;
+    if (!out.focused) {
+        return out;
+    }
+    // Use the first normalized gamepad. Re-polling also clears all state
+    // on unplug; no joystick callbacks or platform calls on workers.
+    for (int id = GLFW_JOYSTICK_1; id <= GLFW_JOYSTICK_LAST; ++id) {
+        GLFWgamepadstate pad{};
+        if (glfwGetGamepadState(id, &pad) == GLFW_TRUE) {
+            out.gamepad = {
+                .connected = true,
+                .leftStick =
+                    {pad.axes[GLFW_GAMEPAD_AXIS_LEFT_X], pad.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]},
+                .rightStick =
+                    {pad.axes[GLFW_GAMEPAD_AXIS_RIGHT_X], pad.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]},
+                .buttonB = pad.buttons[GLFW_GAMEPAD_BUTTON_B] == GLFW_PRESS,
+            };
+            break;
+        }
+    }
     for (std::size_t i = 0; i < detail::KeyCount; ++i) {
         out.keys[i] = glfwGetKey(handle, translateKey(static_cast<Key>(i))) == GLFW_PRESS;
     }

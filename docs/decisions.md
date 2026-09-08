@@ -11,6 +11,33 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-08 — First M5 slice: player capsule and third-person controls
+
+**Decision.** Implement movement before the room's interaction/puzzle loop.
+`gorden.player` owns a Jolt `CharacterVirtual` capsule, camera-relative
+movement, orbit camera and a sphere sweep for camera obstruction. Existing
+engine input snapshots gain normalized GLFW gamepad sticks/B and focus;
+Gorden consumes accumulated mouse displacement once across fixed ticks.
+No general camera framework or input rebinding system is introduced.
+
+**Why.** Jolt already supplies collision, support, stairs and wall sliding.
+Keeping gameplay policy in Gorden lets the real room drive later engine
+abstractions. A separate placeholder avatar makes movement observable
+without making character art a prerequisite for this slice. WASD/left stick
+move, RMB-drag/right stick look, Escape/B cancel capture, and developer UI
+keyboard focus suspends gameplay input. Escape no longer quits Gorden.
+
+**Consequences.** Physics updates before character movement; audio follows
+the camera and the brain observes the player entity. Save/load retains the
+player transform and clears controller contacts/velocity. Orbit is not
+persisted. Authored spawn points, character models, jumping and the actual
+locked-room interaction loop remain outside this slice.
+
+**Where.** `apps/gorden/src/gameplay/player.cppm`,
+`engine/src/platform/input.cppm`, [player controls](player-controls.md).
+
+---
+
 ## 2026-09-08 — Gorden's next major slice is a playable locked room
 
 **Decision.** Prioritize a first playable room (M5) ahead of remaining M3
