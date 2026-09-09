@@ -1,6 +1,7 @@
 # Roboslop top-level Makefile. All commands route through CMakePresets.
 #
 # Usage:
+#   make prepare PRESET=debug           bootstrap, then configure for PRESET
 #   make bootstrap PRESET=debug         conan install for PRESET
 #   make configure                      cmake --preset
 #   make build                          cmake --build --preset (everything)
@@ -35,10 +36,15 @@ APPS := $(sort $(notdir $(wildcard apps/*)))
 
 .DEFAULT_GOAL := help
 
-.PHONY: bootstrap configure build test run shaders apps \
+.PHONY: prepare bootstrap configure build test run shaders apps \
         format format-check tidy compdb \
         clean distclean all help \
         $(APPS) $(addprefix build-,$(APPS)) $(addprefix run-,$(APPS))
+
+# Recursive recipes keep configure after bootstrap, including with make -j.
+prepare:
+	@$(MAKE) --no-print-directory bootstrap
+	@$(MAKE) --no-print-directory configure
 
 bootstrap:
 	@./scripts/bootstrap.sh $(PRESET)
@@ -101,6 +107,7 @@ all: bootstrap configure build
 
 help:
 	@printf 'Roboslop Makefile targets (PRESET=%s):\n' '$(PRESET)'
+	@printf '  prepare         bootstrap, then configure for $(PRESET)\n'
 	@printf '  bootstrap       conan install for PRESET (writes toolchain file)\n'
 	@printf '  configure       cmake --preset $(PRESET)\n'
 	@printf '  build           cmake --build --preset $(PRESET) -j$(JOBS)\n'

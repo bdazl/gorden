@@ -29,6 +29,7 @@ invalidate other build directories.
 ## Workflow
 
 ```sh
+make prepare PRESET=debug       # bootstrap, then configure (first-time setup)
 make bootstrap PRESET=debug     # conan install, writes the toolchain file
 make configure                  # cmake --preset
 make build                      # cmake --build --preset (engine, every app, tests)
@@ -59,8 +60,12 @@ optimisation); pass `PRESET=release` for performance runs or
 edit-while-running hot reload means one launch usually lasts a whole
 session.
 
+`make prepare` runs bootstrap and configure in sequence, even with `make -j`,
+and honours `PRESET` (default `debug`). For a first release run, use
+`make prepare PRESET=release`, then `make gorden PRESET=release`.
+
 `make build` does **not** auto-bootstrap. If the Conan toolchain is missing,
-it fails with cmake's preset error pointing at `make bootstrap`. `make help`
+prepare the build directory with `make prepare`. `make help`
 lists every target.
 
 ## Conan profiles
