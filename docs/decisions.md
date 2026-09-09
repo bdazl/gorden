@@ -11,6 +11,24 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Block out the first playable room around the terminal
+
+**Decision.** Replace the old physics test arena in Gorden's default scene
+with a closed 12 by 12 metre room. Put the independent desk, monitor,
+keyboard, tower and chair together as the terminal station; place the power
+unit separately; reserve a right-wall aperture for a static primitive exit
+door.
+
+**Why.** The scene now makes the planned computer interaction and its
+power/door consequence legible before their gameplay code exists. The door
+is deliberately a primitive: its visual asset and the puzzle solution remain
+open decisions, while the blockout already defines a physical route to test.
+
+**Where.** `apps/gorden/assets/scenes/room.json`, with the current milestone
+state in [roadmap](roadmap.md#m5--first-playable-room).
+
+---
+
 ## 2026-09-09 — Categorise reusable Gorden props
 
 **Decision.** Store reusable environmental assets below

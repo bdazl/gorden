@@ -83,8 +83,9 @@ third-person player, described below; the game must remain fully
 playable without an LLM.
 
 **Current state.** Gorden loads the shared scene document through
-`SceneRuntime`: a room-like environment with named props, rigid-body
-physics and an imported `.glb` crate. In `apps/gorden/src/app/main.cpp`,
+`SceneRuntime`: an enclosed room blockout with a terminal desk, computer,
+chair, power unit and a primitive blocked exit. Static scene objects have
+rigid-body physics. In `apps/gorden/src/app/main.cpp`,
 a separate visible player uses the static human `player.glb`, Jolt capsule
 collision and camera-relative keyboard/gamepad movement. `gorden.player` owns the controller and a simple
 third-person orbit camera with a sphere sweep for obstructions. The camera

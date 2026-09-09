@@ -1,51 +1,19 @@
 {
   "version": 1,
   "materials": {
-    "stone": [
-      0.55,
-      0.62,
-      0.68
-    ],
-    "wood": [
-      0.65,
-      0.35,
-      0.15
-    ],
-    "metal": [
-      0.2,
-      0.65,
-      0.72
-    ]
+    "floor": [0.16, 0.20, 0.23],
+    "wall": [0.48, 0.54, 0.58],
+    "trim": [0.10, 0.38, 0.45],
+    "door": [0.20, 0.30, 0.34]
   },
   "camera": {
-    "position": [
-      6,
-      4,
-      12
-    ],
-    "rotation": [
-      1,
-      0,
-      0,
-      0
-    ],
-    "scale": [
-      1,
-      1,
-      1
-    ]
+    "position": [0, 3, 8],
+    "rotation": [1, 0, 0, 0],
+    "scale": [1, 1, 1]
   },
   "light": {
-    "direction": [
-      -0.3,
-      -1,
-      -0.2
-    ],
-    "color": [
-      1,
-      0.95,
-      0.85
-    ],
+    "direction": [-0.3, -1, -0.2],
+    "color": [1, 0.95, 0.85],
     "intensity": 1.2
   },
   "objects": [
@@ -53,49 +21,47 @@
       "id": "floor",
       "name": "Floor",
       "geometry": "cube",
-      "material": "stone",
+      "material": "floor",
       "transform": {
-        "position": [
-          0,
-          -1,
-          0
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          20,
-          1,
-          20
-        ]
+        "position": [0, -0.25, 0],
+        "rotation": [1, 0, 0, 0],
+        "scale": [12, 0.5, 12]
+      },
+      "body": "static"
+    },
+    {
+      "id": "ceiling",
+      "name": "Ceiling",
+      "geometry": "cube",
+      "material": "wall",
+      "transform": {
+        "position": [0, 4.1, 0],
+        "rotation": [1, 0, 0, 0],
+        "scale": [12, 0.2, 12]
       },
       "body": "static"
     },
     {
       "id": "wall-back",
-      "name": "Back wall",
+      "name": "Terminal wall",
       "geometry": "cube",
-      "material": "stone",
+      "material": "wall",
       "transform": {
-        "position": [
-          0,
-          2,
-          -9
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          20,
-          5,
-          0.5
-        ]
+        "position": [0, 2, -5.8],
+        "rotation": [1, 0, 0, 0],
+        "scale": [12, 4, 0.4]
+      },
+      "body": "static"
+    },
+    {
+      "id": "wall-front",
+      "name": "Front wall",
+      "geometry": "cube",
+      "material": "wall",
+      "transform": {
+        "position": [0, 2, 5.8],
+        "rotation": [1, 0, 0, 0],
+        "scale": [12, 4, 0.4]
       },
       "body": "static"
     },
@@ -103,200 +69,137 @@
       "id": "wall-left",
       "name": "Left wall",
       "geometry": "cube",
-      "material": "stone",
+      "material": "wall",
       "transform": {
-        "position": [
-          -9.75,
-          2,
-          0
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          0.5,
-          5,
-          18
-        ]
+        "position": [-5.8, 2, 0],
+        "rotation": [1, 0, 0, 0],
+        "scale": [0.4, 4, 12]
       },
       "body": "static"
     },
     {
-      "id": "crate-1",
-      "name": "crate-1",
+      "id": "wall-exit-back",
+      "name": "Exit wall back section",
       "geometry": "cube",
-      "material": "wood",
+      "material": "wall",
       "transform": {
-        "position": [
-          4,
-          0,
-          -2
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
+        "position": [5.8, 2, -3.6],
+        "rotation": [1, 0, 0, 0],
+        "scale": [0.4, 4, 4.8]
       },
       "body": "static"
     },
     {
-      "id": "crate-2",
-      "name": "crate-2",
+      "id": "wall-exit-front",
+      "name": "Exit wall front section",
       "geometry": "cube",
-      "material": "wood",
+      "material": "wall",
       "transform": {
-        "position": [
-          -4,
-          0,
-          -3
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
+        "position": [5.8, 2, 3.6],
+        "rotation": [1, 0, 0, 0],
+        "scale": [0.4, 4, 4.8]
       },
       "body": "static"
     },
     {
-      "id": "generator",
-      "name": "generator",
+      "id": "exit-door",
+      "name": "Locked exit door",
       "geometry": "cube",
-      "material": "metal",
+      "material": "door",
       "transform": {
-        "position": [
-          0,
-          0.25,
-          -6
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.5,
-          1.5,
-          1.5
-        ]
+        "position": [5.8, 1.6, 0],
+        "rotation": [1, 0, 0, 0],
+        "scale": [0.45, 3.2, 2.4]
       },
       "body": "static"
     },
     {
-      "id": "falling-box-1",
-      "name": "Falling box",
+      "id": "exit-door-trim",
+      "name": "Exit door trim",
       "geometry": "cube",
-      "material": "wood",
+      "material": "trim",
       "transform": {
-        "position": [
-          -1.5,
-          5,
-          0
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
+        "position": [5.55, 3.35, 0],
+        "rotation": [1, 0, 0, 0],
+        "scale": [0.12, 0.15, 2.7]
       },
-      "body": "dynamic"
+      "body": "none"
     },
     {
-      "id": "falling-box-2",
-      "name": "Falling box 2",
-      "geometry": "cube",
-      "material": "wood",
-      "transform": {
-        "position": [
-          1.5,
-          5.5,
-          0
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
-      },
-      "body": "dynamic"
-    },
-    {
-      "id": "ball",
-      "name": "Ball",
-      "geometry": "sphere",
-      "material": "metal",
-      "transform": {
-        "position": [
-          0,
-          7,
-          0
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
-      },
-      "body": "dynamic"
-    },
-    {
-      "id": "crate-model",
-      "name": "Crate",
+      "id": "terminal-desk",
+      "name": "Terminal desk",
       "geometry": "model",
-      "model": "models/crate.glb",
-      "material": "wood",
+      "model": "models/props/desk.glb",
+      "material": "wall",
       "transform": {
-        "position": [
-          -5,
-          -0.5,
-          4
-        ],
-        "rotation": [
-          1,
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ]
+        "position": [0, 0, -4.9],
+        "rotation": [1, 0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "body": "static"
+    },
+    {
+      "id": "terminal-monitor",
+      "name": "Terminal monitor",
+      "geometry": "model",
+      "model": "models/props/monitor.glb",
+      "material": "wall",
+      "transform": {
+        "position": [0, 0.8, -4.9],
+        "rotation": [1, 0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "body": "none"
+    },
+    {
+      "id": "terminal-keyboard",
+      "name": "Terminal keyboard",
+      "geometry": "model",
+      "model": "models/props/keyboard.glb",
+      "material": "wall",
+      "transform": {
+        "position": [0, 0.8, -4.35],
+        "rotation": [1, 0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "body": "none"
+    },
+    {
+      "id": "terminal-tower",
+      "name": "Terminal computer tower",
+      "geometry": "model",
+      "model": "models/props/computer_tower.glb",
+      "material": "wall",
+      "transform": {
+        "position": [1.2, 0, -4.9],
+        "rotation": [1, 0, 0, 0],
+        "scale": [1, 1, 1]
+      },
+      "body": "static"
+    },
+    {
+      "id": "terminal-chair",
+      "name": "Terminal chair",
+      "geometry": "model",
+      "model": "models/props/chair.glb",
+      "material": "wall",
+      "transform": {
+        "position": [0, 0, -3.5],
+        "rotation": [0, 0, 1, 0],
+        "scale": [1, 1, 1]
+      },
+      "body": "static"
+    },
+    {
+      "id": "power-unit",
+      "name": "Power unit",
+      "geometry": "model",
+      "model": "models/props/power_unit.glb",
+      "material": "wall",
+      "transform": {
+        "position": [-3.9, 0, -4.8],
+        "rotation": [1, 0, 0, 0],
+        "scale": [1, 1, 1]
       },
       "body": "static"
     }
