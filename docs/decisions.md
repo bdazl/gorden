@@ -11,6 +11,25 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Preserve authored origins across physics sync
+
+**Decision.** ECS transforms continue to represent an object's authored
+shape or model origin. `syncPhysicsToTransform` reads Jolt's shape-origin
+position rather than its centre-of-mass position when copying a body pose
+back to the ECS.
+
+**Why.** Imported models use an offset bounds collider because their origin is
+normally at the bottom while the collider centre is halfway up the model.
+Jolt stores those bodies at their centre of mass internally; copying that
+position directly moved every static floor prop upward by half its height on
+the first fixed update.
+
+**Where.** `engine/src/physics/jolt_world.cppm`, with the offset-origin
+regression in `engine/tests/physics_test.cpp` and the subsystem contract in
+[architecture](architecture.md#physics).
+
+---
+
 ## 2026-09-09 — Keep the staged default room in sync with its source
 
 **Decision.** Treat `apps/gorden/assets/scenes/room.json` as the authoritative

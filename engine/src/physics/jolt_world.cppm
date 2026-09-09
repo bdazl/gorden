@@ -334,9 +334,11 @@ export auto physicsStep(SystemCtx& c) -> void {
     detail::joltWorldFrom(*c.world).step(static_cast<float>(c.dt));
 }
 
-// syncPhysicsToTransform: every dynamic body's pose is read back into
-// the ECS Transform; the previous Transform is captured in
-// PrevTransform first so the render frontend can lerp by alpha.
+// syncPhysicsToTransform: every body's shape-origin pose is read back
+// into the ECS Transform; the previous Transform is captured in
+// PrevTransform first so the render frontend can lerp by alpha. Jolt
+// stores its body pose at the centre of mass, so GetPosition is needed
+// to recover the authored origin when the shape has a centre offset.
 export auto syncPhysicsToTransform(SystemCtx& c) -> void {
     auto& reg = c.world->registry();
     const auto& bi = detail::joltWorldFrom(*c.world).bodyInterface();
@@ -351,7 +353,7 @@ export auto syncPhysicsToTransform(SystemCtx& c) -> void {
         pt.rotation = t.rotation;
         pt.scale = t.scale;
 
-        const JPH::RVec3 pos = bi.GetCenterOfMassPosition(rb.id);
+        const JPH::RVec3 pos = bi.GetPosition(rb.id);
         const JPH::Quat rot = bi.GetRotation(rb.id);
 
         t.position = glm::vec3(pos.GetX(), pos.GetY(), pos.GetZ());

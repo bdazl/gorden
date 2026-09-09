@@ -324,8 +324,10 @@ recompiles a shader swaps it in explicitly via `replaceProgram`.
 `roboslop.physics` + `roboslop.physics.components`: a `JoltWorld` owned
 by `App` and three fixed-update systems (`physicsSpawn`, `physicsStep`,
 `syncPhysicsToTransform`) registered with one call. Bodies are described
-by `BodyDesc` (sphere/box, static/dynamic). Jolt runs a single-threaded
-job system so Taskflow is the only thread pool in the process.
+by `BodyDesc` (sphere/box, static/dynamic). An ECS `Transform` denotes the
+authored shape origin; physics sync converts Jolt's centre-of-mass pose back
+to that origin, including for offset model-bounds colliders. Jolt runs a
+single-threaded job system so Taskflow is the only thread pool in the process.
 
 ### Audio
 

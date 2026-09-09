@@ -210,3 +210,32 @@ TEST_CASE("syncPhysicsToTransform copies pose back to ECS", "[physics][system]")
     const auto& pt = world.get<roboslop::PrevTransform>(e);
     REQUIRE(pt.position.y > t.position.y);
 }
+
+TEST_CASE("syncPhysicsToTransform preserves an offset shape origin", "[physics][system]") {
+    auto joltWorld = roboslop::JoltWorld::make();
+    roboslop::World world;
+    roboslop::installJoltWorld(world, joltWorld);
+
+    const auto e = world.create();
+    world.emplace<roboslop::Transform>(e, roboslop::Transform{.position = {1.0F, 2.0F, 3.0F}});
+    world.emplace<roboslop::BodyDesc>(
+        e,
+        roboslop::BodyDesc{
+            .shape =
+                roboslop::BoxShape{
+                    .halfExtents = {0.5F, 0.75F, 1.0F},
+                    .center = {0.0F, 0.75F, 0.0F},
+                },
+            .motion = roboslop::BodyMotion::Static,
+        }
+    );
+
+    roboslop::SystemCtx ctx{.world = &world};
+    roboslop::physicsSpawn(ctx);
+    roboslop::syncPhysicsToTransform(ctx);
+
+    const auto& t = world.get<roboslop::Transform>(e);
+    REQUIRE(t.position.x == Catch::Approx(1.0F));
+    REQUIRE(t.position.y == Catch::Approx(2.0F));
+    REQUIRE(t.position.z == Catch::Approx(3.0F));
+}
