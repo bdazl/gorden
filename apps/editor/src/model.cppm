@@ -95,17 +95,25 @@ objectBounds(const roboslop::SceneObject& object, const ModelBounds& models)
     return std::nullopt;
 }
 
-// Model files the editor can add: `models/<name>.glb` relative to the
+// Model files the editor can add: `models/**/*.glb` relative to the
 // asset root, sorted. Empty when the directory does not exist.
 export [[nodiscard]] auto listModels(const std::filesystem::path& assetRoot)
     -> std::vector<std::string> {
     std::vector<std::string> out;
     std::error_code ec;
-    for (const auto& entry : std::filesystem::directory_iterator{assetRoot / "models", ec}) {
+    for (auto it = std::filesystem::recursive_directory_iterator{assetRoot / "models", ec};
+         it != std::filesystem::recursive_directory_iterator{};
+         it.increment(ec)) {
+        if (ec) {
+            ec.clear();
+            continue;
+        }
+        const auto& entry = *it;
         if (entry.is_regular_file(ec) && entry.path().extension() == ".glb") {
-            out.push_back(
-                (std::filesystem::path{"models"} / entry.path().filename()).generic_string()
-            );
+            out.push_back(entry.path().lexically_relative(assetRoot).generic_string());
+        }
+        if (ec) {
+            ec.clear();
         }
     }
     std::ranges::sort(out);

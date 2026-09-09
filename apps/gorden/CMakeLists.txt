@@ -31,11 +31,21 @@ if(NOT EXISTS ${CMAKE_BINARY_DIR}/assets/scenes/room.json)
 endif()
 
 # Models are authored in Blender, never in the build tree, so they are
-# always refreshed; configure_file also reconfigures when a .glb changes.
+# always refreshed. Keep their category directories in the build tree too.
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/models)
-configure_file(assets/models/crate.glb ${CMAKE_BINARY_DIR}/assets/models/crate.glb COPYONLY)
-configure_file(assets/models/player.glb ${CMAKE_BINARY_DIR}/assets/models/player.glb COPYONLY)
-configure_file(assets/models/gorden.glb ${CMAKE_BINARY_DIR}/assets/models/gorden.glb COPYONLY)
+file(GLOB_RECURSE gorden_model_sources CONFIGURE_DEPENDS
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}/assets/models
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/models/*.glb
+)
+foreach(model_source IN LISTS gorden_model_sources)
+    get_filename_component(model_directory ${model_source} DIRECTORY)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/models/${model_directory})
+    configure_file(
+        assets/models/${model_source}
+        ${CMAKE_BINARY_DIR}/assets/models/${model_source}
+        COPYONLY
+    )
+endforeach()
 
 target_link_libraries(gorden PRIVATE
     roboslop

@@ -7,17 +7,18 @@ page is the export checklist and the file contract; the reasoning is the
 
 ## Files
 
-- One asset per file under `apps/<app>/assets/models/<name>.glb`, with its
-  Blender source `<name>.blend` beside it. Both are committed; both are
-  binary in `.gitattributes`. Git LFS is not used until sizes make it
-  necessary.
+- One asset per `.glb` under `apps/<app>/assets/models/`, with its Blender
+  source `.blend` beside it. Use a category directory for reusable groups
+  (for example `models/props/desk.{blend,glb}`); file names are
+  `lowercase_snake_case`. Both files are committed and binary in
+  `.gitattributes`. Git LFS is not used until sizes make it necessary.
 - Engine fixtures live in `engine/tests/assets/`. `make_fixture.py`
   regenerates `crate.glb` and `crate.blend` headlessly:
   `blender -b --python make_fixture.py -- engine/tests/assets`.
-- `apps/gorden/CMakeLists.txt` stages each model into
-  `build/<preset>/assets/models/` with `configure_file(... COPYONLY)`. Unlike
-  the seeded scene file, models are always overwritten: they are authored in
-  Blender, never in the build tree. Add a line per new model.
+- `apps/gorden/CMakeLists.txt` recursively stages models into
+  `build/<preset>/assets/models/`, preserving their category directory.
+  Unlike the seeded scene file, models are always overwritten: they are
+  authored in Blender, never in the build tree.
 
 ## First player asset
 

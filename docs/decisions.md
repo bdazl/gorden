@@ -11,6 +11,26 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Categorise reusable Gorden props
+
+**Decision.** Store reusable environmental assets below
+`apps/gorden/assets/models/props/`, with `lowercase_snake_case` names and
+adjacent `.blend` / `.glb` sources. Each prop's origin is centred in its
+footprint at ground level. The terminal station composition is discarded in
+favour of six independent props: chair, computer tower, desk, keyboard,
+monitor and power unit.
+
+**Why.** These objects are reusable individually; a terminal-specific prefix
+and a duplicated composition would incorrectly imply a single use. CMake now
+stages the model tree recursively and the editor lists nested model paths, so
+the category is part of the runtime asset identity.
+
+**Where.** `apps/gorden/assets/models/props/`,
+`apps/gorden/CMakeLists.txt`, `apps/editor/src/model.cppm`, and
+[models](models.md).
+
+---
+
 ## 2026-09-09 — Attach Gorden art to the existing robot entity
 
 **Decision.** Replace the checkerboard cube with `models/gorden.glb` through

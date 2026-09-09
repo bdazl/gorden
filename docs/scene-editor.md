@@ -22,7 +22,7 @@ Save scenes outside `build/` to keep them across build-directory cleanup.
 
 1. Use **New** for an empty scene or enter a path in **File** and press **Open**.
 2. Add a cube, sphere or plane, or one of the models listed from
-   `assets/models/*.glb` (see [models](models.md)). Select an object in the list
+   `assets/models/**/*.glb` (see [models](models.md)). Select an object in the list
    or click its visible geometry; models are picked by their bounds. A yellow
    wire box around the bounds and colored axis handles identify the selection.
 3. Edit position, rotation (degrees) and scale in the inspector. For direct

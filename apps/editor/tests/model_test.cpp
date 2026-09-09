@@ -74,16 +74,24 @@ TEST_CASE("Picking hits models through their loaded bounds", "[editor]") {
     REQUIRE(editor::pickObject(scene, {0, -1, -5}, {0, 0, 1}, bounds) == "crate");
 }
 
-TEST_CASE("Model listing returns sorted .glb paths relative to the asset root", "[editor]") {
+TEST_CASE("Model listing recursively returns sorted paths relative to the asset root", "[editor]") {
     const auto root = std::filesystem::temp_directory_path() / "roboslop-editor-models-test";
     std::filesystem::remove_all(root);
     REQUIRE(editor::listModels(root).empty());
-    std::filesystem::create_directories(root / "models");
+    std::filesystem::create_directories(root / "models" / "props");
     for (const auto* name : {"zebra.glb", "crate.glb", "crate.blend", "notes.txt"}) {
         std::ofstream{root / "models" / name} << "x";
     }
+    for (const auto* name : {"chair.glb", "monitor.glb", "monitor.blend"}) {
+        std::ofstream{root / "models" / "props" / name} << "x";
+    }
     REQUIRE(
-        editor::listModels(root) == std::vector<std::string>{"models/crate.glb", "models/zebra.glb"}
+        editor::listModels(root) == std::vector<std::string>{
+                                        "models/crate.glb",
+                                        "models/props/chair.glb",
+                                        "models/props/monitor.glb",
+                                        "models/zebra.glb",
+                                    }
     );
     std::filesystem::remove_all(root);
 }
