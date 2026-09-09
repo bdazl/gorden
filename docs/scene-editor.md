@@ -25,6 +25,9 @@ Save scenes outside `build/` to keep them across build-directory cleanup.
    `assets/models/**/*.glb` (see [models](models.md)). Select an object in the list
    or click its visible geometry; models are picked by their bounds. A yellow
    wire box around the bounds and colored axis handles identify the selection.
+   Imported model positions place the model's authored origin, not its bounds
+   centre; follow [model origins and placement](models.md#model-origins-and-placement)
+   when grounding it or putting it on another prop.
 3. Edit position, rotation (degrees) and scale in the inspector. For direct
    manipulation, choose Move, Rotate or Scale and drag a colored endpoint.
    Move and Rotate use world axes; Scale uses local axes. Rotation changes by

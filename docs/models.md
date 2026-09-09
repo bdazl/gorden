@@ -20,6 +20,44 @@ page is the export checklist and the file contract; the reasoning is the
   Unlike the seeded scene file, models are always overwritten: they are
   authored in Blender, never in the build tree.
 
+## Model origins and placement
+
+A scene object's `transform.position` places the imported model's local
+origin. It does **not** place the centre or bottom of its bounds automatically.
+The exported `.glb`, as read by `loadModelFile` and `modelBounds`, is the source
+of truth: Blender Z becomes engine Y, and every node transform contributes to
+the final model-space bounds.
+
+For an unpitched model on a horizontal support, derive its vertical position
+from the exported bounds:
+
+```text
+object.position.y = supportSurfaceY - modelBounds.min.y * object.scale.y
+```
+
+Check the XZ footprint too. Matching heights does not help if a small prop's
+origin sits beyond the edge of the supporting prop. With rotations other than
+yaw, transform all eight bounds corners instead of applying the simple formula.
+
+Primitive scene transforms follow a different convention: the unit cube is
+centred on its origin and `scale` gives its full dimensions. A horizontal
+cube's top surface is therefore `position.y + scale.y / 2`. In Gorden's room
+the floor cube is 0.5 m thick at `y=-0.25`, so the walkable surface is exactly
+`y=0`. Do not confuse the floor object's origin with the ground surface.
+
+The current reusable props all have `modelBounds.min.y = 0` within export
+tolerance. Floor-standing props therefore use the support surface directly.
+The desk is 0.8 m tall, so the monitor and keyboard origins use `y=0.8` when
+they sit on an unscaled desk at ground level. Their horizontal origins must
+still lie inside the desk footprint.
+
+App-owned actors may deliberately use another entity anchor. The player
+Transform is the centre of its capsule and `gorden.player_visual` offsets the
+foot-origin model by -0.9 m. Gorden's current entity/save position retains its
+older cube anchor and `gorden.robot_visual` offsets the wheel contact by -0.5
+m. Do not apply the scene-prop formula to either actor without first changing
+that gameplay/save contract.
+
 ## First player asset
 
 `apps/gorden/assets/models/player.blend` contains the first stylised human

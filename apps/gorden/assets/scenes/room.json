@@ -158,7 +158,7 @@
       "model": "models/props/keyboard.glb",
       "material": "wall",
       "transform": {
-        "position": [0, 0.8, -4.35],
+        "position": [0, 0.8, -4.62],
         "rotation": [1, 0, 0, 0],
         "scale": [1, 1, 1]
       },

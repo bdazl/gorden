@@ -8,6 +8,7 @@ add_executable(gorden_tests
     robot_test.cpp
     brain_test.cpp
     save_test.cpp
+    scene_asset_test.cpp
     settings_test.cpp
     llm_config_test.cpp
 )
@@ -19,6 +20,10 @@ target_link_libraries(gorden_tests PRIVATE
     gorden_agent
     roboslop
     Catch2::Catch2WithMain
+)
+
+target_compile_definitions(gorden_tests PRIVATE
+    GORDEN_TEST_ASSETS="${CMAKE_CURRENT_SOURCE_DIR}/../assets"
 )
 
 roboslop_set_warnings(gorden_tests)

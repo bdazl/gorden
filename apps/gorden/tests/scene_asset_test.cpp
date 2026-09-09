@@ -1,0 +1,90 @@
+import roboslop.assets.mesh;
+import roboslop.scene.document;
+
+#include <catch2/catch_approx.hpp>
+#include <catch2/catch_test_macros.hpp>
+
+#include <algorithm>
+#include <filesystem>
+#include <string_view>
+
+namespace {
+
+auto assets() -> std::filesystem::path {
+    return std::filesystem::path{GORDEN_TEST_ASSETS};
+}
+
+auto findObject(const roboslop::SceneDocument& scene, std::string_view id)
+    -> const roboslop::SceneObject* {
+    const auto found = std::ranges::find(scene.objects, id, &roboslop::SceneObject::id);
+    return found == scene.objects.end() ? nullptr : &*found;
+}
+
+auto loadBounds(const roboslop::SceneObject& object) -> roboslop::Aabb {
+    const auto model = roboslop::loadModelFile(assets() / object.model);
+    REQUIRE(model);
+    return roboslop::modelBounds(*model);
+}
+
+auto worldMinY(const roboslop::SceneObject& object, const roboslop::Aabb& bounds) -> float {
+    return object.transform.position.y + (bounds.min.y * object.transform.scale.y);
+}
+
+auto worldMaxY(const roboslop::SceneObject& object, const roboslop::Aabb& bounds) -> float {
+    return object.transform.position.y + (bounds.max.y * object.transform.scale.y);
+}
+
+} // namespace
+
+TEST_CASE("The authored room grounds props on explicit support surfaces", "[gorden][scene]") {
+    const auto loaded = roboslop::loadScene(assets() / "scenes/room.json");
+    REQUIRE(loaded);
+    const auto& scene = *loaded;
+
+    const auto* floor = findObject(scene, "floor");
+    REQUIRE(floor != nullptr);
+    const float floorSurface = floor->transform.position.y + (floor->transform.scale.y * 0.5F);
+    REQUIRE(floorSurface == Catch::Approx(0.0F));
+
+    for (const std::string_view id :
+         {"terminal-desk", "terminal-tower", "terminal-chair", "power-unit"}) {
+        const auto* object = findObject(scene, id);
+        REQUIRE(object != nullptr);
+        const auto bounds = loadBounds(*object);
+        CAPTURE(id, bounds.min.y, object->transform.position.y);
+        REQUIRE(worldMinY(*object, bounds) == Catch::Approx(floorSurface).margin(0.001F));
+    }
+
+    const auto* desk = findObject(scene, "terminal-desk");
+    REQUIRE(desk != nullptr);
+    const auto deskBounds = loadBounds(*desk);
+    const float deskSurface = worldMaxY(*desk, deskBounds);
+    REQUIRE(deskSurface == Catch::Approx(0.8F).margin(0.001F));
+
+    for (const std::string_view id : {"terminal-monitor", "terminal-keyboard"}) {
+        const auto* object = findObject(scene, id);
+        REQUIRE(object != nullptr);
+        const auto bounds = loadBounds(*object);
+        CAPTURE(id, bounds.min.y, object->transform.position.y);
+        REQUIRE(worldMinY(*object, bounds) == Catch::Approx(deskSurface).margin(0.001F));
+    }
+
+    const auto* keyboard = findObject(scene, "terminal-keyboard");
+    REQUIRE(keyboard != nullptr);
+    REQUIRE(
+        keyboard->transform.position.x >=
+        desk->transform.position.x + (deskBounds.min.x * desk->transform.scale.x)
+    );
+    REQUIRE(
+        keyboard->transform.position.x <=
+        desk->transform.position.x + (deskBounds.max.x * desk->transform.scale.x)
+    );
+    REQUIRE(
+        keyboard->transform.position.z >=
+        desk->transform.position.z + (deskBounds.min.z * desk->transform.scale.z)
+    );
+    REQUIRE(
+        keyboard->transform.position.z <=
+        desk->transform.position.z + (deskBounds.max.z * desk->transform.scale.z)
+    );
+}

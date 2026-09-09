@@ -11,6 +11,24 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Define room ground by its support surface
+
+**Decision.** The first room's walkable floor surface is world `y=0`. Because
+the floor is a centred 0.5 m cube, its transform origin is `y=-0.25`.
+Floor-standing props use their exported bottom origin at `y=0`; surface props
+derive their Y position from the supporting model's exported bounds. Actor
+anchors and their existing visual offsets remain separate gameplay contracts.
+
+**Why.** A primitive origin, an imported model origin, the bottom of model
+bounds and an actor anchor are different things. Writing the support-surface
+calculation down prevents visually floating props and avoids changing actor or
+save semantics while authoring a room.
+
+**Where.** [Models](models.md#model-origins-and-placement), the repository
+instructions in `AGENTS.md`, and `apps/gorden/assets/scenes/room.json`.
+
+---
+
 ## 2026-09-09 — Block out the first playable room around the terminal
 
 **Decision.** Replace the old physics test arena in Gorden's default scene

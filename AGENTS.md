@@ -16,6 +16,8 @@ changes. Keep this file minimal: detailed rules and conventions belong in
 - [`docs/roadmap.md`](docs/roadmap.md) — milestones and open questions.
 - [`docs/build-system.md`](docs/build-system.md) — toolchain, presets, profiles,
   sanitisers, dependency policy, C++23 module notes.
+- [`docs/models.md`](docs/models.md) — Blender/glTF contract, model origins,
+  bounds and correct placement on floors or other props.
 - [`docs/save-format.md`](docs/save-format.md) — the save game format and
   where saves live.
 - [`docs/agent-memory.md`](docs/agent-memory.md) — the robot's episodic
@@ -39,6 +41,11 @@ changes. Keep this file minimal: detailed rules and conventions belong in
   docs describe (conventions, architecture, build system, decisions), update
   the relevant doc in the same commit — stale docs are worse than missing
   ones.
+- Before placing an imported model, follow
+  [`docs/models.md#model-origins-and-placement`](docs/models.md#model-origins-and-placement).
+  Derive its transform from the exported model bounds and the intended support
+  surface; do not assume the scene position is the bounds centre or that a
+  primitive's transform position is its top surface.
 
 ## Local environment: running app windows
 
