@@ -34,7 +34,10 @@ Version 1 is:
   their own state there and version it themselves; that is what keeps this
   format from growing a key per app. Gorden stores `{version, robot, player,
   sim_time, memory}` — see [agent memory](agent-memory.md). The player is a
-  character entity, separate from the camera. Loading resets character
+  character entity, separate from the camera. Gorden app payload version 2
+  uses the authored model scale; version 1 is migrated by resetting the
+  player scale to `(1, 1, 1)`, preserving position and rotation. The outer
+  engine save version remains 1. Loading resets character
   velocity and cached contacts; camera orbit is not saved. See
   [player controls](player-controls.md) for older saves. Gorden validates the
   app payload before replacing scene bodies or changing actor transforms.

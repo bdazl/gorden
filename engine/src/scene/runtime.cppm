@@ -99,13 +99,35 @@ export class SceneRuntime {
     }
 
     // Model-space bounds of a model file this runtime has loaded, for
-    // picking and other CPU-side queries. Empty until `replace` has
-    // instantiated a scene that references the path.
+    // picking and other CPU-side queries. Empty until `replace` or
+    // `instantiateModel` has loaded the path.
     [[nodiscard]] auto modelBounds(std::string_view path) const -> std::optional<Aabb> {
         if (const auto it = models.find(std::string{path}); it != models.end()) {
             return it->second.bounds;
         }
         return std::nullopt;
+    }
+
+    // A render-only instance for app-owned actors. This runtime owns the
+    // cached buffers/textures; clear/replace only destroys scene entities,
+    // so actor instances remain valid across save/load scene replacement.
+    [[nodiscard]] auto instantiateModel(AssetCache& assets, const std::string& path)
+        -> Result<ModelInstance> {
+        if (!assetPathValid(path)) {
+            return std::unexpected(sceneError("invalid model path: " + path));
+        }
+        if (!models.contains(path)) {
+            auto program = assets.program("vs_scene", "fs_scene");
+            if (!program) {
+                return std::unexpected(program.error());
+            }
+            auto loaded = loadModel(assets, path, *program, assets.sampler("s_albedo"));
+            if (!loaded) {
+                return std::unexpected(loaded.error());
+            }
+            models.emplace(path, std::move(*loaded));
+        }
+        return ModelInstance{models.at(path).parts};
     }
 
     [[nodiscard]] auto

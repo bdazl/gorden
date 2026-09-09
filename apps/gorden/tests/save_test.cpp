@@ -75,6 +75,7 @@ TEST_CASE("A capture carries the scene objects and the agent's memory", "[agent]
     auto brain = brainWithMemory(f);
     const auto save = gorden::captureSave(f.world, brain, "scenes/room.json");
 
+    REQUIRE(save.app.at("version") == 2);
     REQUIRE(save.scene == "scenes/room.json");
     REQUIRE(save.objects.size() == 1);
     REQUIRE(save.objects[0].id == "crate");

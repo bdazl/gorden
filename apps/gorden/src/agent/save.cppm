@@ -1,5 +1,6 @@
 module;
 
+#include <glm/vec3.hpp>
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -32,7 +33,7 @@ namespace gorden {
 // transforms of its objects (see docs/save-format.md); everything that
 // is Gorden's own — the robot, the player and the robot's memory —
 // goes in the save's opaque `app` object, versioned here.
-constexpr int AppPayloadVersion = 1;
+constexpr int AppPayloadVersion = 2;
 
 export [[nodiscard]] auto savePath(std::string_view slot) -> std::filesystem::path {
     return roboslop::stateDir() / "gorden" / "saves" / (std::string{slot} + ".json");
@@ -95,7 +96,8 @@ export [[nodiscard]] auto applySave(
     AgentMemory restoredMemory;
     double simTime = 0.0;
     try {
-        if (save.app.value("version", 0) != AppPayloadVersion) {
+        const int version = save.app.value("version", 0);
+        if (version != 1 && version != AppPayloadVersion) {
             return std::unexpected(saveError("unsupported gorden payload version"));
         }
         robotTransform = roboslop::transformFromJson(save.app.at("robot"));
@@ -105,6 +107,11 @@ export [[nodiscard]] auto applySave(
             !roboslop::transformValid(playerTransform) || !std::isfinite(simTime) ||
             simTime < 0.0) {
             return std::unexpected(saveError("invalid actor transform or simulation time"));
+        }
+        // Version 1 scaled a sphere into the placeholder avatar. The new
+        // model is authored in metres; preserve position/yaw, not that scale.
+        if (version == 1) {
+            playerTransform.scale = glm::vec3{1.0F};
         }
         auto memory = memoryFromJson(save.app.at("memory"));
         if (!memory) {

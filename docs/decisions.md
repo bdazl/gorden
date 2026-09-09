@@ -11,6 +11,30 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Attach player art through the existing model renderer
+
+**Decision.** Replace the ellipsoid with a `ModelInstance` on the existing
+player entity. `gorden.player_visual` adapts the model's foot origin and +Z
+forward to the controller's centred capsule and -Z forward. Rendering uses
+the existing scene shader and authored base colours; movement is unchanged.
+
+**Why.** The player is the second concrete consumer of the scene model
+uploader. `SceneRuntime::instantiateModel` exposes its cached resources for
+app-owned actors without giving them scene identity or rigid bodies. The
+cache already survives scene replacement, so the actor remains drawable
+across save/load. No new asset manager or animation system is needed.
+
+**Compatibility.** New Gorden saves use app payload version 2. Version 1
+loads discard the old ellipsoid scale but preserve position and rotation.
+The engine save envelope and memory format stay unchanged.
+
+**Validation.** The display-dependent save smoke test loads the player,
+exercises current and legacy save/load, checks cached buffers, moves and
+turns the player, and captures a rendered frame in its temporary output
+directory.
+
+---
+
 ## 2026-09-09 — First player art: a static low-poly technician
 
 **Decision.** Author a stylised human in blue work overalls with orange

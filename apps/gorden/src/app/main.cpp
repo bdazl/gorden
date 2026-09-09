@@ -4,6 +4,7 @@ import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.save;
 import gorden.player;
+import gorden.player_visual;
 import gorden.settings;
 import gorden.llm_config;
 import roboslop.app;
@@ -25,6 +26,7 @@ import roboslop.render.graph;
 import roboslop.render.lighting;
 import roboslop.render.material;
 import roboslop.render.mesh;
+import roboslop.render.model;
 import roboslop.scene.transform;
 import roboslop.scene.document;
 import roboslop.scene.runtime;
@@ -83,7 +85,6 @@ constexpr std::array<std::uint8_t, std::size_t{4} * 4 * 4> CheckerPixels = [] {
 // borrowing them and are released before App shuts down bgfx.
 struct AvatarAssets {
     roboslop::Mesh robot;
-    roboslop::Mesh player;
     bgfx::TextureHandle albedo{bgfx::kInvalidHandle};
 
     AvatarAssets() = default;
@@ -93,7 +94,7 @@ struct AvatarAssets {
     auto operator=(AvatarAssets&&) -> AvatarAssets& = delete;
 
     ~AvatarAssets() {
-        for (const auto& mesh : {robot, player}) {
+        for (const auto& mesh : {robot}) {
             if (bgfx::isValid(mesh.vb)) {
                 bgfx::destroy(mesh.vb);
             }
@@ -639,18 +640,17 @@ auto main(int argc, char** argv) -> int {
                 world.emplace<gorden::Robot>(robot);
                 world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 2.5F});
 
-                // Visible placeholder avatar; the capsule and the player identity
-                // are independent of the camera and of rendering geometry.
+                // The model borrows GPU resources from the scene runtime,
+                // which keeps its model cache alive across save/load.
                 const auto player = world.create();
                 world.emplace<roboslop::Transform>(
-                    player,
-                    roboslop::Transform{.position = {0.0F, 0.4F, 4.0F}, .scale = {0.7F, 1.8F, 0.7F}}
+                    player, roboslop::Transform{.position = {0.0F, 0.4F, 4.0F}}
                 );
-                auto& playerMesh = avatars.player;
-                playerMesh = roboslop::makeGeometryMesh(roboslop::sphereGeometry(24, 32, 0.5F));
-                playerMesh.program = texProg->value;
-                world.emplace<roboslop::Mesh>(player, playerMesh);
-                world.emplace<roboslop::Material>(player, material);
+                auto playerModel = gorden::loadPlayerModel(runtime, assets);
+                if (!playerModel) {
+                    return std::unexpected(playerModel.error());
+                }
+                world.emplace<roboslop::ModelInstance>(player, std::move(*playerModel));
                 world.emplace<gorden::Named>(
                     player, gorden::Named{.name = initial.settings.playerName}
                 );

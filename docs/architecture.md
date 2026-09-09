@@ -85,8 +85,8 @@ playable without an LLM.
 **Current state.** Gorden loads the shared scene document through
 `SceneRuntime`: a room-like environment with named props, rigid-body
 physics and an imported `.glb` crate. In `apps/gorden/src/app/main.cpp`,
-a separate visible player uses Jolt capsule collision and camera-relative
-keyboard/gamepad movement. `gorden.player` owns the controller and a simple
+a separate visible player uses the static human `player.glb`, Jolt capsule
+collision and camera-relative keyboard/gamepad movement. `gorden.player` owns the controller and a simple
 third-person orbit camera with a sphere sweep for obstructions. The camera
 carries the audio listener; `AgentBrain` and saves use the player entity.
 See [player controls](player-controls.md) for controls and current limits.

@@ -8,6 +8,8 @@ import gorden.agent.observation;
 import gorden.agent.robot;
 import gorden.save;
 import gorden.player;
+import gorden.player_visual;
+import roboslop.render.model;
 import roboslop.physics;
 import roboslop.app;
 import roboslop.core.error;
@@ -26,8 +28,12 @@ import roboslop.scene.transform;
 import roboslop.sched;
 
 #include <bgfx/bgfx.h>
+#include <glm/geometric.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
 
+#include <cmath>
+#include <expected>
 #include <filesystem>
 #include <memory>
 #include <print>
@@ -55,6 +61,8 @@ auto main(int argc, char** argv) -> int {
 
     int frame = 0;
     bool failed = false;
+    float movementStartX = 0.0F;
+    bgfx::VertexBufferHandle playerBuffer{bgfx::kInvalidHandle};
     std::string failure;
     const auto document = *scene;
     const auto probe = document.objects.front().id;
@@ -88,6 +96,12 @@ auto main(int argc, char** argv) -> int {
                  world.emplace<gorden::Named>(entity, gorden::Named{.name = identity.name});
              });
 
+             auto model = gorden::loadPlayerModel(runtime, assets);
+             if (!model) {
+                 return std::unexpected(model.error());
+             }
+             world.emplace<roboslop::ModelInstance>(player, std::move(*model));
+
              const auto robot = world.create();
              world.emplace<roboslop::Transform>(
                  robot, roboslop::Transform{.position = {2.0F, 0.0F, 4.0F}}
@@ -119,7 +133,7 @@ auto main(int argc, char** argv) -> int {
                      .name = "player",
                      .reads = {},
                      .writes = {"transforms", "physicsState"},
-                     .run = [](roboslop::SystemCtx& c) {
+                     .run = [&frame](roboslop::SystemCtx& c) {
                          auto& world = *c.world;
                          const auto entity =
                              world.registry().ctx().get<gorden::AgentBrain>().playerEntity();
@@ -127,7 +141,8 @@ auto main(int argc, char** argv) -> int {
                              world.get<gorden::Player>(entity),
                              world.get<roboslop::Transform>(entity),
                              *world.registry().ctx().get<roboslop::JoltWorld*>(),
-                             glm::vec3{0.0F},
+                             frame >= 60 && frame < 90 ? glm::vec3{2.0F, 0.0F, 0.0F}
+                                                       : glm::vec3{0.0F},
                              static_cast<float>(c.dt)
                          );
                      },
@@ -144,6 +159,18 @@ auto main(int argc, char** argv) -> int {
                               failed = true;
                               failure = std::move(why);
                           };
+
+                          auto& playerTransform =
+                              world.get<roboslop::Transform>(brain.playerEntity());
+                          const auto& playerModel =
+                              world.get<roboslop::ModelInstance>(brain.playerEntity());
+                          if (playerModel.parts.empty()) {
+                              fail("player model has no draw parts");
+                          } else if (frame == 0) {
+                              playerBuffer = playerModel.parts.front().mesh.vb;
+                          } else if (playerModel.parts.front().mesh.vb.idx != playerBuffer.idx) {
+                              fail("scene replacement invalidated the player model");
+                          }
 
                           if (frame == 1) {
                               // Move the robot away from where the save
@@ -199,14 +226,61 @@ auto main(int argc, char** argv) -> int {
                               if (!found) {
                                   fail("the rebuilt scene lost its perception names");
                               }
+                          } else if (frame == 5) {
+                              auto legacy = gorden::captureSave(world, brain, "scenes/room.json");
+                              legacy.app["version"] = 1;
+                              legacy.app["player"]["scale"] = {0.7F, 1.8F, 0.7F};
+                              if (auto applied = gorden::applySave(
+                                      world, *c.assets, runtime, document, brain, legacy
+                                  );
+                                  !applied) {
+                                  fail("legacy player save failed");
+                              }
+                          } else if (frame == 6) {
+                              if (glm::length(playerTransform.scale - glm::vec3{1.0F}) > 0.0001F) {
+                                  fail("legacy placeholder scale distorted the player model");
+                              }
+                              const auto bounds = runtime.modelBounds("models/player.glb");
+                              if (!bounds ||
+                                  std::abs(bounds->max.y - bounds->min.y - 1.8F) > 0.001F) {
+                                  fail("player asset is not 1.8 metres tall");
+                              }
+                              const auto current =
+                                  gorden::captureSave(world, brain, "scenes/room.json");
+                              if (current.app.at("version") != 2) {
+                                  fail("new saves must use app payload version 2");
+                              }
                           }
 
+                          if (frame == 59) {
+                              movementStartX = playerTransform.position.x;
+                          } else if (frame == 91) {
+                              const auto facing =
+                                  playerTransform.rotation * glm::vec3{0.0F, 0.0F, -1.0F};
+                              if (playerTransform.position.x < movementStartX + 0.5F ||
+                                  facing.x < 0.99F) {
+                                  fail("model owner did not move and turn to the right");
+                              }
+                          }
+                          world.forEach<roboslop::Camera, roboslop::Transform>([&](const auto&,
+                                                                                   auto& camera) {
+                              gorden::followPlayer(
+                                  {.yaw = 0.6F, .pitch = -0.2F, .distance = 3.0F},
+                                  playerTransform,
+                                  camera,
+                                  *world.registry().ctx().get<roboslop::JoltWorld*>()
+                              );
+                          });
                           roboslop::applyActiveCamera(world, c.viewId, c.viewportW, c.viewportH);
                           roboslop::uploadDirectionalLight(world, uniforms.dir, uniforms.color);
                           auto draws = roboslop::collectMeshDraws(world, arena, c.viewId);
                           roboslop::sortDraws(draws);
                           roboslop::submitDraws(draws);
-                          if (++frame > 5 || failed) {
+                          if (frame == 120) {
+                              const auto screenshot = savePath.parent_path() / "player";
+                              bgfx::requestScreenShot(BGFX_INVALID_HANDLE, screenshot.c_str());
+                          }
+                          if (++frame > 125 || failed) {
                               roboslop::requestAppClose(world);
                           }
                       }}

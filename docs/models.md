@@ -34,13 +34,16 @@ when re-exporting; exclude the studio. There is no rig or animation.
 
 The model is 1.8 m tall, 0.735 m wide and 0.3815 m deep. Its origin is on
 the floor between the feet; forward is Blender -Y, exported as glTF +Z.
-The player controller is centred on its 1.8 m capsule, so attaching this
-asset requires a local vertical offset of -0.9 m at unit scale. Gloves
-extend slightly beyond the capsule's 0.7 m width.
+The player controller is centred on its 1.8 m capsule. `gorden.player_visual`
+applies a local vertical offset of -0.9 m and a half turn around Y to face
+gameplay -Z at unit scale. Gloves extend slightly beyond the capsule's
+0.7 m width.
 
-CMake stages the asset into the build's model directory, making it available
-in the editor. The running player still uses the ellipsoid placeholder;
-replacing that visual is a separate integration step.
+CMake stages the asset into the build's model directory for the editor and
+the running player. The player borrows a `ModelInstance` from
+`SceneRuntime::instantiateModel`; the runtime caches its GPU resources
+across `clear`/`replace`, so scene reloads do not invalidate the actor. The
+instance must not outlive that runtime.
 
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 

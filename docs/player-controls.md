@@ -1,8 +1,9 @@
 # Gorden player movement
 
-The first part of M5 separates the player from the camera. The visible
-ellipsoid is a temporary avatar; Gorden remains the checkerboard cube.
-Character models, interactions and the terminal puzzle are later slices.
+The player is separate from the camera and uses the static low-poly human
+from `models/player.glb`; Gorden remains the checkerboard cube. The player
+turns toward movement and keeps that heading when idle. There is no walk
+animation yet. Interactions and the terminal puzzle remain later slices.
 
 ## Controls
 
@@ -36,6 +37,12 @@ on the player transform, with gravity, wall sliding, floor support,
 a 45-degree slope limit and steps up to 0.3 m. There is no jump or sprint
 in this slice. Visual scale does not scale the capsule.
 
+`gorden.player_visual` attaches a `ModelInstance` to the player at unit scale.
+Its local transform offsets the authored feet by -0.9 m and turns glTF +Z
+forward to gameplay -Z. The capsule, camera target and save position stay
+centred. `SceneRuntime` owns the borrowed model buffers and textures; its
+model cache survives scene replacement during load.
+
 Physics spawns and steps scene bodies before player movement, then the
 camera follows the resolved player position. Audio follows the camera;
 robot observations and saves refer to the player entity. A 0.2 m sphere
@@ -53,3 +60,7 @@ controller's velocity and cached contacts, recreating it at the restored
 position on the next fixed step. Camera orbit is session state and is not
 saved. Older saves used the camera as the player; those positions are now
 interpreted as character positions and settle under gravity.
+
+Gorden app payload version 2 saves the authored model at unit scale. Version 1
+saves remain loadable: their sphere-placeholder scale is replaced with unit
+scale while position and rotation are preserved.
