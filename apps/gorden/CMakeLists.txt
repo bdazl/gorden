@@ -25,10 +25,10 @@ add_executable(gorden
 )
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/scenes)
-# Seed once: reconfiguration must not overwrite a scene edited in the build tree.
-if(NOT EXISTS ${CMAKE_BINARY_DIR}/assets/scenes/room.json)
-    configure_file(assets/scenes/room.json ${CMAKE_BINARY_DIR}/assets/scenes/room.json COPYONLY)
-endif()
+# The checked-in scene is authoritative. configure_file records the source as
+# a CMake input, so a normal build reconfigures and refreshes the staged copy
+# after room edits.
+configure_file(assets/scenes/room.json ${CMAKE_BINARY_DIR}/assets/scenes/room.json COPYONLY)
 
 # Models are authored in Blender, never in the build tree, so they are
 # always refreshed. Keep their category directories in the build tree too.

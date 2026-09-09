@@ -11,6 +11,24 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Keep the staged default room in sync with its source
+
+**Decision.** Treat `apps/gorden/assets/scenes/room.json` as the authoritative
+default room and copy it unconditionally during CMake configuration. Both
+Gorden and the editor continue to load `assets/scenes/room.json` from the build
+tree by default; `make gorden` now refreshes that staged file automatically
+after the source changes.
+
+**Why.** The previous seed-once rule left an existing build directory on an
+obsolete test scene indefinitely, making committed room changes appear not to
+load. Build-tree scene edits are now explicitly temporary; authored edits must
+be saved to the source scene or another path outside `build/`.
+
+**Where.** `apps/gorden/CMakeLists.txt` and
+[scene editing](scene-editor.md#start).
+
+---
+
 ## 2026-09-09 — Define room ground by its support surface
 
 **Decision.** The first room's walkable floor surface is world `y=0`. Because

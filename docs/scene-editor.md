@@ -14,9 +14,11 @@ make gorden ARGS="--scene /absolute/path/to/scene.json"
 ```
 
 Both apps default to `assets/scenes/room.json` relative to the build directory.
-CMake seeds this file from `apps/gorden/assets/scenes/room.json` on first
-configuration, and never overwrites an existing working copy on reconfigure.
-Save scenes outside `build/` to keep them across build-directory cleanup.
+CMake stages it from the authoritative
+`apps/gorden/assets/scenes/room.json` whenever configuration runs. Editing the
+staged build copy is temporary: a later configure restores the checked-in
+source. To author the default room, open and save the source path explicitly;
+use another path outside `build/` for experiments you want to retain.
 
 ## Edit a room
 

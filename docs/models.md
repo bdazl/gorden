@@ -17,8 +17,8 @@ page is the export checklist and the file contract; the reasoning is the
   `blender -b --python make_fixture.py -- engine/tests/assets`.
 - `apps/gorden/CMakeLists.txt` recursively stages models into
   `build/<preset>/assets/models/`, preserving their category directory.
-  Unlike the seeded scene file, models are always overwritten: they are
-  authored in Blender, never in the build tree.
+  Models and the default scene are refreshed from their checked-in sources;
+  neither is authored in the build tree.
 
 ## Model origins and placement
 
