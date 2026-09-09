@@ -84,7 +84,9 @@ playable without an LLM.
 
 **Current state.** Gorden loads the shared scene document through
 `SceneRuntime`: an enclosed room blockout with a terminal desk, computer,
-chair, power unit and a primitive blocked exit. Static scene objects have
+chair, power unit, central ceiling light and a primitive blocked exit. The
+visible fixture represents the scene's single directional light; positional
+lights and emissive materials are not implemented. Static scene objects have
 rigid-body physics. In `apps/gorden/src/app/main.cpp`,
 a separate visible player uses the static human `player.glb`, Jolt capsule
 collision and camera-relative keyboard/gamepad movement. `gorden.player` owns the controller and a simple

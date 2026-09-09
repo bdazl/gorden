@@ -89,6 +89,24 @@ TEST_CASE("The authored room grounds props on explicit support surfaces", "[gord
         keyboard->transform.position.z <=
         desk->transform.position.z + (deskBounds.max.z * desk->transform.scale.z)
     );
+
+    const auto* ceiling = findObject(scene, "ceiling");
+    const auto* lightFixture = findObject(scene, "ceiling-light-fixture");
+    const auto* lightGlobe = findObject(scene, "ceiling-light-globe");
+    REQUIRE(ceiling != nullptr);
+    REQUIRE(lightFixture != nullptr);
+    REQUIRE(lightGlobe != nullptr);
+
+    const float ceilingUnderside =
+        ceiling->transform.position.y - (ceiling->transform.scale.y * 0.5F);
+    const float fixtureTop =
+        lightFixture->transform.position.y + (lightFixture->transform.scale.y * 0.5F);
+    const float fixtureBottom =
+        lightFixture->transform.position.y - (lightFixture->transform.scale.y * 0.5F);
+    const float globeTop =
+        lightGlobe->transform.position.y + (lightGlobe->transform.scale.y * 0.5F);
+    REQUIRE(fixtureTop == Catch::Approx(ceilingUnderside));
+    REQUIRE(globeTop == Catch::Approx(fixtureBottom));
 }
 
 TEST_CASE("The robot visual shares its actor's ground contact", "[gorden][model]") {

@@ -11,6 +11,23 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Represent the room light with a ceiling fixture
+
+**Decision.** Add a central ceiling fixture and warm globe to the default room
+using scene primitives. Keep the scene's existing warm directional light as
+the illumination source; the fixture is its visible in-room representation.
+
+**Why.** The room needs a legible light source now, while the renderer and
+scene format deliberately support only one directional Lambert light and no
+emissive materials. A primitive fixture completes the blockout without
+front-loading positional-light infrastructure.
+
+**Where.** `apps/gorden/assets/scenes/room.json`, with placement coverage in
+`apps/gorden/tests/scene_asset_test.cpp` and the current limitation in
+[architecture](architecture.md#the-applications).
+
+---
+
 ## 2026-09-09 — Use wheel contact as Gorden's actor anchor
 
 **Decision.** Gorden's actor Transform and saved position place the robot's
