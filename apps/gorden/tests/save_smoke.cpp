@@ -9,6 +9,7 @@ import gorden.agent.robot;
 import gorden.save;
 import gorden.player;
 import gorden.player_visual;
+import gorden.robot_visual;
 import roboslop.render.model;
 import roboslop.physics;
 import roboslop.app;
@@ -62,6 +63,7 @@ auto main(int argc, char** argv) -> int {
     int frame = 0;
     bool failed = false;
     float movementStartX = 0.0F;
+    bgfx::VertexBufferHandle robotBuffer{bgfx::kInvalidHandle};
     bgfx::VertexBufferHandle playerBuffer{bgfx::kInvalidHandle};
     std::string failure;
     const auto document = *scene;
@@ -106,6 +108,11 @@ auto main(int argc, char** argv) -> int {
              world.emplace<roboslop::Transform>(
                  robot, roboslop::Transform{.position = {2.0F, 0.0F, 4.0F}}
              );
+             auto robotModel = gorden::loadRobotModel(runtime, assets);
+             if (!robotModel) {
+                 return std::unexpected(robotModel.error());
+             }
+             world.emplace<roboslop::ModelInstance>(robot, std::move(*robotModel));
              world.emplace<gorden::Named>(robot, gorden::Named{.name = "Gorden"});
              world.emplace<gorden::Robot>(robot);
              world.emplace<gorden::RobotMotion>(robot, gorden::RobotMotion{.speed = 2.5F});
@@ -147,6 +154,12 @@ auto main(int argc, char** argv) -> int {
                          );
                      },
                  });
+                 fixed.add({
+                     .name = "robot",
+                     .reads = {},
+                     .writes = {"transforms"},
+                     .run = [](roboslop::SystemCtx& c) { gorden::robotLocomotion(c); },
+                 });
                  render.add(
                      {.name = "smoke",
                       .reads = {},
@@ -170,6 +183,32 @@ auto main(int argc, char** argv) -> int {
                               playerBuffer = playerModel.parts.front().mesh.vb;
                           } else if (playerModel.parts.front().mesh.vb.idx != playerBuffer.idx) {
                               fail("scene replacement invalidated the player model");
+                          }
+
+                          const auto& robotModel =
+                              world.get<roboslop::ModelInstance>(brain.robotEntity());
+                          if (robotModel.parts.empty()) {
+                              fail("robot model has no draw parts");
+                          } else if (frame == 0) {
+                              robotBuffer = robotModel.parts.front().mesh.vb;
+                          } else if (robotModel.parts.front().mesh.vb.idx != robotBuffer.idx) {
+                              fail("scene replacement invalidated the robot model");
+                          }
+                          if (frame == 7) {
+                              auto& robotTransform =
+                                  world.get<roboslop::Transform>(brain.robotEntity());
+                              robotTransform.position = {2.0F, 0.0F, 3.0F};
+                              world.get<gorden::RobotMotion>(brain.robotEntity()).target =
+                                  glm::vec3{2.0F, 0.0F, 5.0F};
+                          } else if (frame == 119) {
+                              const auto& robotTransform =
+                                  world.get<roboslop::Transform>(brain.robotEntity());
+                              const auto facing =
+                                  robotTransform.rotation * glm::vec3{0.0F, 0.0F, -1.0F};
+                              if (std::abs(robotTransform.position.z - 5.0F) > 0.01F ||
+                                  facing.z < 0.99F || robotTransform.position.y != 0.0F) {
+                                  fail("robot did not arrive facing forward at its saved height");
+                              }
                           }
 
                           if (frame == 1) {

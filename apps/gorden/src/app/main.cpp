@@ -5,6 +5,7 @@ import gorden.agent.robot;
 import gorden.save;
 import gorden.player;
 import gorden.player_visual;
+import gorden.robot_visual;
 import gorden.settings;
 import gorden.llm_config;
 import roboslop.app;
@@ -24,14 +25,11 @@ import roboslop.render.context;
 import roboslop.render.frontend;
 import roboslop.render.graph;
 import roboslop.render.lighting;
-import roboslop.render.material;
-import roboslop.render.mesh;
 import roboslop.render.model;
 import roboslop.scene.transform;
 import roboslop.scene.document;
 import roboslop.scene.runtime;
 import roboslop.scene.savegame;
-import roboslop.render.primitives;
 import roboslop.sched;
 import roboslop.shell;
 import roboslop.ui;
@@ -54,7 +52,6 @@ import roboslop.vfs;
 #include <map>
 #include <memory>
 #include <print>
-#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -62,51 +59,6 @@ import roboslop.vfs;
 #include <vector>
 
 namespace {
-
-// 4×4 RGBA checkerboard so the cube's UV mapping is obvious at a
-// glance. Stored row-major top-to-bottom (stbi's convention, mirrored
-// by aiProcess_FlipUVs for Assimp loads).
-constexpr std::array<std::uint8_t, std::size_t{4} * 4 * 4> CheckerPixels = [] {
-    std::array<std::uint8_t, 64> p{};
-    for (std::size_t y = 0; y < 4; ++y) {
-        for (std::size_t x = 0; x < 4; ++x) {
-            const bool dark = ((x + y) & 1U) != 0U;
-            const std::size_t i = ((y * 4U) + x) * 4U;
-            p[i + 0] = dark ? std::uint8_t{32} : std::uint8_t{220};
-            p[i + 1] = dark ? std::uint8_t{32} : std::uint8_t{220};
-            p[i + 2] = dark ? std::uint8_t{96} : std::uint8_t{80};
-            p[i + 3] = std::uint8_t{255};
-        }
-    }
-    return p;
-}();
-
-// App-owned avatar buffers and shared texture outlive the components
-// borrowing them and are released before App shuts down bgfx.
-struct AvatarAssets {
-    roboslop::Mesh robot;
-    bgfx::TextureHandle albedo{bgfx::kInvalidHandle};
-
-    AvatarAssets() = default;
-    AvatarAssets(const AvatarAssets&) = delete;
-    auto operator=(const AvatarAssets&) -> AvatarAssets& = delete;
-    AvatarAssets(AvatarAssets&&) = delete;
-    auto operator=(AvatarAssets&&) -> AvatarAssets& = delete;
-
-    ~AvatarAssets() {
-        for (const auto& mesh : {robot}) {
-            if (bgfx::isValid(mesh.vb)) {
-                bgfx::destroy(mesh.vb);
-            }
-            if (bgfx::isValid(mesh.ib)) {
-                bgfx::destroy(mesh.ib);
-            }
-        }
-        if (bgfx::isValid(albedo)) {
-            bgfx::destroy(albedo);
-        }
-    }
-};
 
 // Per-frame UI state for the Robot panel, parked in the world context.
 struct RobotPanelState {
@@ -596,44 +548,16 @@ auto main(int argc, char** argv) -> int {
                     world.emplace<gorden::Named>(entity, gorden::Named{.name = identity.name});
                 });
 
-                auto texProg = assets.program("vs_textured", "fs_textured");
-                if (!texProg) {
-                    return std::unexpected(texProg.error());
-                }
-                auto& avatars = world.registry().ctx().emplace<AvatarAssets>();
-                auto& texMesh = avatars.robot;
-                texMesh = roboslop::makeGeometryMesh(roboslop::cubeGeometry());
-                texMesh.program = texProg->value;
-
-                const bgfx::Memory* texelMem = bgfx::copy(
-                    CheckerPixels.data(), static_cast<std::uint32_t>(CheckerPixels.size())
-                );
-                const bgfx::TextureHandle albedo = bgfx::createTexture2D(
-                    /*width=*/4,
-                    /*height=*/4,
-                    /*hasMips=*/false,
-                    /*numLayers=*/1,
-                    bgfx::TextureFormat::RGBA8,
-                    BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MAG_POINT,
-                    texelMem
-                );
-                avatars.albedo = albedo;
-                const bgfx::UniformHandle sAlbedo = assets.sampler("s_albedo");
-                const roboslop::Material material{
-                    .program = *texProg,
-                    .albedo = albedo,
-                    .sAlbedo = sAlbedo,
-                };
-
-                // The robot: a textured cube with no physics body, moved
-                // kinematically by gorden.agent.robot when the brain
-                // accepts a moveTo.
+                // Gorden keeps its existing kinematic identity and save origin.
                 const auto robot = world.create();
                 world.emplace<roboslop::Transform>(
                     robot, roboslop::Transform{.position = {2.0F, 0.0F, 4.0F}}
                 );
-                world.emplace<roboslop::Mesh>(robot, texMesh);
-                world.emplace<roboslop::Material>(robot, material);
+                auto robotModel = gorden::loadRobotModel(runtime, assets);
+                if (!robotModel) {
+                    return std::unexpected(robotModel.error());
+                }
+                world.emplace<roboslop::ModelInstance>(robot, std::move(*robotModel));
                 world.emplace<gorden::Named>(
                     robot, gorden::Named{.name = initial.settings.robotName}
                 );
