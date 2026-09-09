@@ -1,7 +1,7 @@
 # Gorden player movement
 
 The player is separate from the camera and uses the static low-poly human
-from `models/player.glb`; Gorden remains the checkerboard cube. The player
+from `models/player.glb`; Gorden uses the two-wheel `models/gorden.glb`. The player
 turns toward movement and keeps that heading when idle. There is no walk
 animation yet. Interactions and the terminal puzzle remain later slices.
 

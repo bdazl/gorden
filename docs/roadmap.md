@@ -247,8 +247,8 @@ movement, third-person orbit with obstruction handling, camera audio and
 player save/load reset. See [player controls](player-controls.md). The
 static human `player.glb` is now attached to the moving player with its
 authored colours and scale (see [models](models.md)). The first two-wheel
-Gorden asset is authored and staged as `gorden.glb`; attaching it to the
-runtime robot, the locked room, interactions and puzzle remain to be built.
+Gorden model is also attached to the runtime robot and turns with its
+kinematic movement. The locked room, interactions and puzzle remain to be built.
 
 **Goal.** Start in a small locked room with Gorden, explore and interact,
 solve a computer/terminal puzzle that unlocks/opens the exit, and leave.

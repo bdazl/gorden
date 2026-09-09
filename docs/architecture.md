@@ -90,8 +90,8 @@ collision and camera-relative keyboard/gamepad movement. `gorden.player` owns th
 third-person orbit camera with a sphere sweep for obstructions. The camera
 carries the audio listener; `AgentBrain` and saves use the player entity.
 See [player controls](player-controls.md) for controls and current limits.
-Gorden is a textured cube moving directly toward targets without a physics body or
-pathfinding. The terminal and robot chat are developer windows. There
+Gorden uses the static two-wheel `gorden.glb`, moving directly toward targets
+without a physics body or pathfinding. The terminal and robot chat are developer windows. There
 is no gameplay computer, door state, interaction mode or escape puzzle.
 
 The robot perceives structured observations and acts through validated

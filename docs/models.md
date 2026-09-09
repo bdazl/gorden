@@ -63,8 +63,12 @@ rig, wheel rotation or arm animation.
 
 For re-export, select the `Gorden` root and all its children, enable
 **Selected Objects** and **Apply Modifiers**, and exclude the studio.
-CMake stages the asset for editor use. The runtime robot still uses the
-checkerboard cube; attaching the model is a separate integration step.
+CMake stages the asset for the editor and the runtime robot.
+`gorden.robot_visual` attaches it as a `ModelInstance`, borrowing the scene
+runtime's cached GPU resources. A local -0.5 m vertical offset retains the
+former unit cube's bottom and existing save/spawn positions; a half turn
+around Y aligns the face with gameplay -Z. The robot keeps its existing
+kinematic motion without collision or terrain following.
 
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 

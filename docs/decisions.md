@@ -11,6 +11,26 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Attach Gorden art to the existing robot entity
+
+**Decision.** Replace the checkerboard cube with `models/gorden.glb` through
+`gorden.robot_visual` and the scene runtime's cached `ModelInstance` path.
+Remove the app-owned checkerboard texture and cube buffers. Keep the robot's
+kinematic movement, identity and saved transform unchanged.
+
+**Compatibility.** Offset wheel contact to local y=-0.5, the old unit cube's
+bottom, and rotate the visual from glTF +Z to gameplay -Z. The existing
+spawn and saved positions therefore retain their ground clearance without
+another save-version change. Wheels and arms are static; robot physics,
+terrain following and animation remain later work.
+
+**Validation.** The save smoke test now loads both character models, checks
+that their buffers survive current and legacy scene reloads, and moves
+Gorden to a target while checking its heading and height. A rendered frame
+covers both characters.
+
+---
+
 ## 2026-09-09 — First Gorden art: a two-wheel service robot
 
 **Decision.** Author `gorden.blend` and `gorden.glb` as a roughly one-metre
