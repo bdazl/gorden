@@ -11,6 +11,22 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — First player art: a static low-poly technician
+
+**Decision.** Author a stylised human in blue work overalls with orange
+safety bands as `apps/gorden/assets/models/player.blend` and `player.glb`.
+Use solid base colours and a relaxed standing pose, without a rig, so the
+asset fits the existing model loader. Keep the editable parts and portrait
+studio separate and export only the character.
+
+**Why.** The first room needs a recognisable player distinct from Gorden.
+The user selected this visual direction; animation is not a prerequisite.
+The 1.8 m model uses a foot origin and Blender -Y forward (glTF +Z).
+CMake stages it for editor use; replacing the runtime placeholder remains
+a separate step. Export details are in [models](models.md).
+
+---
+
 ## 2026-09-08 — First M5 slice: player capsule and third-person controls
 
 **Decision.** Implement movement before the room's interaction/puzzle loop.

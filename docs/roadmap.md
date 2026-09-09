@@ -245,7 +245,10 @@ preview of a running scene.
 placeholder avatar with Jolt capsule collision, camera-relative WASD/gamepad
 movement, third-person orbit with obstruction handling, camera audio and
 player save/load reset. See [player controls](player-controls.md). The
-locked room, character models, interactions and puzzle remain to be built.
+first static human player asset is authored in Blender and staged as
+`player.glb` (see [models](models.md)); the running player still uses its
+placeholder. Character integration, the Gorden model, locked room,
+interactions and puzzle remain to be built.
 
 **Goal.** Start in a small locked room with Gorden, explore and interact,
 solve a computer/terminal puzzle that unlocks/opens the exit, and leave.

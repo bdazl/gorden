@@ -19,6 +19,29 @@ page is the export checklist and the file contract; the reasoning is the
   the seeded scene file, models are always overwritten: they are authored in
   Blender, never in the build tree. Add a line per new model.
 
+## First player asset
+
+`apps/gorden/assets/models/player.blend` contains the first stylised human
+player: blue work overalls, orange safety bands, gloves and reinforced boots.
+The active `Player Studio` scene keeps the editable parts in `Player Asset`
+under the `Player` root, with a separate studio collection for the portrait
+camera, lights and floor. The original Blender scene is preserved separately.
+
+`player.glb` exports only the asset collection's objects, with modifiers
+applied: 2,236 triangles across 57 mesh parts, using solid base colours.
+Select the `Player` root and all its children and enable **Selected Objects**
+when re-exporting; exclude the studio. There is no rig or animation.
+
+The model is 1.8 m tall, 0.735 m wide and 0.3815 m deep. Its origin is on
+the floor between the feet; forward is Blender -Y, exported as glTF +Z.
+The player controller is centred on its 1.8 m capsule, so attaching this
+asset requires a local vertical offset of -0.9 m at unit scale. Gloves
+extend slightly beyond the capsule's 0.7 m width.
+
+CMake stages the asset into the build's model directory, making it available
+in the editor. The running player still uses the ellipsoid placeholder;
+replacing that visual is a separate integration step.
+
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 
 - **Format:** glTF Binary (`.glb`). Textures are packed into the file and
