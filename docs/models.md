@@ -53,10 +53,10 @@ still lie inside the desk footprint.
 
 App-owned actors may deliberately use another entity anchor. The player
 Transform is the centre of its capsule and `gorden.player_visual` offsets the
-foot-origin model by -0.9 m. Gorden's current entity/save position retains its
-older cube anchor and `gorden.robot_visual` offsets the wheel contact by -0.5
-m. Do not apply the scene-prop formula to either actor without first changing
-that gameplay/save contract.
+foot-origin model by -0.9 m. Gorden's Transform and saved position are its
+wheel contact on the ground, matching the imported model's origin; its visual
+transform only changes facing. Do not apply the scene-prop formula to either
+actor without first considering that gameplay/save contract.
 
 ## First player asset
 
@@ -104,10 +104,10 @@ For re-export, select the `Gorden` root and all its children, enable
 **Selected Objects** and **Apply Modifiers**, and exclude the studio.
 CMake stages the asset for the editor and the runtime robot.
 `gorden.robot_visual` attaches it as a `ModelInstance`, borrowing the scene
-runtime's cached GPU resources. A local -0.5 m vertical offset retains the
-former unit cube's bottom and existing save/spawn positions; a half turn
-around Y aligns the face with gameplay -Z. The robot keeps its existing
-kinematic motion without collision or terrain following.
+runtime's cached GPU resources. Its wheel-contact origin matches the robot
+entity's ground-contact position, and a half turn around Y aligns the face
+with gameplay -Z. The robot keeps its existing kinematic motion without
+collision or terrain following.
 
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 

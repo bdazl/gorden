@@ -1,5 +1,7 @@
+import gorden.robot_visual;
 import roboslop.assets.mesh;
 import roboslop.scene.document;
+import roboslop.scene.transform;
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -86,5 +88,16 @@ TEST_CASE("The authored room grounds props on explicit support surfaces", "[gord
     REQUIRE(
         keyboard->transform.position.z <=
         desk->transform.position.z + (deskBounds.max.z * desk->transform.scale.z)
+    );
+}
+
+TEST_CASE("The robot visual shares its actor's ground contact", "[gorden][model]") {
+    const auto model = roboslop::loadModelFile(assets() / "models/gorden.glb");
+    REQUIRE(model);
+    const auto bounds = roboslop::modelBounds(*model);
+    const auto visual = gorden::robotVisualTransform();
+
+    REQUIRE(
+        visual.position.y + (bounds.min.y * visual.scale.y) == Catch::Approx(0.0F).margin(0.001F)
     );
 }

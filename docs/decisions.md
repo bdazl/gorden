@@ -11,6 +11,23 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — Use wheel contact as Gorden's actor anchor
+
+**Decision.** Gorden's actor Transform and saved position place the robot's
+wheel contact. The imported model shares that ground origin; its local visual
+transform changes facing only and has no vertical offset.
+
+**Why.** Movement targets and existing saves already describe ground-plane
+coordinates. Retaining the placeholder cube's `-0.5` visual offset after the
+room floor moved to `y=0` put the finished robot below the floor. Matching the
+actor and model origins grounds both new spawns and existing saves without a
+save-format migration.
+
+**Where.** `gorden.robot_visual` and [model origins and
+placement](models.md#model-origins-and-placement).
+
+---
+
 ## 2026-09-09 — Preserve authored origins across physics sync
 
 **Decision.** ECS transforms continue to represent an object's authored
