@@ -45,6 +45,27 @@ the running player. The player borrows a `ModelInstance` from
 across `clear`/`replace`, so scene reloads do not invalidate the actor. The
 instance must not outlive that runtime.
 
+## First Gorden asset
+
+`apps/gorden/assets/models/gorden.blend` contains a two-wheel service robot
+with small grippers, a light grey shell, petrol blue panels, orange details
+and cyan eyes on a dark face panel. The palette matches the player.
+The active `Gorden Studio` scene separates `Gorden Asset` (the `Gorden`
+root and its mesh children) from the portrait studio. Earlier scenes remain
+in the source file; only the robot belongs in its export.
+
+`gorden.glb` has 5,220 triangles across 61 mesh parts with eight solid
+base-colour materials. It is 1.0115 m tall, 0.806 m wide and 0.4915 m deep.
+The origin is on the ground between the wheels; forward is Blender -Y,
+exported as glTF +Z. Eyes use base colour, so they remain visible with the
+current material pipeline without requiring emissive support. There is no
+rig, wheel rotation or arm animation.
+
+For re-export, select the `Gorden` root and all its children, enable
+**Selected Objects** and **Apply Modifiers**, and exclude the studio.
+CMake stages the asset for editor use. The runtime robot still uses the
+checkerboard cube; attaching the model is a separate integration step.
+
 ## Export checklist (Blender 5.x, File > Export > glTF 2.0)
 
 - **Format:** glTF Binary (`.glb`). Textures are packed into the file and

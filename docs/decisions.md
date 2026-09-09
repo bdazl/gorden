@@ -11,6 +11,24 @@ links are left as written; they are history.
 
 ---
 
+## 2026-09-09 — First Gorden art: a two-wheel service robot
+
+**Decision.** Author `gorden.blend` and `gorden.glb` as a roughly one-metre
+service robot with two wheels, small grippers and a box-shaped head with
+two readable eyes. Use light grey, petrol blue and orange to relate it to
+the player while giving it a distinct silhouette.
+
+**Why.** The user selected this first design. Wheels suit the current
+static model pipeline without requiring a walk cycle. All visible details,
+including eyes, use solid base colours supported by the renderer. Keep
+editable parts and portrait staging separate and export only the robot.
+
+**Scope.** CMake stages the model for editor use. Replacing the runtime
+checkerboard cube remains a separate integration step. Dimensions and
+export instructions are in [models](models.md).
+
+---
+
 ## 2026-09-09 — Attach player art through the existing model renderer
 
 **Decision.** Replace the ellipsoid with a `ModelInstance` on the existing

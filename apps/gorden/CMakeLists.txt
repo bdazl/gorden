@@ -34,6 +34,7 @@ endif()
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/assets/models)
 configure_file(assets/models/crate.glb ${CMAKE_BINARY_DIR}/assets/models/crate.glb COPYONLY)
 configure_file(assets/models/player.glb ${CMAKE_BINARY_DIR}/assets/models/player.glb COPYONLY)
+configure_file(assets/models/gorden.glb ${CMAKE_BINARY_DIR}/assets/models/gorden.glb COPYONLY)
 
 target_link_libraries(gorden PRIVATE
     roboslop
